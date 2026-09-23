@@ -37,6 +37,7 @@ var _uw_mat: ShaderMaterial
 var _uw := 0.0 # 0..1 how submerged the camera is
 var _bubbles: CPUParticles3D
 var _was_in_liquid := false
+var _uw_amb := false
 var _lava_warned := false
 
 # combat
@@ -766,7 +767,7 @@ func _update_water(delta: float, up: Vector3, is_lava: bool, liquid_r: float, di
 	if in_liquid != _was_in_liquid:
 		_was_in_liquid = in_liquid
 		if absf(velocity.dot(up)) > 2.0:
-			Sound.play("land", -8.0, 0.2)
+			Sound.play("splash", -6.0, 0.1)
 	if _bubbles == null:
 		_bubbles = CPUParticles3D.new()
 		_bubbles.amount = 16
@@ -818,6 +819,13 @@ func _update_water(delta: float, up: Vector3, is_lava: bool, liquid_r: float, di
 	world.underwater = _uw
 	world.underwater_depth = maxf(cam_depth, 0.0)
 	Sound.set_underwater(_uw > 0.5)
+	# the hush of the sea once the camera is under
+	if _uw > 0.5 and not _uw_amb:
+		_uw_amb = true
+		Sound.loop_start("uw_amb", "ocean_loop", -10.0, "Ambience", 0.6)
+	elif _uw < 0.3 and _uw_amb:
+		_uw_amb = false
+		Sound.loop_stop("uw_amb", 0.6)
 	if swimming and swim_depth > 2.0:
 		Game.tip("first_swim", "You're swimming. Hold %s to rise and %s to dive. Keep going down and you can drop into the Deep Sea to explore, mine and scan what lives there." % [Game.key("jump"), Game.key("descend")])
 

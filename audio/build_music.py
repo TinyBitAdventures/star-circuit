@@ -330,6 +330,50 @@ def track_combat():
     return t.render(0.13)
 
 
+def track_ocean(dark=False):
+    """The Deep Sea. Light version: sunlit shallows, slow and airy with
+    swelling pads and far-off bells. Dark version: the midnight water, a
+    low drone, sonar-like pings and a whale-song lead."""
+    S.seed(88 if dark else 87)
+    root, scale = (43, "phrygian") if dark else (50, "dorian")
+    prog = [0, 6, 5, 3] if dark else [0, 3, 6, 4]
+    bars = 24
+    t = Track(52 if dark else 60, bars, verb_sec=8.0, verb_damp=2200 if dark else 3200, delay_beats=1.5)
+    for b in range(0, bars, 3):
+        cdeg = prog[(b // 3) % len(prog)]
+        dur = 3 * 4 * t.spb
+        t.add(inst_pad(chord_tones(root, scale, cdeg, 4, 0), dur + 2.5, 500 if dark else 1000, attack=2.5, release=5.5, voice="tri" if not dark else "saw", gain=0.15), b * 4, verb=0.8)
+        t.add(S.pan(inst_drone(deg_midi(root, scale, cdeg, -2), dur + 2.0, 0.26 if dark else 0.18), 0), b * 4, verb=0.4)
+        t.add(inst_texture(dur, 90, 500 if dark else 900, 0.03), b * 4, verb=0.8)
+    r = np.random.default_rng(89 if dark else 90)
+    # sonar-ish pings / glinting bells, far away
+    for bar in range(1, bars - 1):
+        if r.random() < (0.55 if dark else 0.7):
+            cdeg = prog[(bar // 3) % len(prog)]
+            m = deg_midi(root, scale, cdeg + int(r.choice([0, 2, 4, 7])), 1 if dark else 2)
+            t.add(inst_bell(m, 0.45 + 0.3 * r.random(), 4.0), bar * 4 + float(r.integers(0, 6)) * 0.5,
+                  pan=float(r.uniform(-0.8, 0.8)), verb=0.9, dly=0.5)
+    # a slow singing lead, bending between notes like whale song
+    for bar in range(4, bars - 2, 4):
+        cdeg = prog[(bar // 3) % len(prog)]
+        m0 = deg_midi(root, scale, cdeg + 4, 0 if dark else 1)
+        m1 = deg_midi(root, scale, cdeg + int(r.choice([2, 5, 7])), 0 if dark else 1)
+        n = S.n_samples(6 * t.spb)
+        f = S.midi_hz(m0) * (S.midi_hz(m1) / S.midi_hz(m0)) ** (np.linspace(0, 1, n) ** 2.5)
+        f = f * (1 + 0.01 * np.sin(2 * np.pi * 4.5 * np.arange(n) / S.SR))
+        voice = S.lowpass(S.sine(f, n) * 0.6 + S.tri(f * 2.0, n) * 0.15, 1400) * S.adsr(n, 0.9, 0.5, 0.7, 1.8) * 0.22
+        t.add(voice, bar * 4 + 1, pan=float(r.uniform(-0.3, 0.3)), verb=0.85, dly=0.35)
+    return t.render(0.09)
+
+
+def track_orbit():
+    """Holding orbit: a hovering, weightless pulse over wide pads."""
+    return ambient("orbit", 101, 66, 52, "lydian", [0, 4, 2, 5], 24, pad_cut=1300, pad_voice="tri",
+                   arp_inst=lambda m, v: inst_bell(m, v * 0.5, 1.1), arp_step=0.5,
+                   arp_pattern=(0, 4, 2, 6, 4, 2, 5, 3), mel_inst=lambda m, v: inst_bell(m, v * 0.8, 3.0), mel_oct=2,
+                   verb_sec=7.0, texture=(600, 3000, 0.015), bass=False, drone=True, mel_density=0.35, arp_gain=0.55)
+
+
 TRACKS = {
     "menu": lambda: ambient("menu", 11, 72, 50, "lydian", [0, 1, 5, 4], 24, pad_cut=1500, arp_step=0.5,
                             arp_pattern=(0, 2, 4, 3, 5, 4, 2, 1), mel_inst=inst_bell, verb_sec=5.0,
@@ -359,6 +403,9 @@ TRACKS = {
                                    arp_pattern=(0, 4, 2, 6, 3, 1), mel_inst=lambda m, v: inst_bell(m, v * 0.8, 3.0), mel_oct=1,
                                    verb_sec=7.0, texture=(120, 700, 0.03), drone=True, bass=False, mel_density=0.3, arp_gain=0.6),
     "space": track_space,
+    "ocean": track_ocean,
+    "abyss": lambda: track_ocean(True),
+    "orbit": track_orbit,
     "combat": track_combat,
 }
 

@@ -450,8 +450,124 @@ def klaxon():
     return small_room(seq(parts), 0.6, 0.25)
 
 
+# ---------------------------------------------------------------- ocean + orbit
+
+def sonar_ping():
+    # a clean ping with the long echo of open water
+    n = N(0.5)
+    ping = S.sine(1250, n) * S.exp_decay(n, 0.09) * 0.6 + S.sine(2500, n) * S.exp_decay(n, 0.03) * 0.15
+    parts = [(0, ping)]
+    for k, g in enumerate((0.35, 0.2, 0.11, 0.06)):
+        parts.append((0.32 * (k + 1), S.lowpass(ping, 2200 - k * 350) * g))
+    return small_room(fade_out(seq(parts), 0.1), 2.0, 0.45, damp=2500)
+
+
+def splash():
+    S.seed(41)
+    n = N(0.9)
+    body = S.sweep_lowpass(S.noise(n), 5000, 700, curve=0.5) * S.adsr(n, 0.005, 0.15, 0.35, 0.5) * 0.8
+    thump = S.sine(chirp(140, 60, n), n) * S.exp_decay(n, 0.08) * 0.5
+    return fade_out(seq([(0, body + thump), (0.05, bubble_pop() * 0.4)])[:n], 0.15)
+
+
+def bubble_pop():
+    S.seed(42)
+    r = S.rng()
+    parts = []
+    for k in range(7):
+        n = N(r.uniform(0.04, 0.09))
+        f0 = r.uniform(500, 1400)
+        parts.append((r.uniform(0, 0.45), S.sine(chirp(f0, f0 * 2.2, n, 0.6), n) * S.exp_decay(n, 0.02) * r.uniform(0.2, 0.45)))
+    return fade_out(seq(parts), 0.05)
+
+
+def ocean_loop():
+    # the hush of deep water: low swell, far-off rumble, the odd bubble
+    S.seed(43)
+    n = N(12.0)
+    t = t_axis(n)
+    swell = 0.55 + 0.3 * np.sin(2 * np.pi * 0.07 * t) + 0.15 * np.sin(2 * np.pi * 0.19 * t + 2.0)
+    x = S.lowpass(S.noise(n), 260) * swell * 1.6 + S.bandpass(S.noise(n), 300, 900) * swell ** 2 * 0.12
+    r = S.rng()
+    for k in range(10):
+        b = bubble_pop() * 0.15
+        i = int(r.uniform(0.5, 11.0) * SR)
+        x[i:i + len(b)] += b[:len(x) - i]
+    return S.crossfade_loop(x * 0.55, 2.0)
+
+
+def whale_call():
+    # the leviathan: a slow moan that bends up then sighs down
+    S.seed(44)
+    n = N(3.2)
+    f = 95 * (1 + 0.35 * np.sin(np.linspace(0, np.pi, n)) ** 1.5) * (1 + 0.012 * np.sin(2 * np.pi * 5.5 * t_axis(n)))
+    voice = S.saw(f, n) * 0.5 + S.sine(f * 2.01, n) * 0.3 + S.sine(f * 3.0, n) * 0.12
+    voice = S.bandpass(voice, 120, 900) * S.adsr(n, 0.7, 0.4, 0.8, 1.2) * 0.8
+    return small_room(fade_out(voice, 0.4), 2.5, 0.55, damp=1800)
+
+
+def jelly_sting():
+    n = N(0.35)
+    crackle = S.highpass(S.noise(n), 3000) * (S.rng().random(n) > 0.9) * S.exp_decay(n, 0.1)
+    zap = S.fm(chirp(1800, 900, n), n, 3.1, 4.0, S.exp_decay(n, 0.05)) * S.exp_decay(n, 0.08) * 0.35
+    return fade_out(crackle * 0.5 + zap)
+
+
+def probe_launch():
+    S.seed(45)
+    clunk = metal(160, 0.07) * 0.6
+    n = N(0.9)
+    hiss = S.sweep_lowpass(S.noise(n), 6000, 900, curve=0.5) * S.exp_decay(n, 0.25) * 0.5
+    whine = S.sine(chirp(300, 1100, n, 0.6), n) * S.adsr(n, 0.05, 0.3, 0.4, 0.3) * 0.2
+    return small_room(fade_out(seq([(0, clunk), (0.05, hiss), (0.08, whine)]), 0.15), 0.7, 0.25)
+
+
+def probe_reel_loop():
+    # a winch: geared whirr with a ratchet click
+    S.seed(46)
+    n = N(1.2)
+    t = t_axis(n)
+    whirr = S.lowpass(S.saw(140 + 6 * np.sin(2 * np.pi * 3 * t), n), 1400) * 0.35 + S.square(420, n, 0.2) * 0.04
+    clicks = np.zeros(n)
+    for k in range(12):
+        c = metal(2200, 0.012) * 0.25
+        i = int(k * n / 12)
+        clicks[i:i + len(c)] += c[:n - i]
+    return S.crossfade_loop(whirr + clicks, 0.1)
+
+
+def gem_lock():
+    # a bright crystalline chord with shimmer: you got something rare
+    parts = [(i * 0.06, bell(m, 0.9, 3.0, 1.2) * 0.3) for i, m in enumerate((84, 88, 91, 96))]
+    n = N(1.2)
+    shimmer = S.bandpass(S.noise(n), 6000, 12000) * S.exp_decay(n, 0.3) * 0.15 * (0.5 + 0.5 * np.sin(2 * np.pi * 14 * t_axis(n)))
+    parts.append((0.0, shimmer))
+    return small_room(fade_out(seq(parts), 0.2), 1.6, 0.4)
+
+
+def probe_lost():
+    S.seed(47)
+    n = N(1.0)
+    crunch = S.bandpass(S.noise(n), 300, 3000) * S.exp_decay(n, 0.06) * 0.8
+    fizz = S.highpass(S.noise(n), 4000) * S.exp_decay(n, 0.4) * 0.25
+    drop = S.sine(chirp(600, 90, n, 0.5), n) * S.exp_decay(n, 0.25) * 0.3
+    return fade_out(crunch + fizz + drop, 0.2)
+
+
+def orbit_hum_loop():
+    # the ship holding station: a steady, gently beating engine hum
+    n = N(6.0)
+    t = t_axis(n)
+    hum = S.sine(55, n) * 0.4 + S.sine(55.4, n) * 0.3 + S.sine(110.2, n) * 0.12
+    air = S.lowpass(S.noise(n), 900) * (0.5 + 0.2 * np.sin(2 * np.pi * 0.2 * t)) * 0.2
+    return S.crossfade_loop(hum + air, 1.0)
+
+
 SFX = {
     "klaxon": klaxon,
+    "sonar_ping": sonar_ping, "splash": splash, "bubble_pop": bubble_pop, "ocean_loop": ocean_loop,
+    "whale_call": whale_call, "jelly_sting": jelly_sting, "probe_launch": probe_launch,
+    "probe_reel_loop": probe_reel_loop, "gem_lock": gem_lock, "probe_lost": probe_lost, "orbit_hum_loop": orbit_hum_loop,
     "laser_loop": laser_loop,
     "coin": coin,
     "ui_click": ui_click, "ui_open": ui_open, "ui_close": ui_close, "ui_error": ui_error, "notify": notify,

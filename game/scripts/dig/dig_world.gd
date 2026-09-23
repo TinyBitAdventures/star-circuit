@@ -477,7 +477,7 @@ func dig_out(p: Vector2i) -> void:
 		else:
 			var got := Game.add_item(o.item, q)
 			_run_items[o.item] = int(_run_items.get(o.item, 0)) + got
-		Game.gain_skill_xp("mining", 8.0 + layer_of(p.y) * 6.0)
+		Game.gain_skill_xp("mining", 12.0 + layer_of(p.y) * 9.0)
 		Sound.play("rock_break", -6.0, 0.1)
 	elif c == GAS:
 		_gas_clouds.append({"pos": pos, "t": 5.0})

@@ -195,8 +195,9 @@ fullscreen, graphics quality and volume.
   - **Bounty Boards** post three daily contracts (deliver goods, cull drones, survey species, salvage sites). You can hold 3 at once
     and turn them in at any board.
   - **Credits** come from selling, contracts, drone kills, landmark caches and story quests.
-- **Audio**: 8 looping music tracks and 50 sound effects, all synthesised from code (`audio/`).
+- **Audio**: 11 looping music tracks and 61 sound effects, all synthesised from code (`audio/`).
   Music follows context: menu, a cozy town theme, one theme per world type (bright, arid, crystal, volcanic), deep-space,
+  a hovering orbit theme, and a Deep Sea score that darkens from sunlit dorian into a low phrygian abyss with whale-song leads,
   plus a combat layer that crossfades in while drones are chasing you. Effects cover footsteps, jetpack, gathering loops,
   blaster, hits, explosions, the Brute's warning and slam, abilities, UI, quests, level-ups, takeoff and warp.
   Wind and creature calls are positional. Volume sliders (Master, Music, Effects, Interface, Ambience) are in Settings.
@@ -235,6 +236,7 @@ Dev checks:
 Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your settings or real save slots.
 
     godot --headless --path game res://scenes/dev_smoke.tscn   # gameplay loop, prints [smoke] lines
+    godot --headless --path game res://scenes/dev_balance.tscn # quest-line audit: sources, skill gates, training costs
     godot --path game res://scenes/dev_shots.tscn              # renders a screenshot tour into shots/
     SHOTS=combat godot --path game res://scenes/dev_shots.tscn # combat-only screenshot tour
     godot --headless --path game res://scenes/dev_brute.tscn   # elite Brute chase/slam check

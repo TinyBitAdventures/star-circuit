@@ -75,7 +75,8 @@ func _ready() -> void:
 	_build_panel()
 	UiKit.add_vignette(self, 0.35)
 	Sound.stop_all_loops()
-	Sound.play_music("space", 2.0)
+	Sound.play_music("orbit", 2.0)
+	Sound.loop_start("orbit_hum", "orbit_hum_loop", -14.0, "Ambience")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_viewport().size_changed.connect(_layout)
 	hud.show_location_banner(info.name, ("Gas giant" if _giant else Db.BIOMES[info.biome].name + " world") + "  ·  holding orbit")
@@ -249,14 +250,14 @@ func _launch() -> void:
 	probe_cargo = {}
 	_heat_warned = false
 	_trail.clear()
-	Sound.play("turret_deploy", -4.0, 0.05)
-	Sound.loop_start("probe", "thruster_loop", -14.0)
+	Sound.play("probe_launch", -3.0, 0.05)
+	Sound.loop_start("probe", "thruster_loop", -18.0)
 
 
 func _start_reel() -> void:
 	probe_state = "reel"
 	Sound.loop_stop("probe", 0.2)
-	Sound.loop_start("reel", "siphon_loop", -12.0)
+	Sound.loop_start("reel", "probe_reel_loop", -8.0)
 
 
 func _probe_down(delta: float, steer: float, ui: bool) -> void:
@@ -313,6 +314,7 @@ func _probe_down(delta: float, steer: float, ui: bool) -> void:
 			_burst(probe_pos, Db.item_color(g.item), 18)
 			Sound.play("pickup", -2.0, 0.0)
 			Game.notify.emit("Gem locked in the probe's claws! Reeling in...", Db.item_color(g.item))
+			Sound.play("gem_lock", -2.0, 0.0, "UI")
 			_start_reel()
 			return
 	for o in ores:
@@ -367,7 +369,7 @@ func _lose_probe(why: String) -> void:
 	probe_state = ""
 	Sound.loop_stop("probe", 0.2)
 	Sound.loop_stop("reel", 0.2)
-	Sound.play("enemy_die", -4.0, 0.1)
+	Sound.play("probe_lost", -3.0, 0.1)
 	_burst(probe_pos, Color("ff7a3d"), 24)
 	_flash = 1.0
 	Game.remove_item("deep_probe", 1)
@@ -386,7 +388,7 @@ func _scan() -> void:
 	if not Game.spend_energy(5.0):
 		return
 	scanned = true
-	Sound.play("scan", -4.0, 0.0)
+	Sound.play("sonar_ping", -5.0, 0.0)
 	Game.gain_skill_xp("exploration", 25)
 	var n := _gems_left()
 	Game.notify.emit(("Deep scan: %d gem%s in the core" % [n, "" if n == 1 else "s"]) if n > 0 else "Deep scan: this core has been picked clean. Ore pockets remain.", Color("9bd1ff"))

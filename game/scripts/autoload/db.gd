@@ -149,16 +149,16 @@ const ITEMS := {
 # Gatherable node types
 # --------------------------------------------------------------------------
 const NODES := {
-	"ferrite": {"name": "Ferrite Vein", "model": "res://assets/models/res_ferrite.glb", "item": "ferrite", "skill": "mining", "req": 1, "yield": [2, 4], "xp": 12, "time": 2.2, "scale": 1.0},
-	"cobalt": {"name": "Cobalt Vein", "model": "res://assets/models/res_cobalt.glb", "item": "cobalt", "skill": "mining", "req": 15, "yield": [2, 3], "xp": 22, "time": 2.8, "scale": 1.0},
-	"lumen": {"name": "Lumen Cluster", "model": "res://assets/models/res_crystal.glb", "item": "lumen", "skill": "mining", "req": 30, "yield": [1, 3], "xp": 34, "time": 3.2, "scale": 1.0},
-	"void": {"name": "Void Spire", "model": "res://assets/models/res_void.glb", "item": "voidshard", "skill": "mining", "req": 55, "yield": [1, 2], "xp": 55, "time": 4.0, "scale": 1.0},
-	"fiber": {"name": "Fiberstalk", "model": "res://assets/models/res_fiber.glb", "item": "biofiber", "skill": "botany", "req": 1, "yield": [2, 4], "xp": 12, "time": 1.8, "scale": 1.0},
-	"spore": {"name": "Spore Pod", "model": "res://assets/models/res_spore.glb", "item": "sporegel", "skill": "botany", "req": 20, "yield": [1, 3], "xp": 26, "time": 2.4, "scale": 1.0},
-	"glowcap": {"name": "Glowcap Cluster", "model": "res://assets/models/res_spore.glb", "item": "glowcap", "skill": "botany", "req": 10, "yield": [2, 4], "xp": 24, "time": 2.0, "scale": 0.8},
-	"salvage": {"name": "Salvage Pile", "model": "res://assets/models/poi_cache.glb", "item": "scrap", "skill": "mining", "req": 1, "yield": [2, 5], "xp": 14, "time": 1.8, "scale": 1.0},
-	"exotic": {"name": "Exotic Bloom", "model": "res://assets/models/res_void.glb", "item": "exotic", "skill": "mining", "req": 60, "yield": [1, 2], "xp": 70, "time": 4.0, "scale": 1.1},
-	"energy": {"name": "Energy Well", "model": "res://assets/models/res_energy.glb", "item": "plasma", "skill": "siphoning", "req": 1, "yield": [1, 3], "xp": 16, "time": 2.6, "scale": 1.0, "restore": 25},
+	"ferrite": {"name": "Ferrite Vein", "model": "res://assets/models/res_ferrite.glb", "item": "ferrite", "skill": "mining", "req": 1, "yield": [2, 4], "xp": 18, "time": 2.2, "scale": 1.0},
+	"cobalt": {"name": "Cobalt Vein", "model": "res://assets/models/res_cobalt.glb", "item": "cobalt", "skill": "mining", "req": 15, "yield": [2, 3], "xp": 33, "time": 2.8, "scale": 1.0},
+	"lumen": {"name": "Lumen Cluster", "model": "res://assets/models/res_crystal.glb", "item": "lumen", "skill": "mining", "req": 30, "yield": [1, 3], "xp": 51, "time": 3.2, "scale": 1.0},
+	"void": {"name": "Void Spire", "model": "res://assets/models/res_void.glb", "item": "voidshard", "skill": "mining", "req": 55, "yield": [1, 2], "xp": 82, "time": 4.0, "scale": 1.0},
+	"fiber": {"name": "Fiberstalk", "model": "res://assets/models/res_fiber.glb", "item": "biofiber", "skill": "botany", "req": 1, "yield": [2, 4], "xp": 18, "time": 1.8, "scale": 1.0},
+	"spore": {"name": "Spore Pod", "model": "res://assets/models/res_spore.glb", "item": "sporegel", "skill": "botany", "req": 20, "yield": [1, 3], "xp": 39, "time": 2.4, "scale": 1.0},
+	"glowcap": {"name": "Glowcap Cluster", "model": "res://assets/models/res_spore.glb", "item": "glowcap", "skill": "botany", "req": 10, "yield": [2, 4], "xp": 36, "time": 2.0, "scale": 0.8},
+	"salvage": {"name": "Salvage Pile", "model": "res://assets/models/poi_cache.glb", "item": "scrap", "skill": "mining", "req": 1, "yield": [2, 5], "xp": 21, "time": 1.8, "scale": 1.0},
+	"exotic": {"name": "Exotic Bloom", "model": "res://assets/models/res_void.glb", "item": "exotic", "skill": "mining", "req": 60, "yield": [1, 2], "xp": 105, "time": 4.0, "scale": 1.1},
+	"energy": {"name": "Energy Well", "model": "res://assets/models/res_energy.glb", "item": "plasma", "skill": "siphoning", "req": 1, "yield": [1, 3], "xp": 24, "time": 2.6, "scale": 1.0, "restore": 25},
 }
 
 # --------------------------------------------------------------------------
@@ -172,7 +172,7 @@ const RECIPES := [
 	{"id": "warp_cell", "out": "warp_cell", "qty": 1, "in": {"circuit": 1, "plasma": 3}, "req": 20, "xp": 40, "cat": "Consumables"},
 	{"id": "void_core", "out": "void_core", "qty": 1, "in": {"voidshard": 2, "circuit": 1}, "req": 50, "xp": 70, "cat": "Components"},
 	{"id": "repair_kit", "out": "repair_kit", "qty": 1, "in": {"scrap": 2, "biofiber": 2}, "req": 1, "xp": 14, "cat": "Consumables"},
-	{"id": "blaster_mk2", "out": "blaster_mk2", "qty": 1, "in": {"scrap": 8, "alloy": 3}, "req": 6, "xp": 70, "cat": "Upgrades"},
+	{"id": "blaster_mk2", "out": "blaster_mk2", "qty": 1, "in": {"scrap": 8, "alloy": 3}, "req": 5, "xp": 70, "cat": "Upgrades"},
 	{"id": "hull_plating", "out": "hull_plating", "qty": 1, "in": {"scrap": 10, "alloy": 6}, "req": 12, "xp": 85, "cat": "Upgrades"},
 	{"id": "shield_module", "out": "shield_module", "qty": 1, "in": {"scrap": 12, "power_core": 1, "polymer": 2}, "req": 22, "xp": 110, "cat": "Upgrades"},
 	{"id": "blaster_mk3", "out": "blaster_mk3", "qty": 1, "in": {"power_core": 3, "void_core": 1, "circuit": 2}, "req": 52, "xp": 200, "cat": "Upgrades"},
@@ -187,7 +187,7 @@ const RECIPES := [
 	{"id": "scatter_mod", "out": "scatter_mod", "qty": 1, "in": {"scrap": 10, "alloy": 4, "circuit": 1}, "req": 14, "xp": 90, "cat": "Upgrades"},
 	{"id": "rail_mod", "out": "rail_mod", "qty": 1, "in": {"power_core": 1, "circuit": 2, "cobalt": 8}, "req": 24, "xp": 120, "cat": "Upgrades"},
 	{"id": "relay_coupler", "out": "relay_coupler", "qty": 1, "in": {"circuit": 2, "alloy": 4, "plasma": 6}, "req": 20, "xp": 90, "cat": "Components"},
-	{"id": "drill_mk2", "out": "drill_mk2", "qty": 1, "in": {"alloy": 4, "biofiber": 4}, "req": 3, "xp": 60, "cat": "Upgrades"},
+	{"id": "drill_mk2", "out": "drill_mk2", "qty": 1, "in": {"alloy": 4, "biofiber": 4}, "req": 2, "xp": 60, "cat": "Upgrades"},
 	{"id": "jet_booster", "out": "jet_booster", "qty": 1, "in": {"alloy": 3, "plasma": 4}, "req": 6, "xp": 60, "cat": "Upgrades"},
 	{"id": "capacitor", "out": "capacitor", "qty": 1, "in": {"alloy": 2, "polymer": 2, "plasma": 5}, "req": 15, "xp": 80, "cat": "Upgrades"},
 	{"id": "solar_skin", "out": "solar_skin", "qty": 1, "in": {"polymer": 4, "plasma": 6}, "req": 18, "xp": 90, "cat": "Upgrades"},
@@ -199,7 +199,7 @@ const RECIPES := [
 	{"id": "pressure_hull", "out": "pressure_hull", "qty": 1, "in": {"alloy": 6, "polymer": 2, "cobalt": 6}, "req": 18, "xp": 110, "cat": "Upgrades"},
 	{"id": "deep_probe", "out": "deep_probe", "qty": 2, "in": {"alloy": 2, "nickel": 3, "plasma": 3}, "req": 10, "xp": 50, "cat": "Consumables"},
 	{"id": "crown_of_worlds", "out": "crown_of_worlds", "qty": 1, "in": {"gem_verdant": 1, "gem_dune": 1, "gem_frost": 1, "gem_ember": 1, "gem_prism": 1, "gem_bloom": 1, "gem_giant": 1, "gem_abyss": 1, "gem_tempest": 1, "gem_forge": 1}, "req": 40, "xp": 1500, "cat": "Upgrades"},
-	{"id": "warp_drive_mk2", "out": "warp_drive_mk2", "qty": 1, "in": {"void_core": 2, "circuit": 3}, "req": 60, "xp": 220, "cat": "Upgrades"},
+	{"id": "warp_drive_mk2", "out": "warp_drive_mk2", "qty": 1, "in": {"void_core": 2, "circuit": 3}, "req": 50, "xp": 220, "cat": "Upgrades"},
 ]
 
 # --------------------------------------------------------------------------
@@ -328,7 +328,7 @@ const QUESTS := [
 		"obj": {"type": "chamber", "count": 1}, "xp": 320, "reward": {"repair_kit": 2}, "credits": 80},
 	{"id": "blue", "title": "Into the Blue", "giver": "Archivist",
 		"text": "Our oceans were never mapped. Swim out, dive until the light starts to fail, then keep going: the Deep Sea opens below. Log three species that live down there.",
-		"obj": {"type": "sea_scan", "count": 3}, "xp": 700, "reward": {"energy_cell": 3}, "credits": 200},
+		"obj": {"type": "sea_scan", "count": 3}, "xp": 420, "reward": {"energy_cell": 3}, "credits": 120},
 	{"id": "rogues", "title": "Rogue Signals", "giver": "Archivist",
 		"text": "Something has corrupted the old maintenance drones. They roam in packs now and attack anything with a spark. Aim with the mouse, fire with the left button, and use your frame's ability (F). Destroy five of them.",
 		"obj": {"type": "kill", "count": 5}, "xp": 300, "reward": {"repair_kit": 3}},
@@ -358,7 +358,7 @@ const QUESTS := [
 		"obj": {"type": "collect", "item": "nickel", "count": 12}, "xp": 380, "reward": {"energy_cell": 2}, "credits": 80},
 	{"id": "probe", "title": "Deeper Than Drills", "giver": "Archivist",
 		"text": "Drills scratch the crust. The treasures are deeper. Fly close to a world and press O to hold orbit, then drop a Deep Probe down into its core and bring back a gem. I've loaded two probes into your hold; the Fabricator can press more.",
-		"obj": {"type": "gem", "count": 1}, "xp": 900, "reward": {"deep_probe": 3}, "credits": 250},
+		"obj": {"type": "gem", "count": 1}, "xp": 600, "reward": {"deep_probe": 3}, "credits": 250},
 	{"id": "pirates", "title": "Pirate Problem", "giver": "Archivist",
 		"text": "Miners in the belt report corrupted pirate craft. Your frame can fight in the void too: left mouse fires pulse cannons at ships, right mouse launches homing missiles. Destroy five of them.",
 		"obj": {"type": "space_kill", "count": 5}, "xp": 480, "reward": {"repair_kit": 2}, "credits": 120},
@@ -542,12 +542,12 @@ const SPACE_ENEMIES := {
 # Asteroids (space mining). hp scales with size; req gates like ground veins.
 # --------------------------------------------------------------------------
 const ASTEROIDS := {
-	"rocky": {"name": "Rocky Asteroid", "req": 1, "items": {"nickel": [2, 4], "ferrite": [1, 3]}, "rock": Color("7d7065"), "vein": Color("c9b8a6"), "xp": 10, "hp": 1.0},
-	"metallic": {"name": "Metallic Asteroid", "req": 15, "items": {"nickel": [3, 5], "cobalt": [1, 3]}, "rock": Color("566172"), "vein": Color("3d8bff"), "xp": 20, "hp": 1.4},
-	"icy": {"name": "Icy Asteroid", "req": 10, "items": {"cryo_ice": [2, 5], "plasma": [0, 2]}, "rock": Color("cfe6f5"), "vein": Color("7fd8ff"), "xp": 16, "hp": 0.8},
-	"crystal": {"name": "Crystalline Asteroid", "req": 30, "items": {"lumen": [1, 3], "stardust": [0, 1]}, "rock": Color("3b3550"), "vein": Color("b98cff"), "xp": 32, "hp": 1.2},
-	"void": {"name": "Void-touched Asteroid", "req": 55, "items": {"voidshard": [1, 2], "exotic": [0, 1]}, "rock": Color("18141f"), "vein": Color("ff3d6e"), "xp": 50, "hp": 1.8},
-	"comet": {"name": "Comet", "req": 20, "items": {"cryo_ice": [6, 10], "exotic": [1, 3], "stardust": [1, 3]}, "rock": Color("dff4ff"), "vein": Color("9be8ff"), "xp": 80, "hp": 3.0},
+	"rocky": {"name": "Rocky Asteroid", "req": 1, "items": {"nickel": [2, 4], "ferrite": [1, 3]}, "rock": Color("7d7065"), "vein": Color("c9b8a6"), "xp": 15, "hp": 1.0},
+	"metallic": {"name": "Metallic Asteroid", "req": 15, "items": {"nickel": [3, 5], "cobalt": [1, 3]}, "rock": Color("566172"), "vein": Color("3d8bff"), "xp": 30, "hp": 1.4},
+	"icy": {"name": "Icy Asteroid", "req": 10, "items": {"cryo_ice": [2, 5], "plasma": [0, 2]}, "rock": Color("cfe6f5"), "vein": Color("7fd8ff"), "xp": 24, "hp": 0.8},
+	"crystal": {"name": "Crystalline Asteroid", "req": 30, "items": {"lumen": [1, 3], "stardust": [0, 1]}, "rock": Color("3b3550"), "vein": Color("b98cff"), "xp": 48, "hp": 1.2},
+	"void": {"name": "Void-touched Asteroid", "req": 55, "items": {"voidshard": [1, 2], "exotic": [0, 1]}, "rock": Color("18141f"), "vein": Color("ff3d6e"), "xp": 75, "hp": 1.8},
+	"comet": {"name": "Comet", "req": 20, "items": {"cryo_ice": [6, 10], "exotic": [1, 3], "stardust": [1, 3]}, "rock": Color("dff4ff"), "vein": Color("9be8ff"), "xp": 120, "hp": 3.0},
 }
 
 ## Belt composition weights by star class.
@@ -650,7 +650,7 @@ func recipe(id: String) -> Dictionary:
 
 ## XP needed to go from skill level `lvl` to `lvl + 1`.
 func skill_xp_needed(lvl: int) -> int:
-	return int(30 + lvl * 9 + pow(lvl, 1.35))
+	return int(20 + lvl * 5 + pow(lvl, 1.3))
 
 
 ## XP needed to go from character level `lvl` to `lvl + 1`.

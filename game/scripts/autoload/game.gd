@@ -49,6 +49,7 @@ var lit_relays: Array = [0]
 var heart_defeated := false
 var boarded: Array = [] # derelict keys already looted
 var milestones: Array = [] # unlocked milestone ids
+var crafted_once: Array = [] # recipe ids fabricated at least once (discovery bonus)
 var gems_taken := {} # orbit target key -> [gem indices already extracted]
 var seas := {} # ocean key -> {"dug": base64, "opened": [clam ids], "wreck": bool}
 var sea := {} # the ocean we're diving (not saved: dives always resume on the surface)
@@ -185,6 +186,7 @@ func _reset_state() -> void:
 	cave = {}
 	relics_found = 0
 	milestones = []
+	crafted_once = []
 	gems_taken = {}
 	orbit = {}
 	seas = {}
@@ -578,7 +580,13 @@ func craft(recipe_id: String) -> bool:
 		notify.emit("Inspired fabrication! Double output.", Color("c3a6ff"))
 	add_item(r.out, qty, false, true)
 	Sound.play("craft", -3.0, 0.03, "UI")
-	gain_skill_xp("engineering", r.xp * Db.difficulty_xp_mult(r.req, skill_level("engineering")))
+	var xp_amt: float = r.xp * Db.difficulty_xp_mult(r.req, skill_level("engineering"))
+	# the first time you fabricate anything teaches you twice as much
+	if not crafted_once.has(recipe_id):
+		crafted_once.append(recipe_id)
+		xp_amt = r.xp * 2.0
+		notify.emit("First fabrication: %s  ·  double Engineering XP" % Db.item_name(r.out), Color("8f9bff"))
+	gain_skill_xp("engineering", xp_amt)
 	_quest_event("craft", r.out, qty)
 	return true
 
@@ -869,7 +877,7 @@ func save_game() -> void:
 		"credits": credits, "skill_tiers": skill_tiers, "bounties": bounties, "visited_towns": visited_towns,
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
-		"milestones": milestones, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
+		"milestones": milestones, "crafted_once": crafted_once, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
 		"star_index": star_index, "planet_index": planet_index, "location": location,
@@ -928,6 +936,7 @@ func load_game(n := -1) -> bool:
 	scanned = d.get("scanned", [])
 	milestones = d.get("milestones", [])
 	gems_taken = d.get("gems_taken", {})
+	crafted_once = d.get("crafted_once", [])
 	seas = d.get("seas", {})
 	max_sea_depth = int(d.get("max_sea_depth", 0))
 	species_names = d.get("species_names", {})

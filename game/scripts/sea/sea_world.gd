@@ -61,6 +61,8 @@ var _dug_since_save := 0
 var _bite_cd := 0.0
 var _rng := RandomNumberGenerator.new()
 var _fx: Array = []
+var _whale_t := 6.0
+var _process_delta := 0.0
 
 
 func _ready() -> void:
@@ -98,8 +100,9 @@ func _ready() -> void:
 	UiKit.add_vignette(self, 0.45)
 	Game.player_died.connect(_on_died)
 	Sound.stop_all_loops()
-	Sound.play_music("underground", 2.0)
-	Sound.loop_start("sea_amb", "wind_loop", -22.0, "Ambience")
+	Sound.play_music("ocean", 2.0)
+	Sound.loop_start("sea_amb", "ocean_loop", -8.0, "Ambience")
+	Sound.play("splash", -4.0, 0.05)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	hud.show_location_banner("The Deep Sea", "Beneath the waves of %s" % planet.name)
 	get_tree().create_timer(3.0).timeout.connect(func():
@@ -364,7 +367,7 @@ func _update_fauna(delta: float) -> void:
 						_bite_cd = 1.0
 						diver.hurt(8.0, f.pos)
 						Game.notify.emit("Stung by a jelly!", Color("ff8fd8"))
-						Sound.play("shield_hit", -4.0, 0.2)
+						Sound.play("jelly_sting", -3.0, 0.15)
 			"angler":
 				var d := dp - (f.pos as Vector2)
 				if d.length() < 260.0 and not diver.dead:
@@ -399,6 +402,7 @@ func _update_fauna(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	_process_delta = delta
 	_bite_cd = maxf(0.0, _bite_cd - delta)
 	_scan_cd = maxf(0.0, _scan_cd - delta)
 	_scan_fx = maxf(0.0, _scan_fx - delta)
@@ -409,6 +413,16 @@ func _process(delta: float) -> void:
 	Game.record_sea_depth(depth)
 	_depth_label.text = "%d m" % depth
 	_zone_label.text = ZONES[z].name
+	# the music darkens once the light is gone
+	Sound.play_music("abyss" if z >= 2 else "ocean", 4.0)
+	_whale_t -= _process_delta
+	if _whale_t <= 0.0:
+		_whale_t = randf_range(14.0, 26.0)
+		for f in fauna:
+			if f.kind == "leviathan":
+				var d := (f.pos as Vector2).distance_to(diver.position)
+				if d < 1600.0:
+					Sound.play("whale_call", lerpf(-2.0, -20.0, d / 1600.0), 0.08)
 	# light fades fast with depth
 	var dk := clampf((row - SURF) / 110.0, 0.0, 1.0)
 	_dark.color = Color(1, 1, 1).lerp(Color(0.05, 0.06, 0.1), pow(dk, 0.8))
@@ -528,6 +542,7 @@ func _use(o: Dictionary) -> void:
 		"clam":
 			o.open = true
 			Game.sea_state(key).opened.append(o.id)
+			Sound.play("bubble_pop", -6.0, 0.1)
 			if _rng.randf() < 0.65:
 				Game.add_item("sea_pearl", 1)
 				Game.notify.emit("A pearl!", Color("f3eef8"))
@@ -568,7 +583,7 @@ func _scan() -> void:
 	_scan_cd = 2.5
 	_scan_fx = 1.0
 	_reveal = 8.0
-	Sound.play("scan", -4.0, 0.0)
+	Sound.play("sonar_ping", -3.0, 0.0)
 	var seen := {}
 	for f in fauna:
 		if (f.pos as Vector2).distance_to(diver.position) < 300.0 + (200.0 if f.kind == "leviathan" else 0.0):
@@ -607,7 +622,7 @@ func dig_out(p: Vector2i) -> void:
 		var o: Dictionary = ORES[c - ORE0]
 		var got := Game.add_item(o.item, _rng.randi_range(o.qty[0], o.qty[1]))
 		_run_items[o.item] = int(_run_items.get(o.item, 0)) + got
-		Game.gain_skill_xp("mining", 10.0 + zone_of(p.y) * 7.0)
+		Game.gain_skill_xp("mining", 15.0 + zone_of(p.y) * 10.0)
 		Sound.play("rock_break", -6.0, 0.1)
 	_dug_since_save += 1
 	if _dug_since_save >= 20:
