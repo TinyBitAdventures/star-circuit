@@ -16,6 +16,14 @@ const BIOME_MUSIC := {"verdant": "verdant", "bloom": "verdant", "dune": "arid", 
 
 var volumes := {"Master": 0.8, "Music": 0.6, "SFX": 0.8, "UI": 0.7, "Ambience": 0.6}
 var gfx_quality := 1 # 0 low, 1 medium (default), 2 high
+var mouse_sens := 1.0
+var invert_y := false
+var fov := 70.0
+var fullscreen := false
+var show_tips := true
+var last_slot := 1
+var keybinds := {} # action -> physical keycode (overrides the default first key)
+var seen_tips: Array = []
 
 var _cache := {}
 var _pool2d: Array[AudioStreamPlayer] = []
@@ -90,10 +98,20 @@ func set_volume(bus: String, linear: float) -> void:
 
 
 func save_settings() -> void:
+	if Game.is_dev_run():
+		return
 	var cfg := ConfigFile.new()
 	for b in volumes:
 		cfg.set_value("audio", b, volumes[b])
 	cfg.set_value("graphics", "quality", gfx_quality)
+	cfg.set_value("graphics", "fullscreen", fullscreen)
+	cfg.set_value("controls", "mouse_sens", mouse_sens)
+	cfg.set_value("controls", "invert_y", invert_y)
+	cfg.set_value("controls", "fov", fov)
+	cfg.set_value("controls", "keybinds", keybinds)
+	cfg.set_value("game", "show_tips", show_tips)
+	cfg.set_value("game", "last_slot", last_slot)
+	cfg.set_value("game", "seen_tips", seen_tips)
 	cfg.save(SETTINGS_PATH)
 
 
@@ -103,6 +121,14 @@ func _load_settings() -> void:
 		for b in volumes:
 			volumes[b] = float(cfg.get_value("audio", b, volumes[b]))
 		gfx_quality = int(cfg.get_value("graphics", "quality", gfx_quality))
+		fullscreen = bool(cfg.get_value("graphics", "fullscreen", false))
+		mouse_sens = float(cfg.get_value("controls", "mouse_sens", 1.0))
+		invert_y = bool(cfg.get_value("controls", "invert_y", false))
+		fov = float(cfg.get_value("controls", "fov", 70.0))
+		keybinds = cfg.get_value("controls", "keybinds", {})
+		show_tips = bool(cfg.get_value("game", "show_tips", true))
+		last_slot = int(cfg.get_value("game", "last_slot", 1))
+		seen_tips = cfg.get_value("game", "seen_tips", [])
 	apply_gfx()
 	for b in volumes:
 		set_volume(b, volumes[b])
@@ -323,3 +349,69 @@ func apply_gfx() -> void:
 	if vp:
 		vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][clampi(gfx_quality, 0, 2)]
 		vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if gfx_quality == 0 else Viewport.SCREEN_SPACE_AA_DISABLED
+
+
+
+# --------------------------------------------------------------------------
+# settings: display + controls
+# --------------------------------------------------------------------------
+
+const REBINDABLE := [
+	["move_forward", "Forward / thrust"], ["move_back", "Back / brake"], ["move_left", "Left"], ["move_right", "Right"],
+	["jump", "Jump / jetpack / rise"], ["sprint", "Sprint / boost"], ["descend", "Descend"], ["interact", "Interact / land"],
+	["scan", "Scan"], ["ability", "Ability / dock"], ["weapon_cycle", "Swap weapon"], ["use_cell", "Energy cell"],
+	["repair", "Repair kit"], ["takeoff", "Take off / emergency lift"], ["inventory", "Cargo"], ["crafting", "Fabricator"],
+	["skills", "Professions"], ["quests", "Quest log"], ["map", "Map"], ["help", "Field manual"],
+]
+
+
+func apply_display() -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
+
+
+## Called once input actions exist: apply saved rebinds.
+func apply_keybinds() -> void:
+	for action in keybinds:
+		_set_key(action, int(keybinds[action]))
+
+
+func rebind(action: String, keycode: int) -> void:
+	keybinds[action] = keycode
+	_set_key(action, keycode)
+	save_settings()
+
+
+func reset_keybinds() -> void:
+	keybinds = {}
+	save_settings()
+
+
+func _set_key(action: String, keycode: int) -> void:
+	if not InputMap.has_action(action):
+		return
+	for ev in InputMap.action_get_events(action):
+		if ev is InputEventKey:
+			InputMap.action_erase_event(action, ev)
+	var k := InputEventKey.new()
+	k.physical_keycode = keycode
+	InputMap.action_add_event(action, k)
+
+
+func key_name(action: String) -> String:
+	for ev in InputMap.action_get_events(action):
+		if ev is InputEventKey:
+			return OS.get_keycode_string((ev as InputEventKey).physical_keycode)
+	return "-"
+
+
+func look_delta(rel: Vector2) -> Vector2:
+	return Vector2(rel.x, rel.y * (-1.0 if invert_y else 1.0)) * mouse_sens
+
+
+## One-time contextual tip. Returns true the first time.
+func tip_once(id: String) -> bool:
+	if not show_tips or seen_tips.has(id):
+		return false
+	seen_tips.append(id)
+	save_settings()
+	return true

@@ -37,6 +37,10 @@ func _ready() -> void:
 	hud = preload("res://scripts/ui/hud.gd").new()
 	hud.mode = "grotto"
 	add_child(hud)
+	get_tree().create_timer(3.0).timeout.connect(func():
+		if is_instance_valid(self):
+			Game.tip("first_grotto", "A sealed chamber. Scan the life here with %s, collect the relic on its pedestal with %s, then step into the glowing rift to leave." % [Game.key("scan"), Game.key("interact")])
+	)
 	player = preload("res://scripts/grotto/grotto_player.gd").new()
 	player.world = self
 	add_child(player)

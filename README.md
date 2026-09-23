@@ -66,6 +66,9 @@ The generated models and audio are committed, so Blender and Python are only nee
 
 Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual · Esc pause/save.
 
+Every key above can be rebound in **Settings** (main menu or pause), next to mouse sensitivity, invert-Y, field of view,
+fullscreen, graphics quality and volume.
+
 ## What's in it
 
 - **4 robots**: Vesper (scout), Grit (miner), Cog (engineer) and Halo (siphon). Each has its own model, perks and starting skills.
@@ -127,6 +130,7 @@ Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual 
   - **Sealed chambers** glow behind rune walls. Step inside to drop into a small **walkable 3D grotto**: Fungal Grotto, Fossil Bed,
     Crystal Cavern or Ancient Vault. Each has rare nodes (including the cave-only Glowcap), glowing cave species to scan, and
     fossils or ancient relics (with Codex lore) to recover.
+  - Molten rock churns and throws embers, and a **survey minimap** charts every tunnel your lamp has touched (ore, lava, gas and chambers included).
   - Your tunnels persist between visits. T is an emergency lift (costs energy, or ore if you're flat). Hull loss drops half the ore from that dive.
   - Two story quests, "Under the Surface" and "Hidden Chambers", plus an underground music track.
 - **Feel**: trauma-based camera shake (explosions, slams, hits, boosts), drop-pod landings from orbit with retro-thrusters and a touchdown
@@ -169,8 +173,15 @@ Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual 
   Music follows context: menu, a cozy town theme, one theme per world type (bright, arid, crystal, volcanic), deep-space,
   plus a combat layer that crossfades in while drones are chasing you. Effects cover footsteps, jetpack, gathering loops,
   blaster, hits, explosions, the Brute's warning and slam, abilities, UI, quests, level-ups, takeoff and warp.
-  Wind and creature calls are positional. Volume sliders (Master, Music, Effects, Interface, Ambience) are in the pause menu.
-- **Character levels (1-30)**, a **30-quest storyline** with a real ending (combat, trade and training quests included), saved by quest ID so new quests never break old saves from the Archivist, an autosaving **save/load**.
+  Wind and creature calls are positional. Volume sliders (Master, Music, Effects, Interface, Ambience) are in Settings.
+- **Character levels (1-30)**, a **30-quest storyline** with a real ending (combat, trade and training quests included), saved by quest ID so new quests never break old saves from the Archivist.
+- **Three save slots** with Continue / Load / Delete on the main menu, plus autosave. An older single save moves into Slot 1 on its own.
+- **First-hour guidance**: a gold ★ on the compass (and a waypoint in space) points at whatever your current quest needs: the nearest
+  matching ore, creatures to scan, a cave mouth, drones, the relay or the station. One-time tips explain landing, night, space flight,
+  digging, grottos, combat, low energy and a full hold. You can switch them off or replay them in Settings.
+- **Collections**: the quest log has a **Species Log** (every creature and plant you've scanned, grouped by world, with unknowns still to find)
+  and 13 **Milestones** (worlds visited, species logged, surveys, kills, towns, relics, relays, profession mastery). Each one grants a
+  small permanent bonus to energy, hull, cargo, harvest speed or sell prices.
 
 ## Audio pipeline
 
@@ -195,6 +206,8 @@ plus `brew install vorbis-tools` for `oggenc`.
 
 Dev checks:
 
+Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your settings or real save slots.
+
     godot --headless --path game res://scenes/dev_smoke.tscn   # gameplay loop, prints [smoke] lines
     godot --path game res://scenes/dev_shots.tscn              # renders a screenshot tour into shots/
     SHOTS=combat godot --path game res://scenes/dev_shots.tscn # combat-only screenshot tour
@@ -205,6 +218,7 @@ Dev checks:
     SHOTS=town godot --path game res://scenes/dev_shots.tscn   # towns, merchant/trainer/board panels, docking
     SHOTS=belt godot --path game res://scenes/dev_shots.tscn   # asteroid belt, scanner, mining laser, shards, comet
     SHOTS=spacefight godot --path game res://scenes/dev_shots.tscn  # pirates, cannons, missiles, threat markers, Marauder
+    SHOTS=polish godot --path game res://scenes/dev_shots.tscn # menus, settings, tips, quest star, species log, milestones, lava
     SHOTS=station godot --path game res://scenes/dev_shots.tscn     # sprint, orbital station, market tabs
     SHOTS=outfit godot --path game res://scenes/dev_shots.tscn      # outfitter preview, paint/parts/loadout, 4 styled robots
     TAG=before SHOTS=gfx godot --path game res://scenes/dev_shots.tscn  # fixed views for graphics before/after comparisons

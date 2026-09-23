@@ -49,6 +49,10 @@ func _ready() -> void:
 	_place_player()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	Sound.loop_stop("ambience", 1.5)
+	get_tree().create_timer(4.0).timeout.connect(func():
+		if is_instance_valid(self):
+			Game.tip("first_space", "Steer with the mouse, thrust with %s and boost with %s. Fly close to a planet and press %s to land. %s opens the system map; warp to other stars from the galaxy map." % [Game.key("move_forward"), Game.key("sprint"), Game.key("interact"), Game.key("map")])
+	)
 	Sound.loop_stop("harvest", 0.1)
 	Sound.loop_stop("jet", 0.1)
 	Sound.play_music("space")
@@ -461,7 +465,8 @@ func threat_markers(cam: Camera3D) -> Array:
 		var on2 := not behind2 and Rect2(Vector2.ZERO, vp).has_point(sp2)
 		if behind2:
 			sp2 = vp - sp2
-		out.append({"pos": sp2, "on": on2, "waypoint": true, "dist": cam.global_position.distance_to(wp), "name": Game.waypoint.get("name", "Waypoint"), "elite": false, "attacking": false})
+		var wname: String = Game.waypoint.get("name", "Waypoint") if not Game.waypoint.is_empty() and int(Game.waypoint.get("star", -1)) == Game.star_index else quest_space_target().get("name", "Quest")
+		out.append({"pos": sp2, "on": on2, "waypoint": true, "dist": cam.global_position.distance_to(wp), "name": wname, "elite": false, "attacking": false})
 	return out
 
 
@@ -786,10 +791,42 @@ func system_objects() -> Array:
 	return out
 
 
+func quest_space_target() -> Dictionary:
+	var q := Game.current_quest()
+	if q.is_empty() or not Game.quest_accepted:
+		return {}
+	match q.obj.type:
+		"relay":
+			if relay and not Game.relay_lit(Game.star_index):
+				if Game.count("resonance_crystal") < 1 and not derelicts.is_empty():
+					for d in derelicts:
+						if not Game.boarded.has("derelict:%d:%d" % [Game.star_index, d.idx]):
+							return {"kind": "derelict", "id": d.idx, "name": "★ Derelict (Resonance Crystal)"}
+				return {"kind": "relay", "id": 0, "name": "★ Circuit Relay"}
+		"station_sell":
+			return {"kind": "station", "id": 0, "name": "★ " + star.station.name}
+		"heart":
+			if heart and is_instance_valid(heart):
+				return {"kind": "heart", "id": 0, "name": "★ Corruption Heart"}
+		"collect":
+			if q.obj.item in ["nickel", "cryo_ice", "stardust"]:
+				return {"kind": "belt", "id": 0, "name": "★ Asteroid belt"}
+	return {}
+
+
 func waypoint_pos() -> Vector3:
 	var w: Dictionary = Game.waypoint
 	if w.is_empty() or int(w.get("star", -1)) != Game.star_index:
-		return Vector3.INF
+		var qt := quest_space_target()
+		if qt.is_empty():
+			return Vector3.INF
+		if qt.kind == "belt":
+			var best := Vector3.INF
+			for a in asteroids:
+				if is_instance_valid(a) and (best == Vector3.INF or a.global_position.distance_to(player.global_position) < best.distance_to(player.global_position)):
+					best = a.global_position
+			return best
+		w = qt
 	for o in system_objects():
 		if o.kind == w.kind and int(o.id) == int(w.id):
 			return o.pos

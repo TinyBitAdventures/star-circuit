@@ -82,7 +82,7 @@ func _ready() -> void:
 	spring.add_excluded_object(get_rid())
 	cam_rig.add_child(spring)
 	camera = Camera3D.new()
-	camera.fov = 70.0
+	camera.fov = Sound.fov
 	camera.far = 4000.0
 	camera.near = 0.1
 	spring.add_child(camera)
@@ -145,8 +145,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			spring.spring_length = clampf(spring.spring_length + 0.6, 3.0, 16.0)
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		cam_yaw -= event.relative.x * 0.0035
-		cam_pitch = clampf(cam_pitch - event.relative.y * 0.003, -1.25, 0.6)
+		var md := Sound.look_delta(event.relative)
+		cam_yaw -= md.x * 0.0035
+		cam_pitch = clampf(cam_pitch - md.y * 0.003, -1.25, 0.6)
 
 
 func _physics_process(delta: float) -> void:
@@ -274,7 +275,7 @@ func _physics_process(delta: float) -> void:
 	var running_now := sprinting and is_on_floor() and hv.length() > BASE_SPEED * 1.2
 	visual.sprinting = running_now
 	_dust.emitting = running_now and not in_liquid
-	camera.fov = lerpf(camera.fov, 80.0 if running_now else 70.0, clampf(delta * 5.0, 0.0, 1.0))
+	camera.fov = lerpf(camera.fov, Sound.fov + (10.0 if running_now else 0.0), clampf(delta * 5.0, 0.0, 1.0))
 	visual.airborne = not is_on_floor()
 	visual.jetting = jetting
 	visual.boost = launching

@@ -122,7 +122,7 @@ func _add_extras() -> void:
 			if (home and p.index == 0) or (not home and rng.randf() < 0.3):
 				var mi: int = st.planets.size()
 				st.planets.append({"index": mi, "star": st.index, "key": "%d:%d" % [st.index, mi],
-					"name": "%s %s" % [p.name, ["a", "b"][0]], "biome": ["frost", "dune", "ember", "prism"][rng.randi() % 4],
+					"name": _moon_name(p.name), "biome": ["frost", "dune", "ember", "prism"][rng.randi() % 4],
 					"radius": rng.randf_range(80.0, 100.0), "seed": rng.randi(), "orbit": 0.0, "angle": rng.randf() * TAU,
 					"tilt": 0.0, "rings": false, "town": {}, "moon_of": p.index, "moon_dist": rng.randf_range(95.0, 120.0)})
 		# a gas giant in about half the systems (always at home)
@@ -139,6 +139,15 @@ func _add_extras() -> void:
 		st["derelicts"] = derelicts
 		# the system's relay beacon
 		st["relay"] = {"orbit": rng.randf_range(620.0, 780.0), "angle": rng.randf() * TAU}
+
+
+## A short proper name for a moon, derived from its parent's name so it
+## doesn't consume the generator's random stream.
+func _moon_name(parent: String) -> String:
+	var h := absi(hash(parent + ":moon"))
+	var a := ["Ka", "Vel", "Ori", "Tas", "Ny", "Sel", "Mira", "Ost", "Lu", "Pha", "Ise", "Dre"]
+	var b := ["ra", "wen", "th", "nis", "del", "mo", "ssa", "ly", "rek", "ne", "via", "ku"]
+	return (a[h % a.size()] as String) + (b[(h / 13) % b.size()] as String)
 
 
 ## Where a planet (or moon) is at time t, in system space coordinates.

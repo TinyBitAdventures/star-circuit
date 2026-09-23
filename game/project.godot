@@ -21,8 +21,8 @@ config/icon="res://icon.png"
 
 Db="*res://scripts/autoload/db.gd"
 Galaxy="*res://scripts/autoload/galaxy.gd"
-Game="*res://scripts/autoload/game.gd"
 Sound="*res://scripts/autoload/sound.gd"
+Game="*res://scripts/autoload/game.gd"
 
 [display]
 

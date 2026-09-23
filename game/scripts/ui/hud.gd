@@ -97,6 +97,9 @@ func _ready() -> void:
 	Game.quest_changed.connect(_refresh_quest)
 	Game.notify.connect(toast)
 	Game.big_notify.connect(big)
+	Game.tip_requested.connect(tip)
+	Game.player_damaged.connect(func(_a): Game.tip("combat", "Under attack! Fire with Left Mouse, use your robot's ability with %s, swap weapons with %s, and patch up with a Repair Kit %s." % [Game.key("ability"), Game.key("weapon_cycle"), Game.key("repair")]))
+	Game.energy_changed.connect(func(v, m): if m > 0.0 and v / m < 0.2: Game.tip("low_energy", "Energy is low. Stand in daylight to recharge, or burn an Energy Cell with %s." % Game.key("use_cell")))
 	Game.inventory_changed.connect(_refresh_open_panel)
 	Game.inventory_changed.connect(_refresh_status)
 	Game.skill_changed.connect(func(_s): _refresh_open_panel())
@@ -499,6 +502,9 @@ func toggle_panel(name: String) -> void:
 	current_panel = name
 	Game.ui_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if _tip_box and is_instance_valid(_tip_box):
+		_tip_box.queue_free()
+		_tip_box = null
 	_build_panel()
 
 
@@ -571,6 +577,7 @@ func _build_panel() -> void:
 		"station": _panel_station()
 		"outfitter": _panel_outfitter()
 		"sysmap": _panel_sysmap()
+		"settings": _panel_settings()
 		"victory": _panel_victory()
 
 
@@ -800,7 +807,14 @@ func _panel_skills() -> void:
 
 
 func _panel_quests() -> void:
-	var v := _frame("QUEST LOG & CODEX", Vector2(960, 660))
+	var frame := _frame("QUEST LOG & CODEX", Vector2(980, 680))
+	var tabs := TabContainer.new()
+	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	frame.add_child(tabs)
+	var v := VBoxContainer.new()
+	v.name = "Quests & Codex"
+	v.add_theme_constant_override("separation", 8)
+	tabs.add_child(v)
 	var q := Game.current_quest()
 	if q.is_empty():
 		v.add_child(UiKit.label("Every task is complete. The Circuit is relit.", 18, Color("6ee06a")))
@@ -849,6 +863,144 @@ func _panel_quests() -> void:
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		cl.add_child(b)
 	v.add_child(UiKit.label("Worlds surveyed: %d  ·  Sites discovered: %d" % [Game.surveyed.size(), Game.discovered_pois.size()], 13, UiKit.MUTED))
+	tabs.add_child(_species_tab())
+	tabs.add_child(_milestone_tab())
+	for ti in tabs.get_tab_count():
+		var tc := tabs.get_tab_control(ti)
+		if tc.has_meta("title"):
+			tabs.set_tab_title(ti, tc.get_meta("title"))
+	tabs.current_tab = clampi(_codex_tab, 0, 2)
+	tabs.tab_changed.connect(func(t): _codex_tab = t)
+
+
+var _codex_tab := 0
+
+
+func _species_tab() -> Control:
+	var v := VBoxContainer.new()
+	v.name = "Species"
+	v.set_meta("title", "Species Log  %d" % Game.scanned.size())
+	v.add_theme_constant_override("separation", 6)
+	# group logged species by world
+	var by_world := {}
+	for k in Game.scanned:
+		var parts: PackedStringArray = (k as String).split(":")
+		var wk := "%s:%s" % [parts[0], parts[1]] if parts.size() >= 2 else "?"
+		if not by_world.has(wk):
+			by_world[wk] = []
+		by_world[wk].append(k)
+	for wk in Game.world_species:
+		if not by_world.has(wk):
+			by_world[wk] = []
+	if by_world.is_empty():
+		v.add_child(UiKit.label("No species logged yet. Scan creatures and plants with %s." % Game.key("scan"), 15, UiKit.MUTED))
+		return v
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(sc)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 10)
+	sc.add_child(list)
+	var keys := by_world.keys()
+	keys.sort()
+	for wk in keys:
+		var info: Dictionary = Game.world_species.get(wk, {})
+		var wname: String = info.get("name", "")
+		if wname == "":
+			var ids: PackedStringArray = (wk as String).split(":")
+			if ids.size() == 2 and ids[0].is_valid_int() and ids[1].is_valid_int():
+				wname = Galaxy.planet(int(ids[0]), int(ids[1])).name
+			elif ids[0] == "derelict":
+				wname = "Derelict wreck, " + Galaxy.star(int(ids[1])).name
+			else:
+				wname = wk
+		var total: int = int(info.get("total", 0))
+		var got: int = by_world[wk].size()
+		var complete := total > 0 and got >= total
+		var head := HBoxContainer.new()
+		list.add_child(head)
+		var biome_name: String = Db.BIOMES[info.biome].name if info.has("biome") and Db.BIOMES.has(info.biome) else ""
+		head.add_child(UiKit.label(wname, 18, Color("ffd23f") if complete else Color("6ff3ff"), true))
+		if biome_name != "":
+			head.add_child(UiKit.label("   " + biome_name, 13, UiKit.MUTED))
+		var sp := Control.new()
+		sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(sp)
+		head.add_child(UiKit.label(("✓ complete  " if complete else "") + ("%d / %d" % [got, total] if total > 0 else "%d logged" % got), 14, Color("6ee06a") if complete else UiKit.TEXT))
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 8)
+		flow.add_theme_constant_override("v_separation", 6)
+		list.add_child(flow)
+		for k in by_world[wk]:
+			var nm := _species_display(k)
+			var is_flora: bool = ":flora:" in k
+			var chip := PanelContainer.new()
+			chip.add_theme_stylebox_override("panel", UiKit.box(Color(0.1, 0.16, 0.2, 0.9), Color("6ee06a") if is_flora else Color("5ff7ff"), 6, 1, 6))
+			chip.add_child(UiKit.label(("❀ " if is_flora else "◆ ") + nm, 13))
+			flow.add_child(chip)
+		for i in maxi(0, total - got):
+			var chip2 := PanelContainer.new()
+			chip2.add_theme_stylebox_override("panel", UiKit.box(Color(0.06, 0.08, 0.1, 0.8), Color(1, 1, 1, 0.12), 6, 1, 6))
+			chip2.add_child(UiKit.label("? unknown", 13, UiKit.MUTED))
+			flow.add_child(chip2)
+	return v
+
+
+func _species_display(k: String) -> String:
+	var nm: String = Game.species_names.get(k, "")
+	if nm == "":
+		# older saves didn't keep names: rebuild them from the key
+		var parts := k.split(":")
+		if parts.size() == 4 and parts[0].is_valid_int() and parts[1].is_valid_int():
+			var pl: Dictionary = Galaxy.planet(int(parts[0]), int(parts[1]))
+			nm = Galaxy.species_name(pl.seed, ("fauna" + parts[3]) if parts[2] == "fauna" else parts[3])
+		else:
+			nm = parts[parts.size() - 1].capitalize()
+	var cut := nm.find(" (")
+	return nm.substr(0, cut) if cut > 0 else nm
+
+
+func _milestone_tab() -> Control:
+	var v := VBoxContainer.new()
+	v.name = "Milestones"
+	v.set_meta("title", "Milestones  %d/%d" % [Game.milestones.size(), Db.MILESTONES.size()])
+	v.add_theme_constant_override("separation", 6)
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(sc)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 6)
+	sc.add_child(list)
+	for m in Db.MILESTONES:
+		var done: bool = Game.milestones.has(m.id)
+		var cur := mini(Game.metric(m.metric), int(m.n))
+		var row := PanelContainer.new()
+		row.add_theme_stylebox_override("panel", UiKit.box(Color(0.16, 0.14, 0.06, 0.9) if done else Color(0.07, 0.09, 0.12, 0.85), Color("ffd23f") if done else Color(1, 1, 1, 0.1), 8, 1, 10))
+		list.add_child(row)
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 14)
+		row.add_child(h)
+		h.add_child(UiKit.label("★" if done else "☆", 26, Color("ffd23f") if done else UiKit.MUTED))
+		var tv := VBoxContainer.new()
+		tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(tv)
+		tv.add_child(UiKit.label(m.name, 17, Color.WHITE if done else UiKit.TEXT, true))
+		tv.add_child(UiKit.label("%s  ·  Reward: %s" % [m.desc, Game.bonus_text(m.bonus)], 13, Color("6ee06a") if done else UiKit.MUTED))
+		var pv := VBoxContainer.new()
+		pv.custom_minimum_size = Vector2(160, 0)
+		h.add_child(pv)
+		pv.add_child(UiKit.label("%d / %d" % [cur, int(m.n)], 14, Color("ffd23f") if done else UiKit.TEXT))
+		var bar := ProgressBar.new()
+		bar.max_value = float(m.n)
+		bar.value = float(cur)
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(160, 8)
+		pv.add_child(bar)
+	return v
 
 
 func _panel_help() -> void:
@@ -884,41 +1036,19 @@ Harvested nodes regrow after ten minutes."""
 
 
 func _panel_pause() -> void:
-	var v := _frame("PAUSED", Vector2(480, 700))
+	var v := _frame("PAUSED", Vector2(460, 520))
 	var played := int(Game.play_time)
 	v.add_child(UiKit.label("Play time %d:%02d:%02d" % [played / 3600, (played / 60) % 60, played % 60], 14, UiKit.MUTED))
 	for pair in [["Resume", close_panel], ["Save Game", func():
 		Game.save_game()
 		toast("Game saved.", Color("6ee06a"))
-	], ["Field Manual", func(): toggle_panel("help")], ["Save & Main Menu", Game.go_to_menu], ["Save & Quit", func():
+	], ["Settings", func(): toggle_panel("settings")], ["Field Manual", func(): toggle_panel("help")], ["Save & Main Menu", Game.go_to_menu], ["Save & Quit", func():
 		Game.save_game()
 		get_tree().quit()
 	]]:
 		var b := UiKit.button(pair[0], pair[1])
 		b.custom_minimum_size = Vector2(0, 46)
 		v.add_child(b)
-	v.add_child(HSeparator.new())
-	v.add_child(UiKit.label("AUDIO", 13, UiKit.MUTED, true))
-	for row in [["Master", "Master"], ["Music", "Music"], ["Effects", "SFX"], ["Interface", "UI"], ["Ambience", "Ambience"]]:
-		_volume_row(v, row[0], row[1])
-	v.add_child(HSeparator.new())
-	var gr := HBoxContainer.new()
-	gr.add_theme_constant_override("separation", 8)
-	v.add_child(gr)
-	var gl := UiKit.label("Graphics", 15)
-	gl.custom_minimum_size = Vector2(110, 0)
-	gr.add_child(gl)
-	for qi in 3:
-		var qb := UiKit.button(["Low", "Medium", "High"][qi], func():
-			Sound.gfx_quality = qi
-			Sound.save_settings()
-			Sound.apply_gfx()
-			toast("Graphics set to %s. Grass and shadows update on your next landing." % ["Low", "Medium", "High"][qi], UiKit.ACCENT)
-			_rebuild_town_panel()
-		)
-		if Sound.gfx_quality == qi:
-			qb.add_theme_stylebox_override("normal", UiKit.box(Color(0.1, 0.22, 0.34, 1), UiKit.ACCENT, 8, 2, 8))
-		gr.add_child(qb)
 
 
 func open_dialog() -> void:
@@ -1199,6 +1329,8 @@ func _draw_compass() -> void:
 	var label_b := 0.12
 	for i in _compass_data.markers.size():
 		var mm: Dictionary = _compass_data.markers[i]
+		if mm.get("quest", false):
+			continue
 		var bb := absf(_bearing(mm.pos - pos, up, fwd))
 		if bb < label_b:
 			label_b = bb
@@ -1214,6 +1346,16 @@ func _draw_compass() -> void:
 		if m.done:
 			col = col.darkened(0.5)
 		var edge := absf(b2) >= span
+		if m.get("quest", false):
+			var qp := Vector2(x3, 12)
+			compass.draw_colored_polygon(PackedVector2Array([qp + Vector2(0, -8), qp + Vector2(3, -2), qp + Vector2(8, -2), qp + Vector2(4, 2), qp + Vector2(6, 8), qp + Vector2(0, 4), qp + Vector2(-6, 8), qp + Vector2(-4, 2), qp + Vector2(-8, -2), qp + Vector2(-3, -2)]), col)
+			# the quest label gets its own row under the compass, pinned to the edge when off-screen
+			var qt := "%s  %dm" % [m.label, int(dist)]
+			if edge:
+				qt = ("◀ " + qt) if b2 < 0.0 else (qt + " ▶")
+			var lx := clampf(x3 - 110.0, 0.0, cx * 2.0 - 220.0)
+			compass.draw_string(font, Vector2(lx, 70), qt, HORIZONTAL_ALIGNMENT_CENTER, 220, 14, col)
+			continue
 		compass.draw_circle(Vector2(x3, 12), 5.0 if not edge else 3.5, col)
 		if mi == label_best:
 			compass.draw_string(font, Vector2(x3 - 60, 52), "%s  %dm" % [m.label, int(dist)], HORIZONTAL_ALIGNMENT_CENTER, 120, 13, col.lightened(0.3))
@@ -1922,3 +2064,44 @@ func _panel_victory() -> void:
 	v.add_child(sp)
 	v.add_child(UiKit.label("The galaxy is still yours to wander. Unlit relays, unnamed species and sealed vaults remain.", 15, UiKit.MUTED))
 	v.add_child(UiKit.button("Keep exploring", close_panel))
+
+
+
+func _panel_settings() -> void:
+	var v := _frame("SETTINGS", Vector2(900, 640))
+	v.add_child(SettingsUI.new())
+
+
+
+# --------------------------------------------------------------------------
+# one-time tips
+# --------------------------------------------------------------------------
+
+var _tip_box: PanelContainer
+
+func tip(id: String, text: String) -> void:
+	if not Sound.tip_once(id):
+		return
+	if _tip_box:
+		_tip_box.queue_free()
+	_tip_box = PanelContainer.new()
+	_tip_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_tip_box.position = Vector2(20, -190)
+	_tip_box.custom_minimum_size = Vector2(430, 0)
+	_tip_box.add_theme_stylebox_override("panel", UiKit.box(Color(0.05, 0.1, 0.16, 0.92), UiKit.ACCENT, 10, 2, 12))
+	root.add_child(_tip_box)
+	var v := VBoxContainer.new()
+	_tip_box.add_child(v)
+	v.add_child(UiKit.label("TIP", 12, UiKit.ACCENT, true))
+	var l := UiKit.label(text, 15)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD
+	v.add_child(l)
+	v.add_child(UiKit.label("Turn tips off in Settings", 11, UiKit.MUTED))
+	Sound.play("notify", -8.0, 0.0, "UI")
+	var box := _tip_box
+	_tip_box.modulate.a = 0.0
+	var t := box.create_tween()
+	t.tween_property(box, "modulate:a", 1.0, 0.3)
+	t.tween_interval(10.0)
+	t.tween_property(box, "modulate:a", 0.0, 0.8)
+	t.tween_callback(box.queue_free)

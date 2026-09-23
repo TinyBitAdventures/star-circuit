@@ -18,6 +18,8 @@ var _t := 0.0
 var _cam_from := Transform3D()
 var _cam_to := Transform3D()
 var _cam_blend := 1.0
+var _new_slot := 1
+var _overlay: Control
 
 
 func _ready() -> void:
@@ -208,14 +210,15 @@ func _build_ui() -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 30)
 	menu_box.add_child(gap)
-	var summary := Game.save_summary()
+	var summary := Game.save_summary(Sound.last_slot)
 	if not summary.is_empty():
-		var rname: String = Db.ROBOTS.get(summary.get("robot_id", "scout"), Db.ROBOTS.scout).title
-		var b := _menu_button("CONTINUE", func(): Game.load_game())
+		var b := _menu_button("CONTINUE", func(): Game.load_game(Sound.last_slot))
 		menu_box.add_child(b)
-		var p: Dictionary = Galaxy.planet(int(summary.get("star_index", 0)), int(summary.get("planet_index", 0)))
-		menu_box.add_child(UiKit.label("   %s  ·  %s  ·  Level %d  ·  %s" % [summary.get("player_name", "Unit"), rname, int(summary.get("level", 1)), p.name if summary.get("location", "planet") == "planet" else Galaxy.star(int(summary.get("star_index", 0))).name + " orbit"], 15, UiKit.MUTED))
+		menu_box.add_child(UiKit.label("   Slot %d  ·  %s" % [Sound.last_slot, _slot_line(summary)], 15, UiKit.MUTED))
 	menu_box.add_child(_menu_button("NEW GAME", _show_select))
+	if Game.has_save():
+		menu_box.add_child(_menu_button("LOAD GAME", func(): _show_overlay("load")))
+	menu_box.add_child(_menu_button("SETTINGS", func(): _show_overlay("settings")))
 	menu_box.add_child(_menu_button("QUIT", func(): get_tree().quit()))
 	var credit := UiKit.label("Models built in Blender · Engine: Godot %s" % Engine.get_version_info().string, 13, UiKit.MUTED)
 	credit.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -272,6 +275,12 @@ func _show_title() -> void:
 
 
 func _show_select() -> void:
+	# default to the first empty slot
+	_new_slot = Sound.last_slot
+	for n in range(1, Game.SLOTS + 1):
+		if Game.save_summary(n).is_empty():
+			_new_slot = n
+			break
 	state = "select"
 	menu_box.visible = false
 	select_box.visible = true
@@ -305,7 +314,23 @@ func _select(i: int) -> void:
 	name_edit.max_length = 18
 	name_edit.custom_minimum_size = Vector2(0, 44)
 	info_box.add_child(name_edit)
-	var go := UiKit.button("ACTIVATE %s" % r.name.to_upper(), func(): Game.new_game(id, name_edit.text))
+	info_box.add_child(UiKit.label("SAVE SLOT", 13, UiKit.MUTED, true))
+	var slots := HBoxContainer.new()
+	slots.add_theme_constant_override("separation", 6)
+	info_box.add_child(slots)
+	for n in range(1, Game.SLOTS + 1):
+		var used := not Game.save_summary(n).is_empty()
+		var sb := UiKit.button("Slot %d\n%s" % [n, "in use" if used else "empty"], func():
+			_new_slot = n
+			_select(selected)
+		)
+		sb.custom_minimum_size = Vector2(120, 50)
+		if _new_slot == n:
+			sb.add_theme_stylebox_override("normal", UiKit.box(Color(0.1, 0.22, 0.34, 1), UiKit.ACCENT, 8, 2, 8))
+		slots.add_child(sb)
+	if not Game.save_summary(_new_slot).is_empty():
+		info_box.add_child(UiKit.label("Starting here overwrites Slot %d." % _new_slot, 13, Color("ffb86b")))
+	var go := UiKit.button("ACTIVATE %s" % r.name.to_upper(), func(): Game.new_game(id, name_edit.text, _new_slot))
 	go.custom_minimum_size = Vector2(0, 60)
 	go.add_theme_font_override("font", UiKit.title_font())
 	go.add_theme_font_size_override("font_size", 22)
@@ -325,3 +350,72 @@ func _unhandled_input(event: InputEvent) -> void:
 		_select((selected + ORDER.size() - 1) % ORDER.size())
 	elif event.keycode == KEY_ESCAPE:
 		_show_title()
+
+
+
+func _slot_line(d: Dictionary) -> String:
+	var rname: String = Db.ROBOTS.get(d.get("robot_id", "scout"), Db.ROBOTS.scout).title
+	var si := int(d.get("star_index", 0))
+	var where: String = Galaxy.planet(si, int(d.get("planet_index", 0))).name if d.get("location", "planet") == "planet" else Galaxy.star(si).name + " orbit"
+	var pt := int(d.get("play_time", 0))
+	return "%s  ·  %s  ·  Level %d  ·  %s  ·  %d:%02d played" % [d.get("player_name", "Unit"), rname, int(d.get("level", 1)), where, pt / 3600, (pt / 60) % 60]
+
+
+func _show_overlay(kind: String) -> void:
+	if _overlay:
+		_overlay.queue_free()
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui.add_child(dim)
+	_overlay = dim
+	var size := Vector2(900, 620) if kind == "settings" else Vector2(860, 480)
+	var pc := PanelContainer.new()
+	pc.custom_minimum_size = size
+	pc.set_anchors_preset(Control.PRESET_CENTER)
+	pc.position = -size / 2.0
+	pc.add_theme_stylebox_override("panel", UiKit.box(UiKit.BG, UiKit.ACCENT * Color(1, 1, 1, 0.6), 14, 1, 22))
+	dim.add_child(pc)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	pc.add_child(v)
+	var head := HBoxContainer.new()
+	v.add_child(head)
+	head.add_child(UiKit.label("SETTINGS" if kind == "settings" else "LOAD GAME", 26, Color.WHITE, true))
+	var sp := Control.new()
+	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(sp)
+	head.add_child(UiKit.button("Close", func():
+		_overlay.queue_free()
+		_overlay = null
+	))
+	v.add_child(HSeparator.new())
+	if kind == "settings":
+		v.add_child(SettingsUI.new())
+		return
+	for n in range(1, Game.SLOTS + 1):
+		var d := Game.save_summary(n)
+		var row := PanelContainer.new()
+		row.add_theme_stylebox_override("panel", UiKit.box(Color(0.06, 0.09, 0.15, 0.9), UiKit.LINE, 10, 1, 12))
+		v.add_child(row)
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 12)
+		row.add_child(h)
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(info)
+		info.add_child(UiKit.label("SLOT %d%s" % [n, "  ·  last played" if n == Sound.last_slot and not d.is_empty() else ""], 16, UiKit.ACCENT, true))
+		info.add_child(UiKit.label(_slot_line(d) if not d.is_empty() else "Empty", 15, UiKit.TEXT if not d.is_empty() else UiKit.MUTED))
+		if not d.is_empty():
+			h.add_child(UiKit.button("Load", func(): Game.load_game(n)))
+			var del := UiKit.button("Delete", Callable())
+			del.pressed.connect(func():
+				if del.has_meta("armed"):
+					Game.delete_slot(n)
+					_show_overlay("load")
+				else:
+					del.set_meta("armed", true)
+					del.text = "Confirm delete"
+					del.add_theme_color_override("font_color", Color("ff6b6b"))
+			)
+			h.add_child(del)

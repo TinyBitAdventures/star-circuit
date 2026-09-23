@@ -264,6 +264,24 @@ const BIOMES := {
 # Quest chain (the Archivist's storyline)
 # objective types: collect / craft / scan / orbit / warp / land_unique / skill / talk
 # --------------------------------------------------------------------------
+## Milestones: permanent small bonuses. metric is read by Game.metric().
+## bonus keys: energy, hull (flat), cargo (flat), harvest, sell (fraction).
+const MILESTONES := [
+	{"id": "wanderer", "name": "Wanderer", "desc": "Set foot on 5 worlds", "metric": "worlds", "n": 5, "bonus": {"energy": 10}},
+	{"id": "voyager", "name": "Voyager", "desc": "Set foot on 15 worlds", "metric": "worlds", "n": 15, "bonus": {"energy": 20}},
+	{"id": "star_hopper", "name": "Star Hopper", "desc": "Visit 4 star systems", "metric": "stars", "n": 4, "bonus": {"cargo": 20}},
+	{"id": "naturalist", "name": "Naturalist", "desc": "Log 20 species", "metric": "species", "n": 20, "bonus": {"harvest": 0.05}},
+	{"id": "xenobiologist", "name": "Xenobiologist", "desc": "Log 60 species", "metric": "species", "n": 60, "bonus": {"harvest": 0.1}},
+	{"id": "cartographer", "name": "Cartographer", "desc": "Fully survey 3 worlds", "metric": "surveyed", "n": 3, "bonus": {"energy": 15}},
+	{"id": "scrapper", "name": "Scrapper", "desc": "Destroy 25 rogue drones", "metric": "kills", "n": 25, "bonus": {"hull": 15}},
+	{"id": "ace", "name": "Void Ace", "desc": "Destroy 15 ships in space", "metric": "space_kills", "n": 15, "bonus": {"hull": 15}},
+	{"id": "trader", "name": "Well Travelled Trader", "desc": "Visit 4 towns", "metric": "towns", "n": 4, "bonus": {"sell": 0.05}},
+	{"id": "archivist", "name": "Keeper of Records", "desc": "Recover 8 Codex entries", "metric": "codex", "n": 8, "bonus": {"sell": 0.05}},
+	{"id": "spelunker", "name": "Spelunker", "desc": "Recover 3 relics from the Deep", "metric": "relics", "n": 3, "bonus": {"cargo": 30}},
+	{"id": "lamplighter", "name": "Lamplighter", "desc": "Light 4 Circuit relays", "metric": "relays", "n": 4, "bonus": {"energy": 20, "hull": 20}},
+	{"id": "master", "name": "Master of a Craft", "desc": "Reach level 50 in any profession", "metric": "best_skill", "n": 50, "bonus": {"harvest": 0.1}},
+]
+
 const QUESTS := [
 	{"id": "wake", "title": "Wake Up, Unit", "giver": "Archivist",
 		"text": "Ah, you are finally online. The Circuit went dark long ago, and every star since has been a stranger. Before you wander, prove your frame still works. Break some Ferrite from the veins around the outpost.",

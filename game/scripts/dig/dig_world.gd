@@ -41,6 +41,7 @@ const THEMES := {
 
 var cells := PackedByteArray()
 var dug := PackedByteArray() # 1 = dug by the player
+var seen := PackedByteArray() # 1 = charted on the minimap
 var chambers: Array = [] # {id, rect: Rect2i, theme, centre: Vector2}
 var palette: Array = []
 var biome := "verdant"
@@ -74,6 +75,7 @@ func _ready() -> void:
 		for cx in ceili(float(W) / CHUNK):
 			_make_chunk(Vector2i(cx, cy))
 	_build_chamber_fx()
+	_build_lava()
 	_dark = CanvasModulate.new()
 	add_child(_dark)
 
@@ -90,11 +92,16 @@ func _ready() -> void:
 	hud.mode = "dig"
 	add_child(hud)
 	_build_depth_meter()
+	_build_minimap()
 	UiKit.add_vignette(self, 0.5)
 	Game.player_died.connect(_on_died)
 	Sound.stop_all_loops()
 	Sound.play_music("underground", 2.0)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	get_tree().create_timer(2.5).timeout.connect(func():
+		if is_instance_valid(self):
+			Game.tip("first_dig", "Drill by pushing into rock: %s/%s to bore sideways, %s to dig down, %s to thrust up. Glowing pockets are Discovery Chambers. Avoid the magma, and watch your energy for the climb home." % [Game.key("move_left"), Game.key("move_right"), Game.key("move_back"), Game.key("move_forward")])
+	)
 	if saved.is_empty():
 		hud.show_location_banner("The Deep", "A: left  D: right  S: dig down  W: thrust  ·  push into rock to drill")
 
@@ -213,6 +220,11 @@ func _generate(seed_: int) -> void:
 
 func _load_dug() -> void:
 	var st := Game.dig_state(cave_key)
+	seen.resize(W * H)
+	var sraw := Marshalls.base64_to_raw(st.get("seen", "")) if st.get("seen", "") != "" else PackedByteArray()
+	for i in mini(sraw.size() * 8, W * H):
+		if sraw[i >> 3] & (1 << (i & 7)):
+			seen[i] = 1
 	if st.dug != "":
 		var raw := Marshalls.base64_to_raw(st.dug)
 		for i in mini(raw.size() * 8, W * H):
@@ -228,6 +240,12 @@ func save_dug() -> void:
 		if dug[i]:
 			raw[i >> 3] |= (1 << (i & 7))
 	Game.dig_state(cave_key).dug = Marshalls.raw_to_base64(raw)
+	var sraw := PackedByteArray()
+	sraw.resize((W * H + 7) / 8)
+	for i in W * H:
+		if seen[i]:
+			sraw[i >> 3] |= (1 << (i & 7))
+	Game.dig_state(cave_key)["seen"] = Marshalls.raw_to_base64(sraw)
 
 
 # --------------------------------------------------------------------------
@@ -341,8 +359,6 @@ func _draw_chunk(n: Node2D, c: Vector2i, glow: bool) -> void:
 						var p := r.position + Vector2(6 + fmod(h * 97.0 * (k + 1), 20.0), 6 + fmod(h * 53.0 * (k + 2), 20.0))
 						var s := 3.0 + fmod(h * 13.0 * (k + 1), 3.0)
 						n.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -s), p + Vector2(s, 0), p + Vector2(0, s), p + Vector2(-s, 0)]), col)
-				elif t == LAVA:
-					n.draw_rect(r.grow(-3), Color(1.0, 0.35 + h * 0.2, 0.05, 0.9))
 				elif t == GAS:
 					n.draw_circle(r.get_center() + Vector2(h * 8 - 4, 0), 5.0, Color(0.6, 1.0, 0.4, 0.55))
 					n.draw_circle(r.get_center() + Vector2(4, h * 8 - 4), 3.0, Color(0.6, 1.0, 0.4, 0.45))
@@ -446,6 +462,7 @@ func dig_out(p: Vector2i) -> void:
 	var c := get_cell(p.x, p.y)
 	cells[idx(p.x, p.y)] = AIR
 	dug[idx(p.x, p.y)] = 1
+	_mm_dirty = true
 	redraw_cell(p)
 	var pos := cell_centre(p)
 	_debris(pos, palette[layer_of(p.y)])
@@ -512,6 +529,7 @@ func _process(delta: float) -> void:
 		elif pod.position.distance_to(g.pos) < 70.0 and not pod.dead:
 			Game.take_damage(12.0 * delta)
 	queue_redraw()
+	_chart(delta)
 	# prompts
 	var txt := ""
 	if pod.position.y / CS < SURFACE + 0.5:
@@ -617,3 +635,181 @@ func _build_depth_meter() -> void:
 	_layer_label = UiKit.label("", 14, UiKit.ACCENT)
 	v.add_child(_layer_label)
 	v.add_child(UiKit.label("T  emergency lift", 12, UiKit.MUTED))
+
+
+
+# --------------------------------------------------------------------------
+# lava: one animated layer, a few lights and rising embers
+# --------------------------------------------------------------------------
+
+func _build_lava() -> void:
+	var lava_cells: Array[Vector2i] = []
+	for y in H:
+		for x in W:
+			if cells[idx(x, y)] == LAVA:
+				lava_cells.append(Vector2i(x, y))
+	if lava_cells.is_empty():
+		return
+	var layer := Node2D.new()
+	layer.z_index = 1
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/lava2d.gdshader")
+	layer.material = mat
+	add_child(layer)
+	layer.draw.connect(func():
+		for c in lava_cells:
+			layer.draw_rect(Rect2(c.x * CS, c.y * CS, CS, CS), Color.WHITE)
+	)
+	layer.queue_redraw()
+	# lights: a sparse sample so big pools don't cost a light per cell
+	var lit := 0
+	for c in lava_cells:
+		if (c.x + c.y * 3) % 4 != 0 or lit >= 48:
+			continue
+		lit += 1
+		var l := PointLight2D.new()
+		l.texture = _light_tex()
+		l.texture_scale = 2.4
+		l.color = Color(1.0, 0.45, 0.12)
+		l.energy = 0.75
+		l.position = cell_centre(c)
+		add_child(l)
+		_lava_lights.append(l)
+	# embers from lava with open space above
+	var pts := PackedVector2Array()
+	for c in lava_cells:
+		if not is_solid(c.x, c.y - 1):
+			pts.append(Vector2((c.x + 0.5) * CS, c.y * CS))
+	if pts.is_empty():
+		return
+	var e := CPUParticles2D.new()
+	e.amount = mini(12 + pts.size() * 3, 140)
+	e.lifetime = 1.8
+	e.emission_shape = CPUParticles2D.EMISSION_SHAPE_POINTS
+	e.emission_points = pts
+	e.direction = Vector2(0, -1)
+	e.spread = 25.0
+	e.initial_velocity_min = 25.0
+	e.initial_velocity_max = 70.0
+	e.gravity = Vector2(0, -12)
+	e.scale_amount_min = 1.5
+	e.scale_amount_max = 3.0
+	var g := Gradient.new()
+	g.set_color(0, Color(1.0, 0.8, 0.3, 1.0))
+	g.set_color(1, Color(1.0, 0.25, 0.05, 0.0))
+	e.color_ramp = g
+	var em := CanvasItemMaterial.new()
+	em.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	em.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	e.material = em
+	e.z_index = 3
+	add_child(e)
+
+
+var _lava_lights: Array[PointLight2D] = []
+
+
+# --------------------------------------------------------------------------
+# minimap: everything the pod's lamp has touched
+# --------------------------------------------------------------------------
+
+const MM_SCALE := 3
+const MM_SIGHT := 4
+var _mm_img: Image
+var _mm_tex: ImageTexture
+var _mm_rect: TextureRect
+var _mm_marker: Control
+var _mm_view: Control
+var _mm_t := 0.0
+var _mm_dirty := true
+
+
+func _build_minimap() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 9
+	add_child(layer)
+	var pc := PanelContainer.new()
+	pc.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	pc.position = Vector2(20, 236)
+	pc.theme = UiKit.theme()
+	pc.add_theme_stylebox_override("panel", UiKit.box(Color(0.03, 0.04, 0.06, 0.85), UiKit.LINE, 8, 1, 6))
+	layer.add_child(pc)
+	var v := VBoxContainer.new()
+	pc.add_child(v)
+	v.add_child(UiKit.label("SURVEY", 11, UiKit.MUTED, true))
+	# a window onto the full map that follows the pod
+	_mm_view = Control.new()
+	_mm_view.custom_minimum_size = Vector2(W * MM_SCALE, 260)
+	_mm_view.clip_contents = true
+	v.add_child(_mm_view)
+	_mm_img = Image.create(W, H, false, Image.FORMAT_RGBA8)
+	_mm_tex = ImageTexture.create_from_image(_mm_img)
+	_mm_rect = TextureRect.new()
+	_mm_rect.texture = _mm_tex
+	_mm_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_mm_rect.size = Vector2(W, H) * MM_SCALE
+	_mm_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	_mm_view.add_child(_mm_rect)
+	_mm_marker = Control.new()
+	_mm_marker.draw.connect(func():
+		var a := 0.6 + 0.4 * sin(_t * 6.0)
+		_mm_marker.draw_circle(Vector2.ZERO, 3.5, Color(1, 1, 1, a))
+	)
+	_mm_view.add_child(_mm_marker)
+
+
+func _chart(delta: float) -> void:
+	_mm_t -= delta
+	if _mm_t <= 0.0:
+		_mm_t = 0.2
+		var c := cell_at(pod.position)
+		for dy in range(-MM_SIGHT, MM_SIGHT + 1):
+			for dx in range(-MM_SIGHT, MM_SIGHT + 1):
+				var x := c.x + dx
+				var y := c.y + dy
+				if x < 0 or y < 0 or x >= W or y >= H or dx * dx + dy * dy > MM_SIGHT * MM_SIGHT:
+					continue
+				if not seen[idx(x, y)]:
+					seen[idx(x, y)] = 1
+					_mm_dirty = true
+		if _mm_dirty:
+			_mm_dirty = false
+			_paint_minimap()
+	if _mm_rect == null:
+		return
+	# keep the pod centred vertically in the window
+	var pp := pod.position / CS * MM_SCALE
+	var vh := _mm_view.size.y
+	var oy := clampf(pp.y - vh * 0.5, 0.0, maxf(0.0, H * MM_SCALE - vh))
+	_mm_rect.position = Vector2(0, -oy)
+	_mm_marker.position = Vector2(pp.x, pp.y - oy)
+	_mm_marker.queue_redraw()
+
+
+func _paint_minimap() -> void:
+	for y in H:
+		for x in W:
+			var i := idx(x, y)
+			var t := cells[i]
+			var col := Color(0.02, 0.02, 0.03, 1.0)
+			if y < SURFACE:
+				col = Color(0.35, 0.5, 0.65, 0.5)
+			elif seen[i]:
+				if t == AIR:
+					col = Color(0.85, 0.78, 0.6, 0.85) if dug[i] else Color(0.45, 0.5, 0.58, 0.7)
+				elif t == LAVA:
+					col = Color(1.0, 0.4, 0.1)
+				elif t == GAS:
+					col = Color(0.5, 0.9, 0.35)
+				elif t >= ORE0:
+					col = Db.item_color(ORES[t - ORE0].item)
+				elif t == RUNE:
+					col = THEMES[_chamber_theme_near(x, y)].color
+				else:
+					col = (palette[layer_of(y)] as Color).darkened(0.35)
+			_mm_img.set_pixel(x, y, col)
+	for ch in chambers:
+		var cc: Vector2i = cell_at(ch.centre)
+		if seen[idx(cc.x, cc.y)]:
+			_mm_img.set_pixel(cc.x, cc.y, Color.WHITE)
+	_mm_tex.update(_mm_img)

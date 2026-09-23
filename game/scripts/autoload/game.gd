@@ -12,8 +12,11 @@ signal skill_changed(skill: String)
 signal quest_changed
 signal notify(text: String, color: Color)
 signal big_notify(title: String, subtitle: String, color: Color)
+signal tip_requested(id: String, text: String)
 
-const SAVE_PATH := "user://star_circuit_save.json"
+const SAVE_PATH := "user://star_circuit_save.json" # legacy single save (migrated to slot 1)
+const SLOTS := 3
+var slot := 1
 const RESPAWN_SECONDS := 600
 
 var robot_id := "scout"
@@ -45,6 +48,11 @@ var relics_found := 0
 var lit_relays: Array = [0]
 var heart_defeated := false
 var boarded: Array = [] # derelict keys already looted
+var milestones: Array = [] # unlocked milestone ids
+var species_names := {} # species key -> display name (species log)
+var world_species := {} # planet key -> species on that world (for the log)
+var space_kills := 0
+var _milestone_t := 0.0
 var space_spawn := Vector3.ZERO # override spawn when returning from a derelict
 var waypoint := {} # {"kind", "id"} chosen on the system map
 var inventory := {}
@@ -76,6 +84,10 @@ var arriving_from_space := false
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_register_input()
+	Sound.apply_keybinds()
+	Sound.apply_display()
+	_migrate_legacy_save()
+	slot = Sound.last_slot
 	_build_fader()
 	_reset_state()
 
@@ -84,6 +96,10 @@ func _process(delta: float) -> void:
 	if in_game and not get_tree().paused:
 		play_time += delta
 		_autosave_timer += delta
+		_milestone_t += delta
+		if _milestone_t > 2.0:
+			_milestone_t = 0.0
+			check_milestones()
 		if _autosave_timer > 60.0:
 			_autosave_timer = 0.0
 			save_game()
@@ -163,6 +179,10 @@ func _reset_state() -> void:
 	digs = {}
 	cave = {}
 	relics_found = 0
+	milestones = []
+	species_names = {}
+	world_species = {}
+	space_kills = 0
 	lit_relays = [0]
 	heart_defeated = false
 	boarded = []
@@ -170,8 +190,12 @@ func _reset_state() -> void:
 	waypoint = {}
 
 
-func new_game(robot: String, pname: String) -> void:
+func new_game(robot: String, pname: String, slot_n := -1) -> void:
 	_reset_state()
+	if slot_n > 0:
+		slot = slot_n
+	Sound.last_slot = slot
+	Sound.save_settings()
 	robot_id = robot
 	player_name = pname if pname.strip_edges() != "" else Db.ROBOTS[robot].name
 	for s in Db.ROBOTS[robot].start_skills:
@@ -199,14 +223,14 @@ func has_upgrade(id: String) -> bool:
 
 
 func max_energy() -> float:
-	var m := 100.0 + stat("max_energy", 0.0) + (level - 1) * 5.0
+	var m := 100.0 + stat("max_energy", 0.0) + (level - 1) * 5.0 + milestone_bonus("energy")
 	if has_upgrade("capacitor"):
 		m += 50.0
 	return m
 
 
 func max_hull() -> float:
-	var m := 100.0 + stat("hull", 0.0) + (level - 1) * 6.0 + (skill_level("combat") - 1)
+	var m := 100.0 + stat("hull", 0.0) + (level - 1) * 6.0 + (skill_level("combat") - 1) + milestone_bonus("hull")
 	if has_upgrade("hull_plating"):
 		m += 60.0
 	return m
@@ -345,7 +369,7 @@ func planet_level(star_i: int, planet_i: int) -> int:
 
 
 func harvest_speed(skill: String) -> float:
-	var s := 1.0
+	var s := 1.0 + milestone_bonus("harvest")
 	if skill == "mining":
 		s *= stat("harvest_mining", 1.0)
 	if has_upgrade("drill_mk3"):
@@ -553,6 +577,7 @@ func record_scan(species_key: String, display: String) -> bool:
 	if scanned.has(species_key):
 		return false
 	scanned.append(species_key)
+	species_names[species_key] = display
 	notify.emit("Species logged: %s" % display, Color("5ff7ff"))
 	_bounty_event("scan", 1)
 	gain_skill_xp("exploration", 30)
@@ -624,6 +649,7 @@ func accept_quest() -> void:
 		return
 	quest_accepted = true
 	quest_progress = 0
+	tip("quest_star", "Follow the gold ★ on your compass: it points toward your quest objective. Open the Quest log with %s." % key("quests"))
 	var o: Dictionary = q.obj
 	match o.type:
 		"collect":
@@ -763,21 +789,50 @@ func go_to_menu() -> void:
 # save / load
 # --------------------------------------------------------------------------
 
+## Dev/test scenes save to a scratch file so they never clobber real slots.
+static func is_dev_run() -> bool:
+	for a in OS.get_cmdline_args():
+		if "scenes/dev_" in a:
+			return true
+	return false
+
+
+func slot_path(n: int) -> String:
+	return "user://star_circuit_dev.json" if is_dev_run() else "user://star_circuit_slot%d.json" % n
+
+
 func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+	for n in range(1, SLOTS + 1):
+		if FileAccess.file_exists(slot_path(n)):
+			return true
+	return false
+
+
+func _migrate_legacy_save() -> void:
+	if is_dev_run():
+		return
+	if FileAccess.file_exists(SAVE_PATH) and not FileAccess.file_exists(slot_path(1)):
+		DirAccess.rename_absolute(ProjectSettings.globalize_path(SAVE_PATH), ProjectSettings.globalize_path(slot_path(1)))
+
+
+func delete_slot(n: int) -> void:
+	if FileAccess.file_exists(slot_path(n)):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(slot_path(n)))
 
 
 func save_game() -> void:
 	if not in_game:
 		return
 	var data := {
-		"version": 1,
+		"version": 2,
+		"saved_at": Time.get_unix_time_from_system(),
 		"robot_id": robot_id, "player_name": player_name,
 		"level": level, "xp": xp, "energy": energy, "hull": hull, "kills": kills,
 		"discovered_pois": discovered_pois, "looted_pois": looted_pois, "codex": codex, "surveyed": surveyed,
 		"credits": credits, "skill_tiers": skill_tiers, "bounties": bounties, "visited_towns": visited_towns,
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
+		"milestones": milestones, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
 		"star_index": star_index, "planet_index": planet_index, "location": location,
@@ -788,23 +843,29 @@ func save_game() -> void:
 		"land_dir": [land_dir.x, land_dir.y, land_dir.z],
 		"space_pos": [space_return_pos.x, space_return_pos.y, space_return_pos.z],
 	}
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var f := FileAccess.open(slot_path(slot), FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(data, "  "))
 
 
-func save_summary() -> Dictionary:
-	if not has_save():
+func save_summary(n := -1) -> Dictionary:
+	if n < 0:
+		n = slot
+	if not FileAccess.file_exists(slot_path(n)):
 		return {}
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var f := FileAccess.open(slot_path(n), FileAccess.READ)
 	if not f:
 		return {}
 	var d = JSON.parse_string(f.get_as_text())
 	return d if d is Dictionary else {}
 
 
-func load_game() -> bool:
-	var d := save_summary()
+func load_game(n := -1) -> bool:
+	if n > 0:
+		slot = n
+	Sound.last_slot = slot
+	Sound.save_settings()
+	var d := save_summary(slot)
 	if d.is_empty():
 		return false
 	_reset_state()
@@ -828,6 +889,10 @@ func load_game() -> bool:
 	for s in d.get("visited_stars", [0]):
 		visited_stars.append(int(s))
 	scanned = d.get("scanned", [])
+	milestones = d.get("milestones", [])
+	species_names = d.get("species_names", {})
+	world_species = d.get("world_species", {})
+	space_kills = int(d.get("space_kills", 0))
 	harvested = d.get("harvested", {})
 	quest_index = int(d.get("quest_index", 0))
 	quest_accepted = bool(d.get("quest_accepted", false))
@@ -885,6 +950,7 @@ func load_game() -> bool:
 		fade_to("res://scenes/space.tscn")
 	else:
 		fade_to("res://scenes/planet.tscn")
+	check_milestones(false) # older saves: grant quietly
 	return true
 
 
@@ -933,7 +999,7 @@ func sell_price(item: String, planet: Dictionary) -> int:
 	var town: Dictionary = planet.get("town", {})
 	if town.get("specialty", "") == item:
 		mod *= 1.6
-	return maxi(1, int(round(Db.VALUES[item] * 0.6 * mod)))
+	return maxi(1, int(round(Db.VALUES[item] * 0.6 * mod * (1.0 + milestone_bonus("sell")))))
 
 
 func buy_price(item: String, planet: Dictionary) -> int:
@@ -1154,6 +1220,7 @@ func space_weapon_damage() -> float:
 
 
 func record_space_kill(type: String, lvl: int, elite: bool) -> Dictionary:
+	space_kills += 1
 	var e: Dictionary = Db.SPACE_ENEMIES[type]
 	kills += 1
 	var diff := lvl - level
@@ -1192,7 +1259,7 @@ func cargo_used() -> int:
 
 
 func cargo_cap() -> int:
-	var c := Db.CARGO_BASE + int(stat("cargo", 0.0))
+	var c := Db.CARGO_BASE + int(stat("cargo", 0.0)) + int(milestone_bonus("cargo"))
 	if has_upgrade("cargo_pods"):
 		c += 100
 	if has_upgrade("cargo_pods_mk2"):
@@ -1204,7 +1271,19 @@ func cargo_free() -> int:
 	return maxi(0, cargo_cap() - cargo_used())
 
 
+## Ask the HUD for a one-time tip (shown once per profile, can be disabled).
+func tip(id: String, text: String) -> void:
+	if Sound.show_tips and not Sound.seen_tips.has(id):
+		tip_requested.emit(id, text)
+
+
+## "[E]" style label for an action's current key.
+func key(action: String) -> String:
+	return "[%s]" % Sound.key_name(action)
+
+
 func _cargo_full_warning() -> void:
+	tip("cargo_full", "Your cargo hold is full. Sell surplus at a town Merchant or an orbital station (dock with %s in space), or craft Cargo Pods at the Fabricator %s." % [key("ability"), key("crafting")])
 	var now := Time.get_ticks_msec()
 	if now - _full_warn_t > 2500:
 		_full_warn_t = now
@@ -1243,7 +1322,7 @@ func _station_mod(item: String, star_i: int) -> float:
 func station_sell_price(item: String, star_i: int) -> int:
 	if not Db.VALUES.has(item):
 		return 0
-	return maxi(1, int(round(Db.VALUES[item] * 0.7 * _station_mod(item, star_i))))
+	return maxi(1, int(round(Db.VALUES[item] * 0.7 * _station_mod(item, star_i) * (1.0 + milestone_bonus("sell")))))
 
 
 func station_buy_price(item: String, star_i: int) -> int:
@@ -1538,3 +1617,66 @@ func defeat_heart() -> void:
 	heart_defeated = true
 	_quest_event("heart", "heart")
 	save_game()
+
+
+
+# --------------------------------------------------------------------------
+# milestones + species log
+# --------------------------------------------------------------------------
+
+func metric(m: String) -> int:
+	match m:
+		"worlds": return visited_planets.size()
+		"stars": return visited_stars.size()
+		"species": return scanned.size()
+		"surveyed": return surveyed.size()
+		"kills": return kills
+		"space_kills": return space_kills
+		"towns": return visited_towns.size()
+		"codex": return codex.size()
+		"relics": return relics_found
+		"relays": return lit_relays.size() - 1 # Solace's relay starts lit
+		"best_skill":
+			var b := 0
+			for s in skills:
+				b = maxi(b, int(skills[s].level))
+			return b
+	return 0
+
+
+func milestone_bonus(kind: String) -> float:
+	var t := 0.0
+	for m in Db.MILESTONES:
+		if milestones.has(m.id):
+			t += float(m.bonus.get(kind, 0.0))
+	return t
+
+
+static func bonus_text(b: Dictionary) -> String:
+	var parts: Array[String] = []
+	for k in b:
+		match k:
+			"energy": parts.append("+%d max energy" % int(b[k]))
+			"hull": parts.append("+%d max hull" % int(b[k]))
+			"cargo": parts.append("+%d cargo" % int(b[k]))
+			"harvest": parts.append("+%d%% harvest speed" % int(round(b[k] * 100)))
+			"sell": parts.append("+%d%% sell prices" % int(round(b[k] * 100)))
+	return ", ".join(parts)
+
+
+func check_milestones(announce := true) -> void:
+	for m in Db.MILESTONES:
+		if milestones.has(m.id) or metric(m.metric) < int(m.n):
+			continue
+		milestones.append(m.id)
+		if not announce:
+			continue
+		big_notify.emit("MILESTONE: " + (m.name as String).to_upper(), "%s  ·  %s" % [m.desc, bonus_text(m.bonus)], Color("ffd23f"))
+		Sound.play("quest_complete", -4.0, 0.0, "UI")
+		energy_changed.emit(energy, max_energy())
+		hull_changed.emit()
+
+
+## Remember how many species live on a world, for the species log.
+func note_world_species(planet_key: String, planet_name: String, biome: String, total: int) -> void:
+	world_species[planet_key] = {"name": planet_name, "biome": biome, "total": total}

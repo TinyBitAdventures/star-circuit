@@ -46,7 +46,7 @@ func _ready() -> void:
 	spring.position = Vector3(0.7, 0, 0)
 	cam_rig.add_child(spring)
 	camera = Camera3D.new()
-	camera.fov = 70.0
+	camera.fov = Sound.fov
 	spring.add_child(camera)
 	camera.make_current()
 	var lamp := SpotLight3D.new()
@@ -64,8 +64,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		cam_yaw -= event.relative.x * 0.0035
-		cam_pitch = clampf(cam_pitch - event.relative.y * 0.003, -1.1, 0.5)
+		var md := Sound.look_delta(event.relative)
+		cam_yaw -= md.x * 0.0035
+		cam_pitch = clampf(cam_pitch - md.y * 0.003, -1.1, 0.5)
 
 
 func _physics_process(delta: float) -> void:

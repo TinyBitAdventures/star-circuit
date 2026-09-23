@@ -112,6 +112,10 @@ func _ready() -> void:
 	Game.land_dir = spawn_dir
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	hud.show_location_banner(planet.name, "%s world  ·  %s system  ·  Danger level %d" % [biome.name, Galaxy.star(Game.star_index).name, danger_level])
+	get_tree().create_timer(6.0).timeout.connect(func():
+		if is_instance_valid(self):
+			Game.tip("first_landing", "Walk with WASD, sprint with %s, jump with %s (hold it mid-air for the jetpack). Press %s to gather glowing resources and %s to scan creatures and plants." % [Game.key("sprint"), Game.key("jump"), Game.key("interact"), Game.key("scan")])
+	)
 
 
 var _combat_check := 0.0
@@ -141,6 +145,8 @@ func _process(delta: float) -> void:
 		env.fog_light_color = (biome.horizon as Color).darkened(0.2) * day + Color(0.02, 0.03, 0.07) * (1.0 - day)
 		env.ambient_light_energy = lerpf(0.25, 0.6, day)
 		sun.light_energy = 1.25 * smoothstep(-0.12, 0.12, up.dot(sun_dir))
+		if day < 0.1 and _combat_check >= 0.49:
+			Game.tip("night", "Night falls. Your energy only recharges in sunlight, so go easy on the jetpack until dawn. Energy Cells %s top you up." % Game.key("use_cell"))
 
 
 # --------------------------------------------------------------------------
@@ -726,6 +732,7 @@ func survey_status() -> Dictionary:
 	for p in pois:
 		if p.is_discovered():
 			found_sites += 1
+	Game.note_world_species(planet.key, planet.name, planet.biome, species.size())
 	return {"species": found_species, "species_total": species.size(), "sites": found_sites, "sites_total": pois.size(),
 		"done": Game.surveyed.has(planet.key)}
 
@@ -746,6 +753,9 @@ func compass_markers() -> Array:
 			out.append({"pos": p.global_position, "color": p.def.color, "label": p.def.name, "done": p.is_looted() or p.type == "geode"})
 	if town:
 		out.append({"pos": town.centre, "color": Color("ffd98a"), "label": planet.town.name, "done": false})
+	var q := quest_target()
+	if not q.is_empty():
+		out.append({"pos": q.pos, "color": Color("ffd23f"), "label": "★ " + q.label, "done": false, "quest": true})
 	return out
 
 
@@ -901,3 +911,75 @@ func _update_town(pos: Vector3) -> void:
 	elif _in_town and d > 55.0:
 		_in_town = false
 		Sound.play_music(Sound.music_for_biome(planet.biome), 3.0)
+
+
+
+# --------------------------------------------------------------------------
+# quest guidance
+# --------------------------------------------------------------------------
+
+var _qt_cache := {}
+var _qt_t := 0.0
+
+## Where the current quest wants you to go on this planet (or {}).
+func quest_target() -> Dictionary:
+	_qt_t -= get_process_delta_time()
+	if _qt_t > 0.0:
+		return _qt_cache
+	_qt_t = 0.5
+	_qt_cache = _compute_quest_target()
+	return _qt_cache
+
+
+func _nearest(nodes: Array, pos: Vector3) -> Node3D:
+	var best: Node3D = null
+	var bd := INF
+	for n in nodes:
+		if is_instance_valid(n):
+			var d: float = n.global_position.distance_to(pos)
+			if d < bd:
+				bd = d
+				best = n
+	return best
+
+
+func _compute_quest_target() -> Dictionary:
+	if player == null:
+		return {}
+	var q := Game.current_quest()
+	if q.is_empty():
+		return {}
+	var pos := player.global_position
+	if not Game.quest_accepted:
+		if Game.quest_index == 0 and is_home:
+			for n in _interactables:
+				if n is ArchivistNpc:
+					return {"pos": n.global_position, "label": "The Archivist"}
+		return {}
+	var o: Dictionary = q.obj
+	match o.type:
+		"collect":
+			var hits := _nodes.filter(func(n): return is_instance_valid(n) and n.def.item == o.item)
+			var n := _nearest(hits, pos)
+			if n:
+				return {"pos": n.global_position, "label": n.def.name}
+		"scan":
+			var c := _nearest(_critters, pos)
+			if c:
+				return {"pos": c.global_position, "label": "Creatures to scan"}
+		"dig", "chamber":
+			var caves := pois.filter(func(p): return p.type == "cave")
+			var cv := _nearest(caves, pos)
+			if cv:
+				return {"pos": cv.global_position, "label": "Cave Mouth"}
+		"kill", "kill_elite":
+			var foes := enemies.filter(func(e): return e.is_alive() and (e.elite or o.type == "kill"))
+			var e := _nearest(foes, pos)
+			if e:
+				return {"pos": e.global_position, "label": "Rogue drones"}
+		"sell", "train":
+			if town:
+				for n in town.npcs:
+					if n.role == ("merchant" if o.type == "sell" else "trainer"):
+						return {"pos": n.global_position, "label": n.npc_name}
+	return {}

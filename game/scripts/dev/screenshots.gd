@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "polish":
+		await _polish_tour()
+		get_tree().quit()
+		return
 	if which == "circuit":
 		await _circuit_tour()
 		get_tree().quit()
@@ -955,3 +959,87 @@ func _circuit_tour() -> void:
 				w.player.spring.spring_length = 9.0
 				await _wait(1.5)
 				await shot("edge_" + leg)
+
+
+
+func _polish_tour() -> void:
+	Sound.show_tips = true
+	Sound.seen_tips = []
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	await _wait(2.5)
+	var m := _scene()
+	await shot("pol_menu")
+	m._show_overlay("load")
+	await _wait(0.8)
+	await shot("pol_load")
+	m._show_overlay("settings")
+	await _wait(0.8)
+	await shot("pol_settings_menu")
+	Game.new_game("scout", "Tester")
+	await _wait(8.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	await shot("pol_tip_landing")
+	# quest guidance: accept the first quest and look at the compass
+	Game.accept_quest()
+	await _wait(1.5)
+	await shot("pol_quest_star")
+	# fake some collection progress
+	for pi in 3:
+		var pl: Dictionary = Galaxy.planet(0, pi)
+		Game.visited_planets.append(pl.key)
+		for v in 3:
+			var k := "%s:fauna:%d" % [pl.key, v]
+			Game.record_scan(k, Galaxy.species_name(pl.seed, "fauna%d" % v) + " (fauna)")
+		Game.note_world_species(pl.key, pl.name, pl.biome, 6)
+	Game.kills = 30
+	Game.check_milestones()
+	await _wait(1.5)
+	await shot("pol_milestone")
+	var hud = w.hud
+	for t in 3:
+		hud._codex_tab = t
+		hud.toggle_panel("quests")
+		await _wait(0.6)
+		await shot("pol_codex_%d" % t)
+		hud.toggle_panel("quests")
+		await _wait(0.2)
+	hud.toggle_panel("settings")
+	await _wait(0.6)
+	await shot("pol_settings_pause")
+	hud.toggle_panel("settings")
+	# the Deep: lava + survey map
+	var cave: Poi = null
+	for p in w.pois:
+		if p.type == "cave":
+			cave = p
+	Game.skills.mining.level = 60
+	Game.skill_tiers["mining"] = 3
+	cave.open_cache()
+	await _wait(3.5)
+	var d := _scene()
+	var pod: DigPod = d.pod
+	Input.action_press("move_back")
+	await _wait(6.0)
+	Input.action_release("move_back")
+	await shot("pol_dig_tip_minimap")
+	# find a lava pool and sit next to it
+	var best := Vector2i(-1, -1)
+	for y in range(100, d.H):
+		for x in d.W:
+			if d.get_cell(x, y) == d.LAVA and best.x < 0:
+				best = Vector2i(x, y)
+	if best.x >= 0:
+		var cx := clampi(best.x + 3, 3, d.W - 4)
+		for yy in range(best.y - 3, best.y + 1):
+			for xx in range(cx - 2, cx + 3):
+				if d.get_cell(xx, yy) != d.BEDROCK and d.get_cell(xx, yy) != d.LAVA:
+					d.cells[d.idx(xx, yy)] = d.AIR
+					d.dug[d.idx(xx, yy)] = 1
+					d.redraw_cell(Vector2i(xx, yy))
+		Game.upgrades.append("lava_plating")
+		pod.position = d.cell_centre(Vector2i(cx, best.y - 1))
+		pod.velocity = Vector2.ZERO
+		await _wait(2.0)
+		await shot("pol_dig_lava")
