@@ -145,6 +145,13 @@ fullscreen, graphics quality and volume.
     Fill them remotely from the vault for well over market price, before they expire.
   - **Trophy Wall:** your world gems, relics, species holograms, milestone badges and, one day, the Crown of Worlds.
     The window shows wherever you currently are.
+  - **Dispatch Bay:** compile up to three subroutine workers (copies of you) and send them on jobs to worlds you've visited:
+    **Gather** (resources into the vault), **Survey** (fees, Exploration XP, a chance of fossils and relics) or **Haul & Sell**
+    (carry vault goods to a town you've visited and sell them). Jobs take 5, 15 or 30 minutes of play time. Riskier worlds can send a worker
+    home damaged with half the haul. Workers level up to 10, earning more and taking less risk. Reports arrive in the Inbox.
+  - **Decor:** buy furniture and wall pieces (lamps, a home globe, a sea tank of the species you've logged, an arcade, neon signs,
+    an uptime clock, a star chart of your lit relays...) and arrange them in wall and floor spots. Pick a room theme, and compile
+    two wings: an **Observatory** onto your relay Circuit and a **Garden**. The **Defrag Pod** fully restores hull and energy once per in-game day.
 - **Orbit & Deep Probes**:
   - Near any planet, moon or gas giant, press O to hold orbit. The view cuts the world open: surface, clouds and atmosphere on the rim,
     then crust strata, a convecting mantle, a molten outer core and a white-hot inner core, all turning slowly under your ship.

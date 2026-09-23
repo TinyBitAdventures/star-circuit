@@ -304,6 +304,50 @@ const MILESTONES := [
 	{"id": "master", "name": "Master of a Craft", "desc": "Reach level 50 in any profession", "metric": "best_skill", "n": 50, "bonus": {"harvest": 0.1}},
 ]
 
+# --------------------------------------------------------------------------
+# The Homespace: decor, themes, workers
+# --------------------------------------------------------------------------
+## slot "wall" hangs on the back wall; "floor" stands on the floor.
+## use: an interaction the piece offers when placed.
+const DECOR := {
+	"bonsai": {"name": "Data Bonsai", "slot": "floor", "price": 0, "desc": "A little tree grown from spare cycles. Came with the frame."},
+	"lamp": {"name": "Arc Lamp", "slot": "floor", "price": 120, "desc": "A tall floor lamp with a warm glow."},
+	"cactus": {"name": "Dune Succulent", "slot": "floor", "price": 150, "desc": "A potted plant from an arid world. Very low maintenance."},
+	"globe": {"name": "Home Globe", "slot": "floor", "price": 300, "desc": "A spinning hologram of the world you first woke on."},
+	"crystal": {"name": "Crystal Cluster", "slot": "floor", "price": 350, "desc": "Lumen crystals that hum a soft chord."},
+	"arcade": {"name": "Tiny Arcade", "slot": "floor", "price": 600, "desc": "A cabinet that plays a game about a robot who plays arcade games."},
+	"aquarium": {"name": "Sea Tank", "slot": "floor", "price": 900, "desc": "A tank of the sea species you've logged, swimming in holo-water."},
+	"charging_pod": {"name": "Defrag Pod", "slot": "floor", "price": 1200, "use": "charge", "desc": "Rest here to fully restore hull and energy. Recharges every in-game day."},
+	"neon_home": {"name": "HOME Neon", "slot": "wall", "price": 100, "desc": "It says what it is."},
+	"clock": {"name": "Uptime Clock", "slot": "wall", "price": 150, "desc": "Counts every second you've been online."},
+	"string_lights": {"name": "String Lights", "slot": "wall", "price": 180, "desc": "Little bulbs in your accent colour."},
+	"star_chart": {"name": "Star Chart", "slot": "wall", "price": 250, "desc": "Your lit relays, drawn as a constellation."},
+	"poster": {"name": "Frame Poster", "slot": "wall", "price": 200, "desc": "A heroic portrait of your robot. Slightly flattering."},
+	"holo_fish": {"name": "Holo Koi", "slot": "wall", "price": 450, "desc": "Two hologram fish circling a wall panel forever."},
+}
+
+const HOME_THEMES := {
+	"midnight": {"name": "Midnight Neon", "price": 0, "top": Color("0b1030"), "bot": Color("171b44"), "grid": Color(0.4, 0.6, 1.0), "trim": Color(0.4, 0.95, 1.0)},
+	"sunset": {"name": "Sunset Arcade", "price": 400, "top": Color("2a0f2e"), "bot": Color("5a2438"), "grid": Color(1.0, 0.5, 0.6), "trim": Color(1.0, 0.7, 0.4)},
+	"forest": {"name": "Canopy", "price": 400, "top": Color("0b2218"), "bot": Color("163a26"), "grid": Color(0.4, 1.0, 0.6), "trim": Color(0.6, 1.0, 0.7)},
+	"abyss": {"name": "Abyssal", "price": 600, "top": Color("031424"), "bot": Color("08304a"), "grid": Color(0.3, 0.8, 1.0), "trim": Color(0.4, 1.0, 0.9)},
+	"gold": {"name": "Gilded", "price": 1500, "top": Color("1e1608"), "bot": Color("3a2a10"), "grid": Color(1.0, 0.85, 0.4), "trim": Color(1.0, 0.9, 0.55)},
+}
+
+## Each wing adds room to the right: [name, credits, floor slots, wall slots].
+const HOME_WINGS := [["Observatory Wing", 1500, 3, 2], ["Garden Wing", 4000, 3, 2]]
+
+const WORKER_NAMES := ["Pip", "Nib", "Sprocket", "Dot", "Widget", "Tock", "Glim", "Ratchet"]
+## Compiling your nth subroutine worker costs this many credits.
+const WORKER_COSTS := [0, 900, 2800]
+const WORKER_MAX_LEVEL := 10
+const JOB_MINUTES := [5, 15, 30]
+const JOBS := {
+	"gather": {"name": "Gather", "desc": "Harvest what grows and glints on a world you've visited. Returns resources to the vault."},
+	"survey": {"name": "Survey", "desc": "Chart a visited world for survey fees, with a chance of fossils and relics."},
+	"haul": {"name": "Haul & Sell", "desc": "Carry goods from your vault to a town you've visited and sell them there."},
+}
+
 const QUESTS := [
 	{"id": "wake", "title": "Wake Up, Unit", "giver": "Archivist",
 		"text": "Ah, you are finally online. The Circuit went dark long ago, and every star since has been a stranger. Before you wander, prove your frame still works. Break some Ferrite from the veins around the outpost.",

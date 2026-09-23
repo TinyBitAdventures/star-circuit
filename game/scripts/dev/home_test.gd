@@ -54,6 +54,45 @@ func _run() -> void:
 		var cr1 := Game.credits
 		var ok := Game.order_fulfill(int(order.id))
 		print("[home] filled=", ok, " credits ", cr1, "->", Game.credits, " vault left=", Game.vault_count(o.item))
+	# subroutine workers
+	var w := Game.worker_compile()
+	print("[home] worker=", w.name, " cost next=", Game.worker_cost())
+	var pv := Game.job_preview(w, "gather", "0:0", 5)
+	print("[home] gather preview: ", pv.summary, " risk=", pv.risk)
+	Game.job_start(int(w.id), "gather", "0:0", 5)
+	var v0 := Game.vault_used()
+	Game._update_workers(301.0)
+	print("[home] gather done: state=", w.state, " vault ", v0, "->", Game.vault_used(), " xp=", w.xp, " report=", Game.inbox[0].subject, " | ", Game.inbox[0].body.replace("\n", " / "))
+	Game.vault["cobalt"] = 40
+	var cr2 := Game.credits
+	Game.job_start(int(w.id), "haul", "0:0", 5, "cobalt")
+	print("[home] haul out: vault cobalt=", Game.vault_count("cobalt"), " carrying=", w.job.qty)
+	w.job.risk = 0.0
+	Game._update_workers(301.0)
+	print("[home] haul done: credits ", cr2, "->", Game.credits, " (report credits attached=", Game.inbox[0].credits, ")")
+	Game.mail_claim(int(Game.inbox[0].id))
+	print("[home] after claim credits=", Game.credits)
+	Game.job_start(int(w.id), "survey", "0:0", 15)
+	w.job.risk = 100.0
+	Game._update_workers(901.0)
+	print("[home] risky survey: state=", w.state, " level=", w.level)
+	Game.add_item("repair_kit", 1, true)
+	print("[home] repaired=", Game.worker_repair(int(w.id)), " state=", w.state)
+	# decor, themes, wings, pod
+	Game.add_credits(10000, true)
+	print("[home] buy lamp=", Game.decor_buy("lamp"), " pod=", Game.decor_buy("charging_pod"), " theme=", Game.theme_buy("sunset"), " wing=", Game.wing_buy())
+	Game.decor_place("f0", "charging_pod")
+	Game.decor_place("w1", "lamp")
+	Game.decor_place("f1", "lamp")
+	print("[home] slots=", Game.home_state().slots, " theme=", Game.home_state().theme, " wings=", Game.home_state().wings)
+	Game.hull = 10.0
+	print("[home] pod used=", Game.charge_use(), " hull=", Game.hull, " again=", Game.charge_use(), " ready in ", int(Game.charge_ready()))
+	home._build_layout()
+	print("[home] room width=", home.room_w, " stations=", home.stations.map(func(s): return s.id), " use spots=", home._use_spots().size())
+	home._open_panel("dispatch")
+	await _wait(0.2)
+	home._open_panel("decor")
+	await _wait(0.2)
 	# panels build without errors
 	home._open_panel("vault")
 	await _wait(0.2)

@@ -1328,3 +1328,43 @@ func _home_tour() -> void:
 	home._open_panel("trophy")
 	await _wait(0.5)
 	await shot("home_trophy")
+	home._close_panel()
+	# part 2: workers, decor, a wing
+	Game.add_credits(20000, true)
+	for id in ["lamp", "globe", "charging_pod", "arcade", "aquarium", "neon_home", "clock", "string_lights", "poster", "holo_fish", "star_chart", "crystal", "cactus"]:
+		Game.decor_buy(id)
+	var place := {"f0": "lamp", "f1": "globe", "f3": "charging_pod", "f4": "arcade", "w0": "neon_home", "w1": "clock", "w2": "string_lights", "w3": "poster", "w4": "holo_fish"}
+	for k in place:
+		Game.decor_place(k, place[k])
+	Game.wing_buy()
+	Game.wing_buy()
+	Game.lit_relays = [0, 3, 5, 9, 12]
+	Game.decor_place("f5", "aquarium")
+	Game.decor_place("f6", "crystal")
+	Game.decor_place("w5", "star_chart")
+	for i in 2:
+		Game.worker_compile()
+	Game.visited_planets.append("0:1")
+	Game.job_start(int(Game.workers[1].id), "gather", "0:1", 15)
+	home._build_layout()
+	home._avatar_x = 990.0
+	home.scroll = 990.0 - home._vs().x * 0.5
+	await _wait(1.0)
+	await shot("home_dispatch_room")
+	home._open_panel("dispatch")
+	await _wait(0.5)
+	await shot("home_dispatch_panel")
+	home._open_panel("decor")
+	await _wait(0.5)
+	await shot("home_decor_panel")
+	home._close_panel()
+	Game.theme_buy("sunset")
+	home._avatar_x = 2000.0
+	await _wait(1.5)
+	await shot("home_sunset")
+	home._avatar_x = 2900.0
+	await _wait(2.5)
+	await shot("home_observatory")
+	home._avatar_x = 3900.0
+	await _wait(2.5)
+	await shot("home_garden")

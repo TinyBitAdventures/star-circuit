@@ -8,6 +8,8 @@
 - **Inbox:** letters and parcels, including a welcome from the Archivist, and trader orders from towns you've visited. Fill orders remotely from the vault for 30-70% over market before they expire.
 - **Trophy Wall:** gems, relics, species holograms, milestone badges and the Crown pedestal. A window shows where you are right now.
 - A cozy lo-fi home theme, plus enter and exit sounds.
+- **Dispatch Bay:** compile up to three subroutine workers (the first is free, then ⌬ 900 and ⌬ 2800). Send them to visited worlds to Gather, Survey, or Haul & Sell goods from your vault, on 5, 15 or 30 minute play-time jobs. The risk of coming back damaged depends on the world's danger and the worker's level (1-10). Reports and payments arrive in the Inbox.
+- **Decor:** 14 pieces to buy and arrange in wall and floor spots, 5 room themes, and two wings to expand into: the Observatory, showing your lit relays as a constellation, and the Garden. The Defrag Pod fully restores you once per in-game day.
 
 ## v0.2.0 — 2026-09-23
 

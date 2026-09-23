@@ -29,13 +29,54 @@ var _accent := Color.WHITE
 var _shell := Color.WHITE
 var _glow := Color.WHITE
 
-var stations := [
-	{"id": "vault", "x": 0.14, "label": "Vault"},
-	{"id": "inbox", "x": 0.33, "label": "Inbox"},
-	{"id": "window", "x": 0.53, "label": "Window"},
-	{"id": "trophy", "x": 0.75, "label": "Trophy Wall"},
-	{"id": "exit", "x": 0.93, "label": "Step back out"},
-]
+var stations: Array = [] # {id, x, label} in room pixels
+var slots: Array = [] # decor slots: {id, kind: floor|wall, x}
+var room_w := 2400.0
+var scroll := 0.0
+var _sel_worker := -1
+var _job_kind := "gather"
+var _job_target := ""
+var _job_min := 15
+var _job_item := ""
+const BASE_W := 2400.0
+const WING_W := 1000.0
+
+
+func _build_layout() -> void:
+	stations = [
+		{"id": "exit", "x": 100.0, "label": "Step back out"},
+		{"id": "vault", "x": 300.0, "label": "Vault"},
+		{"id": "inbox", "x": 640.0, "label": "Inbox"},
+		{"id": "dispatch", "x": 990.0, "label": "Dispatch Bay"},
+		{"id": "window", "x": 1480.0, "label": "Window"},
+		{"id": "trophy", "x": 1930.0, "label": "Trophy Wall"},
+		{"id": "decor", "x": 2300.0, "label": "Decor Console"},
+	]
+	slots = []
+	for p in [["f0", 470.0], ["f1", 800.0], ["f2", 1255.0], ["f3", 1712.0], ["f4", 2150.0]]:
+		slots.append({"id": p[0], "kind": "floor", "x": p[1]})
+	for p in [["w0", 470.0], ["w1", 800.0], ["w2", 1170.0], ["w3", 1760.0], ["w4", 2150.0]]:
+		slots.append({"id": p[0], "kind": "wall", "x": p[1]})
+	var wings := int(Game.home_state().wings)
+	for i in wings:
+		var bx := BASE_W + i * WING_W
+		stations.append({"id": ["observatory", "garden"][i], "x": bx + 500.0, "label": ["Observatory", "Garden"][i]})
+		for k in 3:
+			slots.append({"id": "f%d" % (5 + i * 3 + k), "kind": "floor", "x": bx + [170.0, 330.0, 840.0][k]})
+		for k in 2:
+			slots.append({"id": "w%d" % (5 + i * 2 + k), "kind": "wall", "x": bx + [200.0, 800.0][k]})
+	room_w = BASE_W + wings * WING_W
+
+
+## Placed decor that can be used (the defrag pod) acts like a station.
+func _use_spots() -> Array:
+	var out := []
+	var h := Game.home_state()
+	for sl in slots:
+		var id: String = h.slots.get(sl.id, "")
+		if id != "" and Db.DECOR.get(id, {}).has("use"):
+			out.append({"id": "pod", "x": sl.x, "label": Db.DECOR[id].name})
+	return out
 
 
 func _ready() -> void:
@@ -96,7 +137,8 @@ func _ready() -> void:
 	add_child(_fade)
 	var t := create_tween()
 	t.tween_property(_fade, "color:a", 0.0, 0.45)
-	_avatar_x = _vs().x * 0.5
+	_build_layout()
+	_avatar_x = 300.0 if Game.home_visits > 1 else 640.0
 	var r := RandomNumberGenerator.new()
 	r.seed = 3
 	for i in 60:
@@ -116,11 +158,11 @@ func _floor_y() -> float:
 
 
 func _station_x(s: Dictionary) -> float:
-	return _vs().x * float(s.x)
+	return float(s.x)
 
 
 func _near_station() -> Dictionary:
-	for s in stations:
+	for s in stations + _use_spots():
 		if absf(_station_x(s) - _avatar_x) < 90.0:
 			return s
 	return {}
@@ -139,7 +181,10 @@ func _process(delta: float) -> void:
 	else:
 		_walk_t = 0.0
 	var vs := _vs()
-	_avatar_x = clampf(_avatar_x + ix * WALK * delta, vs.x * 0.05, vs.x * 0.97)
+	_avatar_x = clampf(_avatar_x + ix * WALK * delta, 50.0, room_w - 50.0)
+	var want := clampf(_avatar_x - vs.x * 0.5, 0.0, maxf(0.0, room_w - vs.x))
+	scroll = lerpf(scroll, want, clampf(delta * 6.0, 0.0, 1.0))
+	room.position.x = -scroll
 	var s := _near_station()
 	_prompt.visible = not busy and not s.is_empty()
 	if not s.is_empty():
@@ -153,8 +198,15 @@ func _process(delta: float) -> void:
 				txt = "[E] Step back out"
 			"window":
 				txt = "The view from where you are"
+			"pod":
+				var wait := Game.charge_ready()
+				txt = "[E] Rest in the Defrag Pod" if wait <= 0.0 else "Defrag Pod recharging (%dm)" % int(ceil(wait / 60.0))
+			"observatory":
+				txt = "The Circuit: %d relays lit" % Game.lit_relays.size()
+			"garden":
+				txt = "The Garden"
 		_prompt.text = txt
-		_prompt.position = Vector2(_avatar_x - 150.0, _floor_y() + 26.0)
+		_prompt.position = Vector2(_avatar_x - scroll - 150.0, _floor_y() + 26.0)
 		if not busy and Input.is_action_just_pressed("interact"):
 			_use(s.id)
 	room.queue_redraw()
@@ -182,6 +234,14 @@ func _use(id: String) -> void:
 			_open_panel("inbox")
 		"trophy":
 			_open_panel("trophy")
+		"dispatch":
+			_open_panel("dispatch")
+		"decor":
+			_open_panel("decor")
+		"pod":
+			if Game.charge_use():
+				Sound.play("respawn", -4.0, 0.0, "UI")
+				_toast("Defragmented. Hull and energy fully restored.", Color("6ee06a"))
 		"exit":
 			leave()
 
@@ -276,6 +336,10 @@ func _rebuild() -> void:
 			_panel = _panel_inbox()
 		"trophy":
 			_panel = _panel_trophy()
+		"dispatch":
+			_panel = _panel_dispatch()
+		"decor":
+			_panel = _panel_decor()
 		_:
 			return
 	panel_root.add_child(_panel)
@@ -545,6 +609,321 @@ func _panel_trophy() -> Control:
 	return _panel_holder
 
 
+func _panel_dispatch() -> Control:
+	var v := _frame("DISPATCH BAY", Vector2(1120, 660))
+	var intro := UiKit.label("Subroutines are compiled copies of you. Send them to worlds you've visited while you keep playing. Jobs run on play time; results arrive in the vault, with a report in the Inbox.", 14, UiKit.MUTED)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD
+	v.add_child(intro)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 18)
+	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(cols)
+	var left := VBoxContainer.new()
+	left.custom_minimum_size = Vector2(360, 0)
+	left.add_theme_constant_override("separation", 8)
+	cols.add_child(left)
+	if Game.workers.is_empty():
+		left.add_child(UiKit.label("No subroutines yet.", 15, UiKit.MUTED))
+	if _sel_worker < 0 and not Game.workers.is_empty():
+		_sel_worker = int(Game.workers[0].id)
+	for w in Game.workers:
+		var id := int(w.id)
+		var card := PanelContainer.new()
+		var sel := id == _sel_worker
+		card.add_theme_stylebox_override("panel", UiKit.box(Color(0.08, 0.16, 0.12, 0.95) if sel else Color(0.06, 0.08, 0.1, 0.9), Color("6ee06a") if sel else Color(1, 1, 1, 0.12), 8, 2 if sel else 1, 10))
+		left.add_child(card)
+		var cv := VBoxContainer.new()
+		card.add_child(cv)
+		var head := HBoxContainer.new()
+		cv.add_child(head)
+		var nm := UiKit.label("%s  ·  Level %d" % [w.name, int(w.level)], 17, Color.WHITE, true)
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(nm)
+		if not sel:
+			head.add_child(UiKit.button("Select", func():
+				_sel_worker = id
+				_rebuild()
+			))
+		var status := "Idle, awaiting orders"
+		match w.state:
+			"job":
+				var pl := Game._planet_of(w.job.target)
+				status = "%s on %s  ·  back in %dm" % [Db.JOBS[w.job.kind].name, pl.name, int(ceil(float(w.job.left) / 60.0))]
+			"hurt":
+				status = "Damaged  ·  self-repair in %dm" % int(ceil(float(w.hurt_left) / 60.0))
+		cv.add_child(UiKit.label(status, 14, Color("ffd98a") if w.state == "job" else (Color("ff6b6b") if w.state == "hurt" else Color("6ee06a"))))
+		if int(w.level) < Db.WORKER_MAX_LEVEL:
+			var bar := ProgressBar.new()
+			bar.max_value = 100 * int(w.level)
+			bar.value = int(w.xp)
+			bar.show_percentage = false
+			bar.custom_minimum_size = Vector2(0, 6)
+			cv.add_child(bar)
+		var acts := HBoxContainer.new()
+		cv.add_child(acts)
+		if w.state == "job":
+			acts.add_child(UiKit.button("Recall", func():
+				Game.job_recall(id)
+				_rebuild()
+			))
+		elif w.state == "hurt":
+			acts.add_child(UiKit.button("Repair (1 Repair Kit)", func():
+				if Game.worker_repair(id):
+					Sound.play("craft", -6.0, 0.0, "UI")
+				_rebuild()
+			))
+	var cost := Game.worker_cost()
+	if cost >= 0:
+		left.add_child(UiKit.button("Compile a new subroutine  (%s)" % ("free" if cost == 0 else "⌬ %d" % cost), func():
+			var nw := Game.worker_compile()
+			if not nw.is_empty():
+				_sel_worker = int(nw.id)
+				Sound.play("home_enter", -8.0, 0.0, "UI")
+			_rebuild()
+		))
+	else:
+		left.add_child(UiKit.label("All subroutine slots compiled.", 13, UiKit.MUTED))
+	# the job builder for the selected worker
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 10)
+	cols.add_child(right)
+	var w := Game.worker_by_id(_sel_worker)
+	if w.is_empty():
+		right.add_child(UiKit.label("Compile a subroutine to start dispatching jobs.", 16, UiKit.MUTED))
+		return _panel_holder
+	if w.state != "idle":
+		right.add_child(UiKit.label("%s is busy. Select an idle subroutine to plan a job." % w.name, 16, UiKit.MUTED))
+		return _panel_holder
+	right.add_child(UiKit.label("PLAN A JOB FOR %s" % String(w.name).to_upper(), 14, Color("6ee06a"), true))
+	var kinds := HBoxContainer.new()
+	kinds.add_theme_constant_override("separation", 8)
+	right.add_child(kinds)
+	for kd in Db.JOBS:
+		var kb := UiKit.button(Db.JOBS[kd].name, func():
+			_job_kind = kd
+			_job_target = ""
+			_rebuild()
+		)
+		if kd == _job_kind:
+			kb.add_theme_stylebox_override("normal", UiKit.box(Color(0.1, 0.3, 0.2, 1), Color("6ee06a"), 8, 2, 8))
+		kinds.add_child(kb)
+	var jd := UiKit.label(Db.JOBS[_job_kind].desc, 14, UiKit.MUTED)
+	jd.autowrap_mode = TextServer.AUTOWRAP_WORD
+	right.add_child(jd)
+	var targets := Game.job_targets(_job_kind)
+	if targets.is_empty():
+		right.add_child(UiKit.label("No destinations yet: %s" % ("visit a town first." if _job_kind == "haul" else "land on a world first."), 15, Color("ffb86b")))
+		return _panel_holder
+	if not targets.has(_job_target):
+		_job_target = targets[0]
+	var trow := HBoxContainer.new()
+	right.add_child(trow)
+	trow.add_child(UiKit.label("Destination  ", 15))
+	var opt := OptionButton.new()
+	for k in targets.size():
+		var tk: String = targets[k]
+		var parts := tk.split(":")
+		var pl := Game._planet_of(tk)
+		var label: String = pl.get("town", {}).get("name", pl.name) if _job_kind == "haul" else pl.name
+		opt.add_item("%s  (%s, danger %d)" % [label, Db.BIOMES.get(pl.biome, {}).get("name", "?"), Game.planet_level(int(parts[0]), int(parts[1]))], k)
+		if tk == _job_target:
+			opt.select(k)
+	opt.item_selected.connect(func(ix):
+		_job_target = targets[ix]
+		_rebuild()
+	)
+	trow.add_child(opt)
+	if _job_kind == "haul":
+		var irow := HBoxContainer.new()
+		right.add_child(irow)
+		irow.add_child(UiKit.label("Cargo from vault  ", 15))
+		var iopt := OptionButton.new()
+		var vitems: Array = []
+		for it in Game.vault:
+			if Db.VALUES.has(it):
+				vitems.append(it)
+		if not vitems.has(_job_item):
+			_job_item = vitems[0] if not vitems.is_empty() else ""
+		for k in vitems.size():
+			iopt.add_item("%s  x%d" % [Db.item_name(vitems[k]), Game.vault_count(vitems[k])], k)
+			if vitems[k] == _job_item:
+				iopt.select(k)
+		iopt.item_selected.connect(func(ix):
+			_job_item = vitems[ix]
+			_rebuild()
+		)
+		irow.add_child(iopt)
+	var mrow := HBoxContainer.new()
+	mrow.add_theme_constant_override("separation", 8)
+	right.add_child(mrow)
+	mrow.add_child(UiKit.label("Duration  ", 15))
+	for mn in Db.JOB_MINUTES:
+		var mb := UiKit.button("%d min" % mn, func():
+			_job_min = mn
+			_rebuild()
+		)
+		if mn == _job_min:
+			mb.add_theme_stylebox_override("normal", UiKit.box(Color(0.1, 0.3, 0.2, 1), Color("6ee06a"), 8, 2, 8))
+		mrow.add_child(mb)
+	var pv := Game.job_preview(w, _job_kind, _job_target, _job_min, _job_item)
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", UiKit.box(Color(0.05, 0.1, 0.08, 0.9), Color(0.4, 1.0, 0.5, 0.3), 8, 1, 12))
+	right.add_child(box)
+	var bv := VBoxContainer.new()
+	box.add_child(bv)
+	var sm := UiKit.label("Expected: " + String(pv.summary), 16, Color.WHITE)
+	sm.autowrap_mode = TextServer.AUTOWRAP_WORD
+	bv.add_child(sm)
+	var risk: float = pv.risk
+	bv.add_child(UiKit.label("Risk of damage: %d%%   (it would bring back half, and need repairs)" % int(risk), 14, Color("ff6b6b") if risk > 30.0 else (Color("ffd23f") if risk > 12.0 else Color("6ee06a"))))
+	var go := UiKit.button("Send %s  (%d min)" % [w.name, _job_min], func():
+		if Game.job_start(int(w.id), _job_kind, _job_target, _job_min, _job_item):
+			Sound.play("probe_launch", -6.0, 0.0, "UI")
+		_rebuild()
+	)
+	go.custom_minimum_size = Vector2(0, 48)
+	go.disabled = _job_kind == "haul" and int(pv.get("qty", 0)) <= 0
+	right.add_child(go)
+	return _panel_holder
+
+
+func _panel_decor() -> Control:
+	var v := _frame("DECOR", Vector2(1120, 680))
+	v.add_child(UiKit.label("Credits ⌬ %d" % Game.credits, 16, Color("ffd23f")))
+	var tabs := TabContainer.new()
+	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(tabs)
+	var h := Game.home_state()
+	# place
+	var place := ScrollContainer.new()
+	place.name = "Arrange"
+	place.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(place)
+	var pl := VBoxContainer.new()
+	pl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pl.add_theme_constant_override("separation", 6)
+	place.add_child(pl)
+	var n_floor := 0
+	var n_wall := 0
+	for sl in slots:
+		var row := HBoxContainer.new()
+		pl.add_child(row)
+		var nm: String
+		if sl.kind == "floor":
+			n_floor += 1
+			nm = "Floor spot %d" % n_floor
+		else:
+			n_wall += 1
+			nm = "Wall spot %d" % n_wall
+		var l := UiKit.label(nm, 15)
+		l.custom_minimum_size = Vector2(180, 0)
+		row.add_child(l)
+		var opt := OptionButton.new()
+		opt.custom_minimum_size = Vector2(320, 0)
+		opt.add_item("(empty)", 0)
+		var choices: Array = [""]
+		for id in h.owned:
+			if Db.DECOR[id].slot == sl.kind:
+				choices.append(id)
+				opt.add_item(Db.DECOR[id].name, choices.size() - 1)
+		var cur: String = h.slots.get(sl.id, "")
+		opt.select(maxi(choices.find(cur), 0))
+		var sid: String = sl.id
+		opt.item_selected.connect(func(ix):
+			Game.decor_place(sid, choices[ix])
+			Sound.play("ui_click", -8.0, 0.0, "UI")
+			_rebuild.call_deferred()
+		)
+		row.add_child(opt)
+		var go := UiKit.button("Go there", func():
+			_close_panel()
+			_avatar_x = float(sl.x)
+		)
+		row.add_child(go)
+	# shop
+	var shop := ScrollContainer.new()
+	shop.name = "Shop"
+	shop.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(shop)
+	var sv := VBoxContainer.new()
+	sv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sv.add_theme_constant_override("separation", 6)
+	shop.add_child(sv)
+	for id in Db.DECOR:
+		var d: Dictionary = Db.DECOR[id]
+		var row2 := HBoxContainer.new()
+		row2.add_theme_constant_override("separation", 10)
+		sv.add_child(row2)
+		var tv := VBoxContainer.new()
+		tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row2.add_child(tv)
+		tv.add_child(UiKit.label("%s  ·  %s" % [d.name, "wall" if d.slot == "wall" else "floor"], 16, Color.WHITE, true))
+		var dl := UiKit.label(d.desc, 13, UiKit.MUTED)
+		dl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		tv.add_child(dl)
+		if (h.owned as Array).has(id):
+			row2.add_child(UiKit.label("Owned", 14, Color("6ee06a")))
+		else:
+			var did: String = id
+			var b := UiKit.button("Buy  ⌬ %d" % int(d.price), func():
+				if Game.decor_buy(did):
+					Sound.play("coin", -4.0, 0.0, "UI")
+					# drop it straight into the first free slot of its kind
+					for sl2 in slots:
+						if sl2.kind == Db.DECOR[did].slot and not Game.home_state().slots.has(sl2.id):
+							Game.decor_place(sl2.id, did)
+							break
+				_rebuild()
+			)
+			b.disabled = Game.credits < int(d.price)
+			row2.add_child(b)
+	# themes + wings
+	var more := VBoxContainer.new()
+	more.name = "Theme & Expand"
+	more.add_theme_constant_override("separation", 10)
+	tabs.add_child(more)
+	more.add_child(UiKit.label("ROOM THEME", 14, Color("ffb86b"), true))
+	var tf := HFlowContainer.new()
+	tf.add_theme_constant_override("h_separation", 8)
+	more.add_child(tf)
+	for tid in Db.HOME_THEMES:
+		var t: Dictionary = Db.HOME_THEMES[tid]
+		var owned: bool = (h.themes as Array).has(tid)
+		var tb := UiKit.button(t.name + ("" if owned else "  ⌬ %d" % int(t.price)), func():
+			if Game.theme_buy(tid):
+				Sound.play("ui_click", -6.0, 0.0, "UI")
+			_rebuild()
+		)
+		if h.theme == tid:
+			tb.add_theme_stylebox_override("normal", UiKit.box(Color(t.bot, 1.0), t.trim, 8, 2, 8))
+		tf.add_child(tb)
+	more.add_child(HSeparator.new())
+	more.add_child(UiKit.label("EXPAND THE HOMESPACE", 14, Color("ffb86b"), true))
+	var wn := int(h.wings)
+	if wn < Db.HOME_WINGS.size():
+		var wd: Array = Db.HOME_WINGS[wn]
+		var wdesc := UiKit.label("%s: more room to the right, %d floor and %d wall spots, and %s." % [wd[0], wd[2], wd[3], "a dome window onto your relay Circuit" if wn == 0 else "a planter of glowing plants and a big sea tank"], 14, UiKit.MUTED)
+		wdesc.autowrap_mode = TextServer.AUTOWRAP_WORD
+		more.add_child(wdesc)
+		var wb := UiKit.button("Compile %s  (⌬ %d)" % [wd[0], int(wd[1])], func():
+			if Game.wing_buy():
+				_build_layout()
+				Sound.play("quest_complete", -6.0, 0.0, "UI")
+			_rebuild()
+		)
+		wb.disabled = Game.credits < int(wd[1])
+		more.add_child(wb)
+	else:
+		more.add_child(UiKit.label("Fully expanded.", 14, UiKit.MUTED))
+	tabs.current_tab = _decor_tab
+	tabs.tab_changed.connect(func(tb): _decor_tab = tb)
+	return _panel_holder
+
+
+var _decor_tab := 0
+
+
 func _gem_kinds() -> int:
 	var n := 0
 	for g in Game.GEM_KINDS:
@@ -560,62 +939,308 @@ func _gem_kinds() -> int:
 func _draw_room() -> void:
 	var vs := _vs()
 	var fy := _floor_y()
-	var wall_top := Color("0b1030")
-	var wall_bot := Color("171b44")
+	var th: Dictionary = Db.HOME_THEMES.get(Game.home_state().theme, Db.HOME_THEMES.midnight)
+	var wall_top: Color = th.top
+	var wall_bot: Color = th.bot
+	var grid: Color = th.grid
+	var trim: Color = th.trim
+	var x0 := scroll - 10.0
+	var x1 := scroll + vs.x + 10.0
 	# back wall gradient
 	var bands := 18
 	for i in bands:
 		var t0 := float(i) / bands
-		room.draw_rect(Rect2(0, fy * t0, vs.x, fy / bands + 1.0), wall_top.lerp(wall_bot, t0))
-	# wall grid, faint and slowly breathing
+		room.draw_rect(Rect2(x0, fy * t0, x1 - x0, fy / bands + 1.0), wall_top.lerp(wall_bot, t0))
+	# wing seams: each wing is a slightly different shade with a doorway arch
+	for w in int(Game.home_state().wings):
+		var bx := BASE_W + w * WING_W
+		room.draw_rect(Rect2(bx, 0, WING_W, fy), Color(1, 1, 1, 0.02 + 0.015 * w))
+		room.draw_line(Vector2(bx, 60), Vector2(bx, fy), Color(trim, 0.35), 3.0)
 	var pulse := 0.5 + 0.5 * sin(_t * 0.8)
-	for x in range(0, int(vs.x), 64):
-		room.draw_line(Vector2(x, 0), Vector2(x, fy), Color(0.4, 0.6, 1.0, 0.05 + 0.02 * pulse), 1.0)
+	var gx := floorf(x0 / 64.0) * 64.0
+	while gx < x1:
+		room.draw_line(Vector2(gx, 0), Vector2(gx, fy), Color(grid, 0.05 + 0.02 * pulse), 1.0)
+		gx += 64.0
 	for y in range(0, int(fy), 64):
-		room.draw_line(Vector2(0, y), Vector2(vs.x, y), Color(0.4, 0.6, 1.0, 0.05 + 0.02 * pulse), 1.0)
-	# ceiling light strip
-	room.draw_rect(Rect2(vs.x * 0.1, 18, vs.x * 0.8, 6), Color(0.6, 0.95, 1.0, 0.6))
+		room.draw_line(Vector2(x0, y), Vector2(x1, y), Color(grid, 0.05 + 0.02 * pulse), 1.0)
+	# ceiling light strip along the whole room
+	room.draw_rect(Rect2(40, 18, room_w - 80, 6), Color(trim, 0.6))
 	for k in 4:
-		room.draw_rect(Rect2(vs.x * 0.1 - k * 6, 18 - k * 4, vs.x * 0.8 + k * 12, 6 + k * 8), Color(0.4, 0.9, 1.0, 0.04))
-	# floor with a perspective grid
-	room.draw_rect(Rect2(0, fy, vs.x, vs.y - fy), Color("0a0d22"))
-	var vp := Vector2(vs.x * 0.5, fy - 260.0)
-	for i in range(-12, 13):
-		var bx := vs.x * 0.5 + i * vs.x * 0.09
-		var a := Vector2(bx, vs.y)
+		room.draw_rect(Rect2(40 - k * 6, 18 - k * 4, room_w - 80 + k * 12, 6 + k * 8), Color(trim, 0.04))
+	# floor with a perspective grid that follows the view
+	room.draw_rect(Rect2(x0, fy, x1 - x0, vs.y - fy), wall_top.darkened(0.3))
+	var vp := Vector2(scroll + vs.x * 0.5, fy - 260.0)
+	for i in range(-16, 17):
+		var bx2 := scroll + vs.x * 0.5 + i * vs.x * 0.09 - fmod(scroll, vs.x * 0.09)
+		var a := Vector2(bx2, vs.y)
 		var b := a.lerp(vp, (vs.y - fy) / (vs.y - vp.y))
-		room.draw_line(b, a, Color(0.3, 0.8, 1.0, 0.18), 1.0)
+		room.draw_line(b, a, Color(grid, 0.18), 1.0)
 	for k in 7:
 		var tt := pow(float(k) / 7.0, 1.8)
 		var y := fy + (vs.y - fy) * tt
-		room.draw_line(Vector2(0, y), Vector2(vs.x, y), Color(0.3, 0.8, 1.0, 0.12 + 0.1 * tt), 1.0)
-	room.draw_line(Vector2(0, fy), Vector2(vs.x, fy), Color(0.4, 0.95, 1.0, 0.7), 2.0)
+		room.draw_line(Vector2(x0, y), Vector2(x1, y), Color(grid, 0.12 + 0.1 * tt), 1.0)
+	room.draw_line(Vector2(0, fy), Vector2(room_w, fy), Color(trim, 0.7), 2.0)
 	# drifting data motes
 	for m in _motes:
-		var mx: float = m[0] * vs.x + sin(_t * 0.3 + m[1] * 9.0) * 12.0
+		var mx: float = m[0] * room_w + sin(_t * 0.3 + m[1] * 9.0) * 12.0
+		if mx < x0 or mx > x1:
+			continue
 		var my: float = fmod(m[1] * fy - _t * 14.0 * m[2] + fy * 4.0, fy)
-		room.draw_rect(Rect2(mx, my, 2, 2), Color(0.5, 0.95, 1.0, 0.25 * m[2]))
-	for s in stations:
-		var x := _station_x(s)
-		match s.id:
+		room.draw_rect(Rect2(mx, my, 2, 2), Color(trim, 0.25 * m[2]))
+	# decor on the wall, behind the stations
+	var h := Game.home_state()
+	for sl in slots:
+		if sl.kind == "wall" and h.slots.has(sl.id):
+			_draw_decor(h.slots[sl.id], Vector2(sl.x, fy - 500.0))
+	for st in stations:
+		var x := _station_x(st)
+		if x < x0 - 400.0 or x > x1 + 400.0:
+			continue
+		match st.id:
 			"vault":
 				_draw_vault(x, fy)
 			"inbox":
 				_draw_inbox(x, fy)
+			"dispatch":
+				_draw_dispatch(x, fy)
 			"window":
 				_draw_window(x, fy)
 			"trophy":
 				_draw_trophy(x, fy)
+			"decor":
+				_draw_decor_console(x, fy)
 			"exit":
 				_draw_exit(x, fy)
-	# a little digital bonsai between the window and the trophies
-	var px := vs.x * 0.64
-	room.draw_rect(Rect2(px - 18, fy - 26, 36, 26), Color("2a2f4a"))
-	room.draw_line(Vector2(px, fy - 26), Vector2(px + 4, fy - 70), Color("5a4a6a"), 4.0)
-	for k in 5:
-		var lp := Vector2(px + 4 + cos(k * 1.3) * 18.0, fy - 74 + sin(k * 1.7) * 10.0)
-		room.draw_circle(lp, 9.0 + sin(_t * 1.5 + k) * 1.0, Color(0.4, 1.0, 0.7, 0.75))
+			"observatory":
+				_draw_observatory(x, fy)
+			"garden":
+				_draw_garden(x, fy)
+	for sl in slots:
+		if sl.kind == "floor" and h.slots.has(sl.id):
+			_draw_decor(h.slots[sl.id], Vector2(sl.x, fy))
 	_draw_avatar(Vector2(_avatar_x, fy))
+
+
+func _draw_dispatch(x: float, fy: float) -> void:
+	# a console with a pod for each subroutine
+	var con := Rect2(x - 60, fy - 200, 120, 200)
+	_neon_rect(con, Color("6ee06a"), Color("10221a"))
+	var scr := Rect2(con.position + Vector2(12, 16), Vector2(96, 64))
+	room.draw_rect(scr, Color("0a1a10"))
+	var busy := 0
+	for w in Game.workers:
+		if w.state == "job":
+			busy += 1
+	for k in 4:
+		var yy := scr.position.y + 12 + k * 13
+		room.draw_line(Vector2(scr.position.x + 8, yy), Vector2(scr.position.x + 8 + 60 * absf(sin(_t * 0.7 + k)), yy), Color(0.4, 1.0, 0.5, 0.7), 3.0)
+	_label_at(Vector2(x, con.position.y - 16), "DISPATCH  %d/%d out" % [busy, Game.workers.size()], Color("6ee06a"))
+	for k in 3:
+		var px: float = x + [-110.0, 110.0, 180.0][k]
+		var pod := Rect2(px - 30, fy - 130, 60, 130)
+		room.draw_rect(pod, Color(0.1, 0.2, 0.15, 0.6))
+		room.draw_rect(pod, Color(0.4, 1.0, 0.5, 0.35), false, 2.0)
+		if k >= Game.workers.size():
+			continue
+		var w: Dictionary = Game.workers[k]
+		match w.state:
+			"idle", "hurt":
+				_draw_worker(Vector2(px, fy), k, w.state == "hurt")
+				_label_at(Vector2(px, fy - 150), "%s  Lv%d" % [w.name, int(w.level)], Color(0.7, 1.0, 0.8), 13)
+			"job":
+				var left := int(ceil(float(w.job.left) / 60.0))
+				room.draw_circle(Vector2(px, fy - 70), 6.0 + sin(_t * 4.0) * 1.5, Color(1.0, 0.8, 0.3))
+				_label_at(Vector2(px, fy - 150), "%s  %dm" % [w.name, left], Color(1.0, 0.85, 0.5), 13)
+
+
+func _draw_worker(p: Vector2, k: int, hurt: bool) -> void:
+	var col: Color = [Color("6ee06a"), Color("ffb347"), Color("8f9bff")][k % 3]
+	var bob := sin(_t * 3.0 + k) * 2.0
+	var o := p + Vector2(0, -40 + bob)
+	room.draw_line(o + Vector2(-5, 12), o + Vector2(-5, 38 - bob), Color("2a2f3a"), 5.0)
+	room.draw_line(o + Vector2(5, 12), o + Vector2(5, 38 - bob), Color("2a2f3a"), 5.0)
+	room.draw_rect(Rect2(o + Vector2(-11, -6), Vector2(22, 18)), col.darkened(0.2))
+	room.draw_circle(o + Vector2(0, -14), 9.0, col)
+	room.draw_rect(Rect2(o + Vector2(-5, -17), Vector2(10, 4)), Color("1b1f29"))
+	if hurt:
+		var sp := o + Vector2(randf_range(-10, 10), randf_range(-20, 0))
+		room.draw_line(sp, sp + Vector2(4, -4), Color(1.0, 0.9, 0.4), 2.0)
+
+
+func _draw_decor_console(x: float, fy: float) -> void:
+	var r := Rect2(x - 55, fy - 160, 110, 160)
+	_neon_rect(r, Color("ffb86b"), Color("241a10"))
+	for k in 5:
+		var c := Color.from_hsv(fmod(k * 0.2 + _t * 0.05, 1.0), 0.6, 1.0)
+		room.draw_circle(r.position + Vector2(22 + (k % 3) * 33, 40 + (k / 3) * 34), 11.0, c)
+	_label_at(Vector2(x, r.position.y - 16), "DECOR", Color("ffb86b"))
+
+
+func _draw_observatory(x: float, fy: float) -> void:
+	# a dome window onto the galaxy, with lit relays glowing
+	var c := Vector2(x, fy - 260)
+	var rr := 240.0
+	var pts := PackedVector2Array()
+	for i in 33:
+		var a := PI + PI * i / 32.0
+		pts.append(c + Vector2(cos(a) * rr, sin(a) * rr))
+	pts.append(c + Vector2(rr, 120))
+	pts.append(c + Vector2(-rr, 120))
+	room.draw_colored_polygon(pts, Color("04050f"))
+	for k in 90:
+		var sp := c + Vector2(fmod(k * 131.0, rr * 2.0) - rr, -fmod(k * 71.0, rr) + 110)
+		if sp.distance_to(c) < rr - 6:
+			room.draw_rect(Rect2(sp, Vector2(2, 2)), Color(1, 1, 1, 0.3 + 0.4 * absf(sin(_t + k))))
+	# relays: lit ones joined as a constellation
+	var lit: Array = Game.lit_relays
+	var prev := Vector2.INF
+	for i in lit.size():
+		var st: Dictionary = Galaxy.star(int(lit[i]))
+		var sp3: Vector3 = st.pos
+		var sp2: Vector2 = c + Vector2(sp3.x, sp3.z * 0.5) * ((rr - 20.0) / 80.0)
+		sp2 = c + (sp2 - c).limit_length(rr - 20.0)
+		room.draw_circle(sp2, 5.0 + sin(_t * 2.0 + i) * 1.0, Color("5ff7ff"))
+		if prev != Vector2.INF:
+			room.draw_line(prev, sp2, Color(0.4, 0.95, 1.0, 0.5), 1.5)
+		prev = sp2
+	room.draw_polyline(pts, Color("8fa6d8"), 5.0)
+	_label_at(Vector2(x, c.y - rr - 18), "OBSERVATORY", Color("5ff7ff"))
+
+
+func _draw_garden(x: float, fy: float) -> void:
+	# a long planter of glowing alien plants and a sea tank
+	var bed := Rect2(x - 330, fy - 60, 660, 60)
+	room.draw_rect(bed, Color("1e2a1e"))
+	room.draw_rect(bed, Color(0.5, 1.0, 0.6, 0.4), false, 2.0)
+	for k in 14:
+		var px := bed.position.x + 30 + k * 46
+		var hgt := 60.0 + 40.0 * absf(sin(k * 1.7))
+		var sway := sin(_t * 1.3 + k) * 8.0
+		room.draw_line(Vector2(px, bed.position.y), Vector2(px + sway, bed.position.y - hgt), Color("3a7a4a"), 4.0)
+		room.draw_circle(Vector2(px + sway, bed.position.y - hgt), 9.0, Color.from_hsv(0.3 + 0.05 * sin(k), 0.6, 1.0, 0.85))
+	_draw_tank(Vector2(x, fy - 250), 300.0, 150.0)
+	_label_at(Vector2(x, fy - 350), "GARDEN", Color("6ee06a"))
+
+
+func _draw_tank(c: Vector2, w: float, hgt: float) -> void:
+	var r := Rect2(c - Vector2(w, hgt) * 0.5, Vector2(w, hgt))
+	room.draw_rect(r, Color(0.1, 0.35, 0.55, 0.8))
+	# one fish per logged sea species (at least two, so it's never empty)
+	var sea_sp := 0
+	for k in Game.scanned:
+		if ":sea:" in k:
+			sea_sp += 1
+	for f in maxi(sea_sp, 2):
+		var fx := r.position.x + fmod(_t * (30.0 + f * 7.0) + f * 70.0, w)
+		var fy2 := r.position.y + 20 + fmod(f * 37.0, hgt - 40) + sin(_t * 2.0 + f) * 5.0
+		var col := Color.from_hsv(fmod(f * 0.17, 1.0), 0.6, 1.0)
+		room.draw_colored_polygon(PackedVector2Array([Vector2(fx + 8, fy2), Vector2(fx, fy2 - 4), Vector2(fx - 8, fy2), Vector2(fx, fy2 + 4)]), col)
+		room.draw_colored_polygon(PackedVector2Array([Vector2(fx - 8, fy2), Vector2(fx - 14, fy2 - 5), Vector2(fx - 14, fy2 + 5)]), col.darkened(0.2))
+	for k in 6:
+		var bp := Vector2(r.position.x + 20 + k * (w - 40) / 5.0, r.end.y - fmod(_t * 25.0 + k * 40.0, hgt))
+		room.draw_circle(bp, 2.0, Color(1, 1, 1, 0.4))
+	room.draw_rect(r, Color("8fd8ff"), false, 3.0)
+
+
+func _draw_decor(id: String, p: Vector2) -> void:
+	var trim: Color = Db.HOME_THEMES.get(Game.home_state().theme, Db.HOME_THEMES.midnight).trim
+	match id:
+		"bonsai":
+			room.draw_rect(Rect2(p.x - 18, p.y - 26, 36, 26), Color("2a2f4a"))
+			room.draw_line(Vector2(p.x, p.y - 26), Vector2(p.x + 4, p.y - 70), Color("5a4a6a"), 4.0)
+			for k in 5:
+				var lp := Vector2(p.x + 4 + cos(k * 1.3) * 18.0, p.y - 74 + sin(k * 1.7) * 10.0)
+				room.draw_circle(lp, 9.0 + sin(_t * 1.5 + k) * 1.0, Color(0.4, 1.0, 0.7, 0.75))
+		"lamp":
+			room.draw_line(p, p + Vector2(0, -170), Color("3a3f5a"), 4.0)
+			room.draw_circle(p + Vector2(0, -175), 40.0, Color(1.0, 0.85, 0.5, 0.08))
+			room.draw_colored_polygon(PackedVector2Array([p + Vector2(-22, -170), p + Vector2(22, -170), p + Vector2(14, -200), p + Vector2(-14, -200)]), Color(1.0, 0.85, 0.55))
+			room.draw_rect(Rect2(p.x - 20, p.y - 6, 40, 6), Color("3a3f5a"))
+		"cactus":
+			room.draw_rect(Rect2(p.x - 16, p.y - 24, 32, 24), Color("6a3a2a"))
+			room.draw_rect(Rect2(p.x - 7, p.y - 80, 14, 56), Color("6ab04a"))
+			room.draw_rect(Rect2(p.x - 22, p.y - 64, 10, 22), Color("6ab04a"))
+			room.draw_rect(Rect2(p.x + 12, p.y - 70, 10, 26), Color("6ab04a"))
+			room.draw_circle(p + Vector2(0, -82), 5.0, Color("ff7a9a"))
+		"globe":
+			room.draw_line(p, p + Vector2(0, -60), Color("3a3f5a"), 4.0)
+			var gc := p + Vector2(0, -96)
+			var pl: Dictionary = Galaxy.planet(0, 0)
+			var b: Dictionary = Db.BIOMES[pl.biome]
+			room.draw_circle(gc, 34.0, b.colors.deep)
+			for k in 4:
+				var ox := fmod(_t * 18.0 + k * 22.0, 80.0) - 40.0
+				if absf(ox) < 30.0:
+					room.draw_circle(gc + Vector2(ox, -10 + k * 7), 9.0 * cos(ox / 40.0), b.colors.mid)
+			room.draw_arc(gc, 36.0, 0.0, TAU, 32, Color(b.atmo, 0.8), 3.0)
+		"crystal":
+			for k in 4:
+				var base := p + Vector2(-24 + k * 16, 0)
+				var ht := 40.0 + 30.0 * absf(sin(k * 2.1))
+				room.draw_colored_polygon(PackedVector2Array([base + Vector2(-8, 0), base + Vector2(8, 0), base + Vector2(3, -ht), base + Vector2(-3, -ht - 8)]), Color(0.75, 0.55, 1.0, 0.7 + 0.2 * sin(_t * 2.0 + k)))
+		"arcade":
+			var r := Rect2(p.x - 32, p.y - 140, 64, 140)
+			room.draw_rect(r, Color("2a1f4a"))
+			room.draw_rect(Rect2(r.position + Vector2(8, 16), Vector2(48, 38)), Color.from_hsv(fmod(_t * 0.3, 1.0), 0.7, 0.8))
+			room.draw_circle(r.position + Vector2(20, 76), 5.0, Color("ff4f4f"))
+			room.draw_circle(r.position + Vector2(40, 76), 5.0, Color("4fb4ff"))
+			room.draw_rect(r, Color(trim, 0.6), false, 2.0)
+		"aquarium":
+			room.draw_rect(Rect2(p.x - 70, p.y - 30, 140, 30), Color("2a2f4a"))
+			_draw_tank(p + Vector2(0, -85), 140.0, 90.0)
+		"charging_pod":
+			var ready := Game.charge_ready() <= 0.0
+			var pod := Rect2(p.x - 50, p.y - 70, 100, 70)
+			room.draw_rect(pod, Color("1a2a3a"))
+			room.draw_arc(pod.get_center() + Vector2(0, 10), 50.0, PI, TAU, 24, Color("8fd8ff"), 3.0)
+			room.draw_rect(Rect2(pod.position.x + 14, pod.end.y - 12, 72, 5), Color("6ee06a") if ready else Color("ffb86b"))
+		"neon_home":
+			var col := trim.lerp(Color("ff6fd8"), 0.5)
+			for k in 3:
+				_label_at(p + Vector2(0, 8), "HOME", Color(col, 0.2), 44 + k * 2)
+			_label_at(p + Vector2(0, 8), "HOME", col, 42)
+		"clock":
+			var up := int(Game.play_time)
+			room.draw_rect(Rect2(p.x - 70, p.y - 26, 140, 52), Color("0a0d1a"))
+			room.draw_rect(Rect2(p.x - 70, p.y - 26, 140, 52), Color(trim, 0.6), false, 2.0)
+			_label_at(p + Vector2(0, 10), "%02d:%02d:%02d" % [up / 3600, (up / 60) % 60, up % 60], Color(1.0, 0.4, 0.4), 22)
+		"string_lights":
+			var acc := _accent
+			for k in 11:
+				var lp2 := p + Vector2(-150 + k * 30, sin(k * 0.6) * 14.0 - 20)
+				if k > 0:
+					var pp := p + Vector2(-150 + (k - 1) * 30, sin((k - 1) * 0.6) * 14.0 - 20)
+					room.draw_line(pp, lp2, Color("3a3f5a"), 1.5)
+				room.draw_circle(lp2, 5.0, Color(acc, 0.6 + 0.4 * sin(_t * 3.0 + k)))
+		"star_chart":
+			var r2 := Rect2(p.x - 80, p.y - 60, 160, 120)
+			room.draw_rect(r2, Color("0a1030"))
+			room.draw_rect(r2, Color("c9a86a"), false, 3.0)
+			var pts2: Array[Vector2] = []
+			for i in mini(Game.lit_relays.size(), 8):
+				pts2.append(r2.position + Vector2(20 + fmod(i * 47.0, 120.0), 20 + fmod(i * 29.0, 80.0)))
+			for i in pts2.size():
+				room.draw_circle(pts2[i], 3.0, Color(1, 1, 0.8))
+				if i > 0:
+					room.draw_line(pts2[i - 1], pts2[i], Color(1, 1, 0.8, 0.4), 1.0)
+		"poster":
+			var r3 := Rect2(p.x - 60, p.y - 80, 120, 160)
+			room.draw_rect(r3, _accent.darkened(0.6))
+			room.draw_rect(r3, Color("e6e8ec"), false, 3.0)
+			room.draw_circle(r3.get_center() + Vector2(0, -20), 24.0, _shell)
+			room.draw_rect(Rect2(r3.get_center() + Vector2(-14, -26), Vector2(28, 8)), _glow)
+			room.draw_rect(Rect2(r3.get_center() + Vector2(-26, 8), Vector2(52, 40)), _shell)
+			_label_at(r3.get_center() + Vector2(0, 70), Game.robot().name.to_upper(), Color.WHITE, 13)
+		"holo_fish":
+			var r4 := Rect2(p.x - 80, p.y - 50, 160, 100)
+			room.draw_rect(r4, Color(0.2, 0.6, 1.0, 0.1))
+			room.draw_rect(r4, Color(trim, 0.5), false, 2.0)
+			for k in 2:
+				var a := _t * 0.8 + k * PI
+				var fp := r4.get_center() + Vector2(cos(a) * 50.0, sin(a) * 25.0)
+				var d := Vector2(-sin(a), cos(a) * 0.5).normalized()
+				var col2 := Color(1.0, 0.6, 0.3) if k == 0 else Color(1, 1, 1)
+				room.draw_colored_polygon(PackedVector2Array([fp + d * 12, fp + d.orthogonal() * 5, fp - d * 10, fp - d.orthogonal() * 5]), Color(col2, 0.8))
 
 
 func _neon_rect(r: Rect2, col: Color, fill: Color) -> void:

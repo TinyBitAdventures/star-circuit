@@ -58,6 +58,8 @@ var _mail_seq := 0
 var _order_t := 240.0 # play seconds until the next trader order
 var home_visits := 0
 var in_home := false
+var workers: Array = [] # {id, name, level, xp, state: idle|job|hurt, job: {}, hurt_left}
+var home := {} # {"owned": [decor ids], "slots": {slot id: decor id}, "theme": id, "themes": [owned], "wings": n, "charge_at": play_time}
 var crafted_once: Array = [] # recipe ids fabricated at least once (discovery bonus)
 var gems_taken := {} # orbit target key -> [gem indices already extracted]
 var seas := {} # ocean key -> {"dug": base64, "opened": [clam ids], "wreck": bool}
@@ -116,6 +118,7 @@ func _process(delta: float) -> void:
 			_milestone_t = 0.0
 			check_milestones()
 		_update_orders(delta)
+		_update_workers(delta)
 		if _autosave_timer > 60.0:
 			_autosave_timer = 0.0
 			save_game()
@@ -202,6 +205,8 @@ func _reset_state() -> void:
 	_mail_seq = 0
 	_order_t = 240.0
 	home_visits = 0
+	workers = []
+	home = {}
 	crafted_once = []
 	gems_taken = {}
 	orbit = {}
@@ -895,6 +900,7 @@ func save_game() -> void:
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
 		"milestones": milestones, "crafted_once": crafted_once,
+		"workers": workers, "home": home,
 		"vault": vault, "vault_level": vault_level, "inbox": inbox, "mail_seq": _mail_seq, "order_t": _order_t, "home_visits": home_visits, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
@@ -963,6 +969,8 @@ func load_game(n := -1) -> bool:
 	_mail_seq = int(d.get("mail_seq", inbox.size()))
 	_order_t = float(d.get("order_t", 240.0))
 	home_visits = int(d.get("home_visits", 0))
+	workers = d.get("workers", [])
+	home = d.get("home", {})
 	if home_visits == 0 and inbox.is_empty():
 		_welcome_mail()
 	seas = d.get("seas", {})
@@ -2154,3 +2162,304 @@ func open_home() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("home"):
 		open_home()
+
+
+
+# --------------------------------------------------------------------------
+# Homespace: subroutine workers
+# --------------------------------------------------------------------------
+
+func worker_cost() -> int:
+	return Db.WORKER_COSTS[workers.size()] if workers.size() < Db.WORKER_COSTS.size() else -1
+
+
+func worker_compile() -> Dictionary:
+	var cost := worker_cost()
+	if cost < 0:
+		return {}
+	if credits < cost:
+		notify.emit("Need ⌬ %d to compile another subroutine." % cost, Color("ff6b6b"))
+		return {}
+	if cost > 0:
+		add_credits(-cost, true)
+	var used := workers.map(func(w): return w.name)
+	var wname: String = Db.WORKER_NAMES[workers.size() % Db.WORKER_NAMES.size()]
+	for n in Db.WORKER_NAMES:
+		if not used.has(n):
+			wname = n
+			break
+	var w := {"id": workers.size() + 1, "name": wname, "level": 1, "xp": 0, "state": "idle", "job": {}, "hurt_left": 0.0}
+	workers.append(w)
+	notify.emit("Subroutine %s compiled and ready for work." % wname, Color("5ff7ff"))
+	return w
+
+
+func worker_by_id(id: int) -> Dictionary:
+	for w in workers:
+		if int(w.id) == id:
+			return w
+	return {}
+
+
+## Worlds a worker can be sent to: ones you've landed on (for haul: ones with a town you've visited).
+func job_targets(kind: String) -> Array:
+	var out := []
+	var src: Array = visited_towns if kind == "haul" else visited_planets
+	for k in src:
+		var parts := (k as String).split(":")
+		if parts.size() != 2 or not parts[0].is_valid_int():
+			continue
+		out.append(k)
+	return out
+
+
+func _planet_of(key: String) -> Dictionary:
+	var parts := key.split(":")
+	return Galaxy.planet(int(parts[0]), int(parts[1]))
+
+
+## What a job would do, before committing to it.
+func job_preview(w: Dictionary, kind: String, target: String, minutes: int, item := "") -> Dictionary:
+	var pl := _planet_of(target)
+	var parts := target.split(":")
+	var danger := planet_level(int(parts[0]), int(parts[1]))
+	var lvl := int(w.level)
+	var risk := clampf(4.0 + (danger - lvl * 3) * 6.0, 3.0, 70.0)
+	var mult := 1.0 + 0.15 * (lvl - 1)
+	var out := {"risk": risk, "danger": danger, "planet": pl.name, "minutes": minutes}
+	match kind:
+		"gather":
+			var items := {}
+			var cap := 10 + lvl * 10
+			var b: Dictionary = Db.BIOMES.get(pl.biome, Db.BIOMES.verdant)
+			var total := 0
+			for n in b.nodes:
+				if int(Db.NODES[n].req) <= cap:
+					total += int(b.nodes[n])
+			for n in b.nodes:
+				if int(Db.NODES[n].req) <= cap and total > 0:
+					var it: String = Db.NODES[n].item
+					var q := int(round(3.0 * minutes * mult * float(b.nodes[n]) / total))
+					if q > 0:
+						items[it] = int(items.get(it, 0)) + q
+			out["items"] = items
+			out["summary"] = ", ".join(items.keys().map(func(k): return "%d %s" % [items[k], Db.item_name(k)]))
+		"survey":
+			var cr := int(round(22.0 * minutes * mult))
+			out["credits"] = cr
+			out["summary"] = "⌬ %d in survey fees, some Exploration XP, a chance of fossils and relics" % cr
+		"haul":
+			risk = clampf(risk * 0.4, 2.0, 30.0)
+			out["risk"] = risk
+			var capn := 40 + 20 * lvl + minutes * 2
+			var have := vault_count(item)
+			var q2 := mini(capn, have)
+			var price := sell_price(item, pl) if item != "" else 0
+			out["qty"] = q2
+			out["capacity"] = capn
+			out["credits"] = q2 * price
+			out["summary"] = ("Sell %d %s at %s for about ⌬ %d" % [q2, Db.item_name(item), pl.get("town", {}).get("name", pl.name), q2 * price]) if item != "" and q2 > 0 else "Choose something in your vault to haul"
+	return out
+
+
+func job_start(id: int, kind: String, target: String, minutes: int, item := "") -> bool:
+	var w := worker_by_id(id)
+	if w.is_empty() or w.state != "idle":
+		return false
+	var pv := job_preview(w, kind, target, minutes, item)
+	if kind == "haul":
+		if int(pv.qty) <= 0:
+			notify.emit("Nothing to haul.", Color("ff6b6b"))
+			return false
+		vault[item] = vault_count(item) - int(pv.qty)
+		if vault[item] <= 0:
+			vault.erase(item)
+	w.state = "job"
+	w.job = {"kind": kind, "target": target, "minutes": minutes, "left": minutes * 60.0, "item": item, "qty": int(pv.get("qty", 0)), "risk": float(pv.risk)}
+	notify.emit("%s heads out: %s on %s (%d min)." % [w.name, Db.JOBS[kind].name, pv.planet, minutes], Color("5ff7ff"))
+	return true
+
+
+func job_recall(id: int) -> void:
+	var w := worker_by_id(id)
+	if w.is_empty() or w.state != "job":
+		return
+	# hauled goods come back with it
+	if w.job.kind == "haul" and int(w.job.qty) > 0:
+		vault[w.job.item] = vault_count(w.job.item) + int(w.job.qty)
+	w.state = "idle"
+	w.job = {}
+
+
+func worker_repair(id: int) -> bool:
+	var w := worker_by_id(id)
+	if w.is_empty() or w.state != "hurt":
+		return false
+	if not remove_item("repair_kit", 1):
+		if vault_count("repair_kit") > 0:
+			vault["repair_kit"] = vault_count("repair_kit") - 1
+			if vault["repair_kit"] <= 0:
+				vault.erase("repair_kit")
+		else:
+			notify.emit("Needs a Repair Kit (hold or vault).", Color("ff6b6b"))
+			return false
+	w.state = "idle"
+	w.hurt_left = 0.0
+	return true
+
+
+func _update_workers(delta: float) -> void:
+	for w in workers:
+		match w.state:
+			"job":
+				w.job.left = float(w.job.left) - delta
+				if float(w.job.left) <= 0.0:
+					_job_done(w)
+			"hurt":
+				w.hurt_left = float(w.hurt_left) - delta
+				if float(w.hurt_left) <= 0.0:
+					w.state = "idle"
+					notify.emit("%s has patched itself up." % w.name, Color("6ee06a"))
+
+
+func _job_done(w: Dictionary) -> void:
+	var j: Dictionary = w.job
+	var pv := job_preview(w, j.kind, j.target, int(j.minutes), j.get("item", ""))
+	var hurt := randf() * 100.0 < float(j.risk)
+	var k := 0.5 if hurt else 1.0
+	var lines: Array[String] = []
+	var parcel := {}
+	var cr := 0
+	match j.kind:
+		"gather":
+			for it in pv.items:
+				var q := int(round(int(pv.items[it]) * k))
+				if q > 0:
+					parcel[it] = q
+		"survey":
+			cr = int(round(int(pv.credits) * k))
+			gain_skill_xp("exploration", float(j.minutes) * 6.0 * k)
+			if randf() < 0.1 * float(j.minutes) / 10.0:
+				parcel["fossil"] = 1
+			if randf() < 0.04 * float(j.minutes) / 10.0:
+				parcel["ancient_relic"] = 1
+		"haul":
+			var sold := int(round(int(j.qty) * (0.8 if hurt else 1.0)))
+			var pl := _planet_of(j.target)
+			cr = sold * sell_price(j.item, pl)
+			lines.append("Sold %d %s at %s." % [sold, Db.item_name(j.item), pl.get("town", {}).get("name", pl.name)])
+			if hurt:
+				lines.append("Pirates took %d on the way." % (int(j.qty) - sold))
+	# deliver: resources into the vault where they fit, the rest (and credits) by parcel
+	var leftover := {}
+	for it in parcel:
+		var room := vault_cap() - vault_used()
+		var put := mini(int(parcel[it]), room)
+		if put > 0:
+			vault[it] = vault_count(it) + put
+			lines.append("%d %s stored in the vault." % [put, Db.item_name(it)])
+		if int(parcel[it]) - put > 0:
+			leftover[it] = int(parcel[it]) - put
+	if cr > 0 and j.kind != "haul":
+		lines.append("Earned ⌬ %d." % cr)
+	# experience
+	w.xp = int(w.xp) + int(j.minutes) * 10
+	var leveled := false
+	while int(w.level) < Db.WORKER_MAX_LEVEL and int(w.xp) >= 100 * int(w.level):
+		w.xp = int(w.xp) - 100 * int(w.level)
+		w.level = int(w.level) + 1
+		leveled = true
+	if leveled:
+		lines.append("Level up! %s is now level %d." % [w.name, w.level])
+	if hurt:
+		w.state = "hurt"
+		w.hurt_left = 300.0
+		lines.append("Came back damaged: repair it with a Repair Kit, or it will patch itself in 5 minutes.")
+	else:
+		w.state = "idle"
+	w.job = {}
+	send_mail("%s (subroutine)" % w.name, "Report: %s on %s" % [Db.JOBS[j.kind].name, pv.planet], "\n".join(lines), leftover, cr, "report")
+
+
+# --------------------------------------------------------------------------
+# Homespace: decor, themes, wings, the defrag pod
+# --------------------------------------------------------------------------
+
+func home_state() -> Dictionary:
+	if home.is_empty():
+		home = {"owned": ["bonsai"], "slots": {"f2": "bonsai"}, "theme": "midnight", "themes": ["midnight"], "wings": 0, "charge_at": -9999.0}
+	return home
+
+
+func decor_buy(id: String) -> bool:
+	var h := home_state()
+	if (h.owned as Array).has(id):
+		return false
+	var price: int = Db.DECOR[id].price
+	if credits < price:
+		notify.emit("Need ⌬ %d." % price, Color("ff6b6b"))
+		return false
+	add_credits(-price, true)
+	h.owned.append(id)
+	return true
+
+
+func decor_place(slot: String, id: String) -> void:
+	var h := home_state()
+	# floor pieces go in floor spots (f*), wall pieces in wall spots (w*)
+	if id != "" and (Db.DECOR[id].slot == "floor") != slot.begins_with("f"):
+		return
+	# a piece can only stand in one place at a time
+	for k in h.slots.keys():
+		if h.slots[k] == id:
+			h.slots.erase(k)
+	if id == "":
+		h.slots.erase(slot)
+	else:
+		h.slots[slot] = id
+
+
+func theme_buy(id: String) -> bool:
+	var h := home_state()
+	if not (h.themes as Array).has(id):
+		var price: int = Db.HOME_THEMES[id].price
+		if credits < price:
+			notify.emit("Need ⌬ %d." % price, Color("ff6b6b"))
+			return false
+		add_credits(-price, true)
+		h.themes.append(id)
+	h.theme = id
+	return true
+
+
+func wing_buy() -> bool:
+	var h := home_state()
+	var n := int(h.wings)
+	if n >= Db.HOME_WINGS.size():
+		return false
+	var price: int = Db.HOME_WINGS[n][1]
+	if credits < price:
+		notify.emit("Need ⌬ %d." % price, Color("ff6b6b"))
+		return false
+	add_credits(-price, true)
+	h.wings = n + 1
+	notify.emit("%s compiled. Your Homespace grew." % Db.HOME_WINGS[n][0], Color("5ff7ff"))
+	return true
+
+
+const CHARGE_COOLDOWN := 720.0 # one in-game day
+
+func charge_ready() -> float:
+	return maxf(0.0, float(home_state().charge_at) + CHARGE_COOLDOWN - play_time)
+
+
+func charge_use() -> bool:
+	if charge_ready() > 0.0:
+		return false
+	home_state().charge_at = play_time
+	hull = max_hull()
+	energy = max_energy()
+	shield = max_shield()
+	hull_changed.emit()
+	energy_changed.emit(energy, max_energy())
+	return true
