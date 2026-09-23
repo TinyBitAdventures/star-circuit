@@ -374,6 +374,32 @@ def track_orbit():
                    verb_sec=7.0, texture=(600, 3000, 0.015), bass=False, drone=True, mel_density=0.35, arp_gain=0.55)
 
 
+def track_hyperspace():
+    """Pirate interdiction in hyperspace: a driving minor-key synthwave pulse."""
+    S.seed(131)
+    root, scale = 45, "minor"  # A minor
+    prog = [0, 5, 3, 6]
+    bars = 16
+    t = Track(132, bars, verb_sec=2.2, verb_damp=6000, delay_beats=0.75)
+    for b in range(bars):
+        cdeg = prog[(b // 2) % len(prog)]
+        # sixteenth-note bass pulse
+        bm = deg_midi(root, scale, cdeg, -2)
+        for s16 in range(16):
+            t.add(inst_bass(bm + (12 if s16 % 4 == 2 else 0), 0.22 * t.spb, cutoff=700, gain=0.22), b * 4 + s16 * 0.25, verb=0.05)
+        if b % 2 == 0:
+            t.add(inst_pad(chord_tones(root, scale, cdeg, 4, 0), 8 * t.spb, 1600, attack=0.3, release=1.0, voice="saw", gain=0.1), b * 4, verb=0.4)
+        for beat in range(4):
+            t.add(drum_kick(0.9), b * 4 + beat, verb=0.05)
+            t.add(drum_hat(0.6, beat % 2 == 1), b * 4 + beat + 0.5, pan=0.3, verb=0.1, gain=0.8)
+            if beat % 2 == 1:
+                t.add(drum_snare(0.8), b * 4 + beat, verb=0.25)
+    # a soaring arpeggio after the intro
+    arp_line(t, root, scale, prog, 4, bars - 4, 2, 1, [0, 2, 4, 6, 4, 2, 5, 3], 0.25,
+             lambda m, v: inst_pluck(m, v, 0.25, 3.0, 2.0), 0.6)
+    return t.render(0.13)
+
+
 TRACKS = {
     "menu": lambda: ambient("menu", 11, 72, 50, "lydian", [0, 1, 5, 4], 24, pad_cut=1500, arp_step=0.5,
                             arp_pattern=(0, 2, 4, 3, 5, 4, 2, 1), mel_inst=inst_bell, verb_sec=5.0,
@@ -406,6 +432,7 @@ TRACKS = {
     "ocean": track_ocean,
     "abyss": lambda: track_ocean(True),
     "orbit": track_orbit,
+    "hyperspace": track_hyperspace,
     # the Homespace: a cozy lo-fi loop with soft drums and warm keys
     "home": lambda: ambient("home", 121, 78, 53, "mixolydian", [0, 3, 5, 4], 24, pad_cut=1200, pad_voice="tri",
                             arp_inst=inst_marimba, arp_step=0.5, arp_pattern=(0, 2, 4, 6, 4, 2, 5, 3),

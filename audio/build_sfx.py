@@ -581,8 +581,20 @@ def home_exit():
     return small_room(fade_out(seq([(0, sweep), (0.02, blips)]), 0.15), 0.8, 0.3)
 
 
+def hyper_loop():
+    # the roar of hyperspace: a deep rushing wind with a shimmering whine
+    S.seed(61)
+    n = N(8.0)
+    t = t_axis(n)
+    rush = S.bandpass(S.noise(n), 120, 1400) * (0.6 + 0.25 * np.sin(2 * np.pi * 0.25 * t)) * 1.2
+    whine = S.sine(880 + 30 * np.sin(2 * np.pi * 0.5 * t), n) * 0.04 + S.sine(1320 + 20 * np.sin(2 * np.pi * 0.37 * t), n) * 0.025
+    sub = S.sine(48, n) * 0.35
+    return S.crossfade_loop(rush * 0.5 + whine + sub, 1.0)
+
+
 SFX = {
     "klaxon": klaxon,
+    "hyper_loop": hyper_loop,
     "home_enter": home_enter, "home_exit": home_exit,
     "sonar_ping": sonar_ping, "splash": splash, "bubble_pop": bubble_pop, "ocean_loop": ocean_loop,
     "whale_call": whale_call, "jelly_sting": jelly_sting, "probe_launch": probe_launch,

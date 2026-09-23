@@ -2,6 +2,12 @@
 
 ## Unreleased (v0.3.0)
 
+### Hyperspace
+- Warps and relay jumps now fly you down a hyperspace tunnel. Calm jumps last a few seconds and can be skipped.
+- Pirate interdictions: swarm drones that telegraph and dive, raiders and gunships firing from ahead, and mine fields. Aim with the mouse, fire cannons and homing missiles, and dodge with WASD. Clearing every wave pays a salvage bounty; getting knocked out drops you at the destination with some cargo lost.
+- The first warp always shows you an interdiction; relit Circuit jumps are rarely attacked.
+- A driving hyperspace combat track and a rushing tunnel ambience.
+
 ### The Homespace
 - Press **Y** anywhere to step into a small 2D digital home inside your robot. The world pauses, and you step back out exactly where you were.
 - **Vault:** 300 units of cloud storage (expandable to 1500). Moving items costs energy based on your uplink: cheap where a relay is lit, weaker in unlit systems, and weaker again underground or underwater.

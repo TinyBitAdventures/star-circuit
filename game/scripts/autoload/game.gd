@@ -65,6 +65,8 @@ var gems_taken := {} # orbit target key -> [gem indices already extracted]
 var seas := {} # ocean key -> {"dug": base64, "opened": [clam ids], "wreck": bool}
 var sea := {} # the ocean we're diving (not saved: dives always resume on the surface)
 var max_sea_depth := 0
+var warp := {} # the jump in progress: {from, to, relay, interdict} (not saved: you're already at the destination)
+var interdictions := 0 # pirate ambushes survived in hyperspace
 var orbit := {} # the world we're orbiting (not saved: orbit always resumes in space)
 var species_names := {} # species key -> display name (species log)
 var world_species := {} # planet key -> species on that world (for the log)
@@ -900,7 +902,7 @@ func save_game() -> void:
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
 		"milestones": milestones, "crafted_once": crafted_once,
-		"workers": workers, "home": home,
+		"workers": workers, "home": home, "interdictions": interdictions,
 		"vault": vault, "vault_level": vault_level, "inbox": inbox, "mail_seq": _mail_seq, "order_t": _order_t, "home_visits": home_visits, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
@@ -970,6 +972,7 @@ func load_game(n := -1) -> bool:
 	_order_t = float(d.get("order_t", 240.0))
 	home_visits = int(d.get("home_visits", 0))
 	workers = d.get("workers", [])
+	interdictions = int(d.get("interdictions", 0))
 	home = d.get("home", {})
 	if home_visits == 0 and inbox.is_empty():
 		_welcome_mail()
@@ -2463,3 +2466,38 @@ func charge_use() -> bool:
 	hull_changed.emit()
 	energy_changed.emit(energy, max_energy())
 	return true
+
+
+
+# --------------------------------------------------------------------------
+# hyperspace
+# --------------------------------------------------------------------------
+
+## Begin a jump. The destination is committed (and saved) now, so quitting
+## mid-jump lands you there; the hyperspace run is the trip itself.
+func start_warp(to: int, relay := false) -> void:
+	var from := star_index
+	var dist := Galaxy.distance(from, to)
+	var lvl := space_level(to)
+	# pirates lurk on long, dangerous lanes; the relit Circuit is mostly safe
+	var chance := clampf(0.2 + lvl * 0.025 + dist * 0.004, 0.2, 0.75)
+	if relay:
+		chance *= 0.3
+	var interdict := randf() < chance
+	if visited_stars.size() <= 1 and not relay:
+		interdict = true # the first warp always shows you what hyperspace is like
+	warp = {"from": from, "to": to, "relay": relay, "interdict": interdict, "dist": dist, "level": maxi(1, lvl - (2 if visited_stars.size() <= 1 else 0))}
+	star_index = to
+	planet_index = 0
+	arrived_by_warp = true
+	location = "space"
+	record_warp(to)
+	save_game()
+	fade_to("res://scenes/hyperspace.tscn")
+
+
+func finish_warp(result: Dictionary = {}) -> void:
+	if result.get("repelled", false):
+		interdictions += 1
+	warp = {}
+	go_to_space()

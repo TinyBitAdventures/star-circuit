@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "warp":
+		await _warp_tour()
+		get_tree().quit()
+		return
 	if which == "home":
 		await _home_tour()
 		get_tree().quit()
@@ -1368,3 +1372,45 @@ func _home_tour() -> void:
 	home._avatar_x = 3900.0
 	await _wait(2.5)
 	await shot("home_garden")
+
+
+
+func _warp_tour() -> void:
+	Sound.show_tips = false
+	Game.new_game("scout", "Tester")
+	await _wait(3.0)
+	Game.visited_stars = [0, 1, 2]
+	Game.interdictions = 1
+	Game.go_to_space()
+	await _wait(3.0)
+	Game.start_warp(3, false)
+	await _wait(1.8)
+	var w := _scene()
+	w.interdicted = true
+	w.duration = 60.0
+	w._plan_waves()
+	await shot("warp_tunnel")
+	w.elapsed = 13.0
+	await _wait(3.5)
+	await shot("warp_raiders_arrive")
+	Input.action_press("fire")
+	for k in 16:
+		if not w.enemies.is_empty():
+			var e: Dictionary = w.enemies[0]
+			Input.warp_mouse(w.camera.unproject_position(e.pos))
+		await _wait(0.1)
+	await shot("warp_firefight")
+	Input.action_release("fire")
+	w.elapsed = 21.5
+	await _wait(2.2)
+	await shot("warp_mines")
+	w.elapsed = 35.5
+	await _wait(3.0)
+	Input.action_press("fire")
+	await _wait(0.6)
+	await shot("warp_gunship")
+	Input.action_release("fire")
+	# a calm relay jump for the colours
+	Game.start_warp(0, true)
+	await _wait(2.5)
+	await shot("warp_relay")

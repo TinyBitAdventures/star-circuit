@@ -180,12 +180,7 @@ func _warp() -> void:
 	hud.close_panel(false)
 	Sound.play("warp", 0.0, 0.0)
 	Sound.loop_stop("engine", 2.0)
-	Game.big_notify.emit("WARP JUMP", "Destination: %s" % Galaxy.star(to).name, Color("9b6bff"))
-	Game.star_index = to
-	Game.planet_index = 0
-	Game.arrived_by_warp = true
-	Game.record_warp(to)
-	Game.go_to_space()
+	Game.start_warp(to, false)
 
 
 
@@ -194,9 +189,4 @@ func _relay_jump() -> void:
 	hud.close_panel(false)
 	Sound.play("warp", 0.0, 0.0)
 	Sound.loop_stop("engine", 2.0)
-	Game.big_notify.emit("RELAY JUMP", "Riding the Circuit to %s" % Galaxy.star(to).name, Color("5ff7ff"))
-	Game.star_index = to
-	Game.planet_index = 0
-	Game.arrived_by_warp = true
-	Game.record_warp(to)
-	Game.go_to_space()
+	Game.start_warp(to, true)

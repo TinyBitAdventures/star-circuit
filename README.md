@@ -137,6 +137,11 @@ fullscreen, graphics quality and volume.
     cruises the Abyss. All of them go into your Species Log.
   - Below about 200 m the Abyss crushes an unprotected hull, so fabricate a **Pressure Hull** first. Kelp presses into Bio-Polymer.
     Quest "Into the Blue", milestone "Deep Diver" (250 m).
+- **Hyperspace**: every warp and relay jump is a flight down a tunnel of light. Calm jumps take a few seconds (Space skips).
+  Sometimes pirates **interdict** you mid-jump (more often on long, dangerous lanes, rarely on the relit Circuit): swarm drones
+  that flare and dive at you, raiders and gunships that strafe from ahead, and mine fields. Steer with WASD, aim with the mouse,
+  hold Left Mouse for cannons and Right Mouse for homing missiles. Clear every wave for a salvage bounty. If you're knocked out,
+  you still arrive, battered and missing some cargo.
 - **The Homespace (Y)**: robots are nomads, so home lives inside you. Press Y anywhere (on a planet, in space, in a cave,
   in the Deep Sea, mid-orbit) and the world pauses while you step into a small 2D digital room. Stepping back out drops you exactly where you were.
   - **Vault:** cloud storage for what your hold can't carry (300 units, expandable). Uplinking costs energy: cheap where a relay
@@ -256,6 +261,8 @@ Dev checks:
 Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your settings or real save slots.
 
     godot --headless --path game res://scenes/dev_smoke.tscn   # gameplay loop, prints [smoke] lines
+    godot --headless --path game res://scenes/dev_warp.tscn    # hyperspace: interdiction waves, kills, hits, arrival, relay jump
+    SHOTS=warp godot --path game res://scenes/dev_shots.tscn   # hyperspace tunnel, firefight, mines, relay colours
     godot --headless --path game res://scenes/dev_home.tscn    # Homespace: vault uplink costs, inbox, trader orders, pause/resume
     SHOTS=home godot --path game res://scenes/dev_shots.tscn   # Homespace room, vault, inbox, trophy wall
     godot --headless --path game res://scenes/dev_balance.tscn # quest-line audit: sources, skill gates, training costs
