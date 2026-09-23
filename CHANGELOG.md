@@ -3,9 +3,10 @@
 ## Unreleased (v0.3.0)
 
 ### Volcanoes
-- Volcanic worlds now have a Volcanic Vent leading into the **Eruption Run**: a 2D cutaway of the volcano from the crater down through the Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle to the glowing core.
+- Volcanic worlds and moons now have three Volcanic Vents (one within walking distance of the landing, all on the compass) leading into the **Eruption Run**: a 2D cutaway of the volcano from the crater down through the Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle to the glowing core.
 - Magma rises the whole time and the volcano erupts after 2.5 minutes. Dive for crystals in the side pockets, ride geysers back up, and climb out at the rim in time. Getting caught in the eruption costs half your haul.
 - A heat meter and jetpack fuel, plus new materials: Obsidian, Fire Opal and Core Ember.
+- "Into the Fire" points the quest star at the nearest vent (and at the volcanic planet from space), and names the nearest volcanic world when you accept it.
 - The "Into the Fire" quest, the "Firewalker" milestone, an Obsidian Heat Plating recipe, and a rumbling ambience.
 
 ### Hyperspace

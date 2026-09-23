@@ -715,6 +715,10 @@ func accept_quest() -> void:
 		"gem_types":
 			quest_progress = gem_types()
 	_reconcile_quest()
+	if o.type == "collect" and o.item in ["fire_opal", "obsidian", "core_ember"]:
+		var v := nearest_volcanic_world()
+		if not v.is_empty():
+			notify.emit("Nearest volcanic world: %s in the %s system (%.1f ly)" % [v.name, v.star_name, v.dist], Color("ff8a3d"))
 	big_notify.emit("QUEST ACCEPTED", q.title, Color("ffd23f"))
 	quest_changed.emit()
 	_check_quest_complete()
@@ -2535,3 +2539,16 @@ func leave_volcano(escaped: bool) -> void:
 	land_dir = Vector3(d[0], d[1], d[2])
 	volcano = {}
 	go_to_planet(star_index, planet_index)
+
+
+
+## The closest world with lava (and so Volcanic Vents), for quest guidance.
+func nearest_volcanic_world() -> Dictionary:
+	var best := {}
+	for s in Galaxy.stars.size():
+		for p in Galaxy.star(s).planets:
+			if Db.BIOMES[p.biome].get("lava", false):
+				var d := Galaxy.distance(star_index, s)
+				if best.is_empty() or d < float(best.dist):
+					best = {"name": p.name, "star": s, "index": p.index, "star_name": Galaxy.star(s).name, "dist": d}
+	return best

@@ -35,6 +35,17 @@ func _run() -> void:
 	for p in pw.pois:
 		if p.type == "volcano":
 			vent = p
+	var vents: Array = pw.pois.filter(func(p): return p.type == "volcano")
+	var near := INF
+	for v in vents:
+		near = minf(near, v.global_position.distance_to(pw.player.global_position))
+	var on_compass: int = pw.compass_markers().filter(func(m): return m.label == "Volcanic Vent").size()
+	print("[vol] vents=", vents.size(), " nearest to landing=", int(near), "m  on compass=", on_compass)
+	Game.quest_index = Db.QUESTS.map(func(q): return q.id).find("fire")
+	Game.quest_accepted = false
+	Game.accept_quest()
+	pw._qt_t = 0.0
+	print("[vol] fire quest star -> ", pw.quest_target().get("label", "none"), " · nearest volcanic world=", Game.nearest_volcanic_world().get("name", "?"))
 	print("[vol] world=", pw.planet.name, " (", pw.planet.biome, ") vent=", vent != null, " info=", vent.cache_info().text if vent else "")
 	vent.open_cache()
 	await _wait(3.0)

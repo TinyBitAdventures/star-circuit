@@ -130,7 +130,8 @@ func _ready() -> void:
 	hud.refresh_survey(survey_status())
 	Game.land_dir = spawn_dir
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	hud.show_location_banner(planet.name, "%s world  ·  %s system  ·  Danger level %d" % [biome.name, Galaxy.star(Game.star_index).name, danger_level])
+	var vents := pois.filter(func(p): return p.type == "volcano").size()
+	hud.show_location_banner(planet.name, "%s world  ·  %s system  ·  Danger level %d%s" % [biome.name, Galaxy.star(Game.star_index).name, danger_level, ("  ·  %d Volcanic Vents" % vents) if vents > 0 else ""])
 	get_tree().create_timer(6.0).timeout.connect(func():
 		if is_instance_valid(self):
 			get_tree().create_timer(40.0).timeout.connect(func():
@@ -689,9 +690,11 @@ func _spawn_pois(outpost_dir: Vector3) -> void:
 	if not is_home:
 		types.append("cave")
 	# volcanoes last of all, so saves from before they existed keep their indices
+	# (the first volcano keeps its old slot; two more follow it)
 	if biome.get("lava", false):
-		types.append("volcano")
+		types.append_array(["volcano", "volcano", "volcano"])
 	var first_cave := true
+	var first_volcano := true
 	var placed: Array[Vector3] = []
 	var safe := outpost_dir if is_home else spawn_dir
 	var idx := 0
@@ -699,7 +702,7 @@ func _spawn_pois(outpost_dir: Vector3) -> void:
 		var d := Vector3.ZERO
 		for attempt in 200:
 			var cand: Vector3
-			var near_cave: bool = t == "cave" and first_cave
+			var near_cave: bool = (t == "cave" and first_cave) or (t == "volcano" and first_volcano)
 			if idx == 0 or near_cave:
 				# the first site (and first cave) is always within walking distance of the landing
 				var b := PlanetGen.align_basis(safe)
@@ -722,6 +725,8 @@ func _spawn_pois(outpost_dir: Vector3) -> void:
 		placed.append(d)
 		if t == "cave":
 			first_cave = false
+		if t == "volcano":
+			first_volcano = false
 		var p := Poi.new()
 		add_child(p)
 		p.setup(self, t, idx, d)
@@ -782,7 +787,7 @@ func check_survey() -> void:
 func compass_markers() -> Array:
 	var out := []
 	for p in pois:
-		if p.revealed or p.is_discovered():
+		if p.revealed or p.is_discovered() or p.type == "volcano":
 			out.append({"pos": p.global_position, "color": p.def.color, "label": p.def.name, "done": p.is_looted() or p.type == "geode"})
 	if town:
 		out.append({"pos": town.centre, "color": Color("ffd98a"), "label": planet.town.name, "done": false})
@@ -976,6 +981,10 @@ func _nearest(nodes: Array, pos: Vector3) -> Node3D:
 	return best
 
 
+func _nearest_vent(pos: Vector3) -> Node3D:
+	return _nearest(pois.filter(func(p): return p.type == "volcano"), pos)
+
+
 func _compute_quest_target() -> Dictionary:
 	if player == null:
 		return {}
@@ -990,6 +999,9 @@ func _compute_quest_target() -> Dictionary:
 					return {"pos": n.global_position, "label": "The Archivist"}
 		return {}
 	var o: Dictionary = q.obj
+	if o.type == "collect" and o.item in ["fire_opal", "obsidian", "core_ember"]:
+		var v := _nearest_vent(pos)
+		return {"pos": v.global_position, "label": "Volcanic Vent"} if v else {}
 	match o.type:
 		"collect":
 			var hits := _nodes.filter(func(n): return is_instance_valid(n) and n.def.item == o.item)

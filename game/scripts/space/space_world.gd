@@ -809,6 +809,10 @@ func quest_space_target() -> Dictionary:
 			if heart and is_instance_valid(heart):
 				return {"kind": "heart", "id": 0, "name": "★ Corruption Heart"}
 		"collect":
+			if q.obj.item in ["fire_opal", "obsidian", "core_ember"]:
+				for p in planets:
+					if Db.BIOMES[p.data.biome].get("lava", false):
+						return {"kind": "planet", "id": p.data.index, "name": "★ %s (volcanic)" % p.data.name}
 			if q.obj.item in ["nickel", "cryo_ice", "stardust"]:
 				return {"kind": "belt", "id": 0, "name": "★ Asteroid belt"}
 	return {}
