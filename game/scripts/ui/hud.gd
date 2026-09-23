@@ -98,6 +98,7 @@ func _ready() -> void:
 	Game.notify.connect(toast)
 	Game.big_notify.connect(big)
 	Game.tip_requested.connect(tip)
+	Game.mail_changed.connect(_refresh_status)
 	Game.player_damaged.connect(func(_a): Game.tip("combat", "Under attack! Fire with Left Mouse, use your robot's ability with %s, swap weapons with %s, and patch up with a Repair Kit %s." % [Game.key("ability"), Game.key("weapon_cycle"), Game.key("repair")]))
 	Game.energy_changed.connect(func(v, m): if m > 0.0 and v / m < 0.2: Game.tip("low_energy", "Energy is low. Stand in daylight to recharge, or burn an Energy Cell with %s." % Game.key("use_cell")))
 	Game.inventory_changed.connect(_refresh_open_panel)
@@ -429,7 +430,7 @@ func _build_hints() -> void:
 	l.add_theme_constant_override("outline_size", 4)
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	if mode == "planet":
-		l.text = "WASD move · Space jump/jetpack · Shift sprint · E interact · LMB fire · F ability · G repair · Q scan · R energy · T take off · I C K J panels · H help"
+		l.text = "WASD move · Space jump/jetpack · Shift sprint · E interact · LMB fire · F ability · G repair · Q scan · R energy · T take off · Y home · I C K J panels · H help"
 	elif mode == "dig":
 		l.text = "A/D move + drill sideways · S drill down · W/Space thrust (drills up at a ceiling) · E lift / enter chamber · T emergency lift · R energy · G repair · I C K J panels"
 	elif mode == "sea":
@@ -439,7 +440,7 @@ func _build_hints() -> void:
 	elif mode == "grotto":
 		l.text = "WASD move · Space jump · Shift sprint · E interact · Q scan cave species · R energy cell · I C K J panels"
 	else:
-		l.text = "Mouse steer · W/S thrust · A/D strafe · Shift boost · LMB cannons (laser on rock) · RMB missiles · Q scan · E land · F dock · O orbit · M map · H help"
+		l.text = "Mouse steer · W/S thrust · A/D strafe · Shift boost · LMB cannons (laser on rock) · RMB missiles · Q scan · E land · F dock · O orbit · M map · Y home · H help"
 	root.add_child(l)
 
 
@@ -449,7 +450,8 @@ func _refresh_status() -> void:
 	energy_bar.value = Game.energy
 	energy_label.text = "%d / %d" % [int(Game.energy), int(m)]
 	level_label.text = "LV %d" % Game.level
-	credits_label.text = "⌬ %d" % Game.credits
+	var unread := Game.unread_mail()
+	credits_label.text = ("⌬ %d" % Game.credits) + (("   ✉ %d" % unread) if unread > 0 else "")
 	var cu := Game.cargo_used()
 	var cc := Game.cargo_cap()
 	cargo_bar.max_value = cc
@@ -1097,6 +1099,9 @@ func _panel_pause() -> void:
 	for pair in [["Resume", close_panel], ["Save Game", func():
 		Game.save_game()
 		toast("Game saved.", Color("6ee06a"))
+	], ["Homespace (%s)" % Sound.key_name("home"), func():
+		close_panel(false)
+		Game.open_home.call_deferred()
 	], ["Settings", func(): toggle_panel("settings")], ["Field Manual", func(): toggle_panel("help")], ["Save & Main Menu", Game.go_to_menu], ["Save & Quit", func():
 		Game.save_game()
 		get_tree().quit()

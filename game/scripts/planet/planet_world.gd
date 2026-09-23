@@ -133,6 +133,10 @@ func _ready() -> void:
 	hud.show_location_banner(planet.name, "%s world  ·  %s system  ·  Danger level %d" % [biome.name, Galaxy.star(Game.star_index).name, danger_level])
 	get_tree().create_timer(6.0).timeout.connect(func():
 		if is_instance_valid(self):
+			get_tree().create_timer(40.0).timeout.connect(func():
+				if is_instance_valid(self):
+					Game.tip("homespace", "You have a home, wherever you are. Press %s to step into your Homespace: a Vault for what your hold can't carry, and an Inbox for letters and trader orders." % Game.key("home"))
+			)
 			Game.tip("first_landing", "Walk with WASD, sprint with %s, jump with %s (hold it mid-air for the jetpack). Press %s to gather glowing resources and %s to scan creatures and plants." % [Game.key("sprint"), Game.key("jump"), Game.key("interact"), Game.key("scan")])
 	)
 

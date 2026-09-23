@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased (v0.3.0)
+
+### The Homespace
+- Press **Y** anywhere to step into a small 2D digital home inside your robot. The world pauses, and you step back out exactly where you were.
+- **Vault:** 300 units of cloud storage (expandable to 1500). Moving items costs energy based on your uplink: cheap where a relay is lit, weaker in unlit systems, and weaker again underground or underwater.
+- **Inbox:** letters and parcels, including a welcome from the Archivist, and trader orders from towns you've visited. Fill orders remotely from the vault for 30-70% over market before they expire.
+- **Trophy Wall:** gems, relics, species holograms, milestone badges and the Crown pedestal. A window shows where you are right now.
+- A cozy lo-fi home theme, plus enter and exit sounds.
+
 ## v0.2.0 — 2026-09-23
 
 A big expansion: new places to explore above, below and beneath the waves, a real endgame, and a lot of polish.

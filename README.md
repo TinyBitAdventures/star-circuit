@@ -64,6 +64,7 @@ The generated models and audio are committed, so Blender and Python are only nee
 | Shift | boost (uses energy) |
 | E | land on a nearby planet (F docks at its trade hub) |
 | O | hold orbit over a planet, moon or gas giant and probe its core for gems |
+| Y | step into your Homespace (works everywhere) |
 | Left mouse | pulse cannons; switches to the mining laser when the crosshair is on rock |
 | Right mouse | homing missiles (lock onto the pirate nearest the crosshair) |
 | Q | scan the belt for asteroid types and contents |
@@ -136,6 +137,14 @@ fullscreen, graphics quality and volume.
     cruises the Abyss. All of them go into your Species Log.
   - Below about 200 m the Abyss crushes an unprotected hull, so fabricate a **Pressure Hull** first. Kelp presses into Bio-Polymer.
     Quest "Into the Blue", milestone "Deep Diver" (250 m).
+- **The Homespace (Y)**: robots are nomads, so home lives inside you. Press Y anywhere (on a planet, in space, in a cave,
+  in the Deep Sea, mid-orbit) and the world pauses while you step into a small 2D digital room. Stepping back out drops you exactly where you were.
+  - **Vault:** cloud storage for what your hold can't carry (300 units, expandable). Uplinking costs energy: cheap where a relay
+    is lit, pricier in unlit systems, and pricier again underground or underwater.
+  - **Inbox:** letters and parcels (claim to your hold or straight to the vault), plus **trader orders** from towns you've visited.
+    Fill them remotely from the vault for well over market price, before they expire.
+  - **Trophy Wall:** your world gems, relics, species holograms, milestone badges and, one day, the Crown of Worlds.
+    The window shows wherever you currently are.
 - **Orbit & Deep Probes**:
   - Near any planet, moon or gas giant, press O to hold orbit. The view cuts the world open: surface, clouds and atmosphere on the rim,
     then crust strata, a convecting mantle, a molten outer core and a white-hot inner core, all turning slowly under your ship.
@@ -240,6 +249,8 @@ Dev checks:
 Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your settings or real save slots.
 
     godot --headless --path game res://scenes/dev_smoke.tscn   # gameplay loop, prints [smoke] lines
+    godot --headless --path game res://scenes/dev_home.tscn    # Homespace: vault uplink costs, inbox, trader orders, pause/resume
+    SHOTS=home godot --path game res://scenes/dev_shots.tscn   # Homespace room, vault, inbox, trophy wall
     godot --headless --path game res://scenes/dev_balance.tscn # quest-line audit: sources, skill gates, training costs
     godot --path game res://scenes/dev_shots.tscn              # renders a screenshot tour into shots/
     SHOTS=combat godot --path game res://scenes/dev_shots.tscn # combat-only screenshot tour

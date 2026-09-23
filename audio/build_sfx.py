@@ -563,8 +563,27 @@ def orbit_hum_loop():
     return S.crossfade_loop(hum + air, 1.0)
 
 
+# ---------------------------------------------------------------- homespace
+
+def home_enter():
+    # dropping into your own head: a rising digital shimmer that lands on a warm chord
+    n = N(0.7)
+    sweep = S.sweep_lowpass(S.noise(n), 800, 9000, curve=0.4) * np.linspace(0, 1, n) ** 2 * 0.25
+    blips = seq([(i * 0.05, S.square(S.midi_hz(72 + i * 4), N(0.04), 0.3) * S.exp_decay(N(0.04), 0.015) * 0.2) for i in range(6)])
+    chord = seq([(0.3 + i * 0.03, bell(m, 0.8, 2.0, 1.0) * 0.25) for i, m in enumerate((72, 76, 79, 83))])
+    return small_room(fade_out(seq([(0, sweep), (0.05, blips), (0, chord)]), 0.2), 1.2, 0.35)
+
+
+def home_exit():
+    n = N(0.6)
+    sweep = S.sweep_lowpass(S.noise(n), 9000, 600, curve=0.6) * S.exp_decay(n, 0.2) * 0.3
+    blips = seq([(i * 0.05, S.square(S.midi_hz(88 - i * 4), N(0.04), 0.3) * S.exp_decay(N(0.04), 0.015) * 0.2) for i in range(6)])
+    return small_room(fade_out(seq([(0, sweep), (0.02, blips)]), 0.15), 0.8, 0.3)
+
+
 SFX = {
     "klaxon": klaxon,
+    "home_enter": home_enter, "home_exit": home_exit,
     "sonar_ping": sonar_ping, "splash": splash, "bubble_pop": bubble_pop, "ocean_loop": ocean_loop,
     "whale_call": whale_call, "jelly_sting": jelly_sting, "probe_launch": probe_launch,
     "probe_reel_loop": probe_reel_loop, "gem_lock": gem_lock, "probe_lost": probe_lost, "orbit_hum_loop": orbit_hum_loop,

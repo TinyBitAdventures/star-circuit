@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "home":
+		await _home_tour()
+		get_tree().quit()
+		return
 	if which == "select":
 		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 		await _wait(2.0)
@@ -1279,3 +1283,48 @@ func _atmo_tour() -> void:
 			p.cam_pitch = 0.05
 		await _wait(1.5)
 		await shot("atmo_" + spec[2])
+
+
+
+func _home_tour() -> void:
+	Sound.show_tips = false
+	Game.new_game("scout", "Tester")
+	await _wait(4.0)
+	for g in ["gem_verdant", "gem_dune", "gem_frost", "gem_giant"]:
+		Game.add_item(g, 1, true)
+	Game.vault = {"cobalt": 42, "lumen": 12, "fossil": 2, "gem_prism": 1, "biofiber": 60}
+	Game.add_item("ancient_relic", 1, true)
+	Game.add_item("ferrite", 30, true)
+	Game.add_item("plasma", 12, true)
+	for i in 23:
+		Game.scanned.append("0:0:fake:%d" % i)
+	Game.milestones = ["wanderer", "naturalist", "scrapper"]
+	Game.visited_towns.append("0:0")
+	Game._order_t = 0.0
+	Game._update_orders(0.1)
+	Game.send_mail("Tutor Vess", "Your Journeyman papers", "Word travels fast between trainers. Here's a little something for the road.", {"repair_kit": 2}, 120)
+	Game.open_home()
+	await _wait(1.5)
+	var home: Node = null
+	for c in get_tree().root.get_children():
+		if c.has_method("leave"):
+			home = c
+	home._avatar_x = home._vs().x * 0.36
+	await _wait(0.6)
+	await shot("home_room")
+	home._avatar_x = home._vs().x * 0.72
+	await _wait(0.6)
+	await shot("home_room_trophy")
+	home._open_panel("vault")
+	await _wait(0.5)
+	await shot("home_vault")
+	home._open_panel("inbox")
+	await _wait(0.5)
+	await shot("home_inbox_order")
+	home._sel_mail = int(Game.inbox[Game.inbox.size() - 1].id)
+	home._rebuild()
+	await _wait(0.5)
+	await shot("home_inbox_welcome")
+	home._open_panel("trophy")
+	await _wait(0.5)
+	await shot("home_trophy")

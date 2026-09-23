@@ -406,6 +406,11 @@ TRACKS = {
     "ocean": track_ocean,
     "abyss": lambda: track_ocean(True),
     "orbit": track_orbit,
+    # the Homespace: a cozy lo-fi loop with soft drums and warm keys
+    "home": lambda: ambient("home", 121, 78, 53, "mixolydian", [0, 3, 5, 4], 24, pad_cut=1200, pad_voice="tri",
+                            arp_inst=inst_marimba, arp_step=0.5, arp_pattern=(0, 2, 4, 6, 4, 2, 5, 3),
+                            mel_inst=lambda m, v: inst_pluck(m, v, 0.7, 1.2, 1.0), verb_sec=2.6, mel_density=0.55,
+                            mel_gain=1.2, bars_per_chord=2, perc=True, arp_gain=0.6),
     "combat": track_combat,
 }
 

@@ -13,6 +13,7 @@ signal quest_changed
 signal notify(text: String, color: Color)
 signal big_notify(title: String, subtitle: String, color: Color)
 signal tip_requested(id: String, text: String)
+signal mail_changed
 
 const SAVE_PATH := "user://star_circuit_save.json" # legacy single save (migrated to slot 1)
 const SLOTS := 3
@@ -49,6 +50,14 @@ var lit_relays: Array = [0]
 var heart_defeated := false
 var boarded: Array = [] # derelict keys already looted
 var milestones: Array = [] # unlocked milestone ids
+# the Homespace: a virtual home inside the robot, reachable from anywhere
+var vault := {} # item -> qty in cloud storage
+var vault_level := 0 # memory expansions bought
+var inbox: Array = [] # {id, from, subject, body, items, credits, read, claimed, kind, order: {...}}
+var _mail_seq := 0
+var _order_t := 240.0 # play seconds until the next trader order
+var home_visits := 0
+var in_home := false
 var crafted_once: Array = [] # recipe ids fabricated at least once (discovery bonus)
 var gems_taken := {} # orbit target key -> [gem indices already extracted]
 var seas := {} # ocean key -> {"dug": base64, "opened": [clam ids], "wreck": bool}
@@ -106,6 +115,7 @@ func _process(delta: float) -> void:
 		if _milestone_t > 2.0:
 			_milestone_t = 0.0
 			check_milestones()
+		_update_orders(delta)
 		if _autosave_timer > 60.0:
 			_autosave_timer = 0.0
 			save_game()
@@ -123,7 +133,7 @@ func _register_input() -> void:
 		"interact": [KEY_E], "scan": [KEY_Q], "use_cell": [KEY_R],
 		"inventory": [KEY_I, KEY_TAB], "crafting": [KEY_C], "skills": [KEY_K],
 		"quests": [KEY_J], "map": [KEY_M], "takeoff": [KEY_T], "help": [KEY_H, KEY_F1],
-		"pause": [KEY_ESCAPE], "ability": [KEY_F], "repair": [KEY_G], "weapon_cycle": [KEY_X], "orbit": [KEY_O],
+		"pause": [KEY_ESCAPE], "ability": [KEY_F], "repair": [KEY_G], "weapon_cycle": [KEY_X], "orbit": [KEY_O], "home": [KEY_Y],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
@@ -186,6 +196,12 @@ func _reset_state() -> void:
 	cave = {}
 	relics_found = 0
 	milestones = []
+	vault = {}
+	vault_level = 0
+	inbox = []
+	_mail_seq = 0
+	_order_t = 240.0
+	home_visits = 0
 	crafted_once = []
 	gems_taken = {}
 	orbit = {}
@@ -218,6 +234,7 @@ func new_game(robot: String, pname: String, slot_n := -1) -> void:
 	inventory = {"energy_cell": 2, "repair_kit": 2}
 	land_dir = Vector3(0.0, 0.25, 1.0).normalized()
 	in_game = true
+	_welcome_mail()
 	save_game()
 	go_to_planet(0, 0)
 
@@ -877,7 +894,8 @@ func save_game() -> void:
 		"credits": credits, "skill_tiers": skill_tiers, "bounties": bounties, "visited_towns": visited_towns,
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
-		"milestones": milestones, "crafted_once": crafted_once, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
+		"milestones": milestones, "crafted_once": crafted_once,
+		"vault": vault, "vault_level": vault_level, "inbox": inbox, "mail_seq": _mail_seq, "order_t": _order_t, "home_visits": home_visits, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
 		"star_index": star_index, "planet_index": planet_index, "location": location,
@@ -937,6 +955,16 @@ func load_game(n := -1) -> bool:
 	milestones = d.get("milestones", [])
 	gems_taken = d.get("gems_taken", {})
 	crafted_once = d.get("crafted_once", [])
+	vault = d.get("vault", {})
+	for k in vault.keys():
+		vault[k] = int(vault[k])
+	vault_level = int(d.get("vault_level", 0))
+	inbox = d.get("inbox", [])
+	_mail_seq = int(d.get("mail_seq", inbox.size()))
+	_order_t = float(d.get("order_t", 240.0))
+	home_visits = int(d.get("home_visits", 0))
+	if home_visits == 0 and inbox.is_empty():
+		_welcome_mail()
 	seas = d.get("seas", {})
 	max_sea_depth = int(d.get("max_sea_depth", 0))
 	species_names = d.get("species_names", {})
@@ -1863,3 +1891,266 @@ func record_sea_scan(key: String, display: String) -> bool:
 func record_sea_depth(m: int) -> void:
 	if m > max_sea_depth:
 		max_sea_depth = m
+
+
+
+# --------------------------------------------------------------------------
+# the Homespace: vault, inbox, uplink
+# --------------------------------------------------------------------------
+
+const VAULT_BASE := 300
+const VAULT_STEP := 300
+const VAULT_UPGRADES := [400, 1200, 3000, 6000]
+
+
+func vault_cap() -> int:
+	return VAULT_BASE + VAULT_STEP * vault_level
+
+
+func vault_used() -> int:
+	var n := 0
+	for k in vault:
+		n += int(vault[k])
+	return n
+
+
+func vault_count(item: String) -> int:
+	return int(vault.get(item, 0))
+
+
+## How good the uplink home is from here. Lit relays carry the signal; the
+## rock of a cave or the weight of an ocean muffle it.
+func uplink_signal() -> Dictionary:
+	var s := 1.0 if relay_lit(star_index) else 0.4
+	var where := "Relay lit in this system" if relay_lit(star_index) else "No lit relay in this system"
+	if not cave.is_empty() or not sea.is_empty():
+		s *= 0.5
+		where += ", and you're deep underground" if sea.is_empty() else ", and you're deep underwater"
+	return {"strength": s, "label": where}
+
+
+## Energy to move this many units between the hold and the vault.
+func uplink_cost(units: int) -> float:
+	var s: float = uplink_signal().strength
+	return units * lerpf(0.35, 0.04, clampf(s, 0.0, 1.0))
+
+
+func can_vault(item: String) -> bool:
+	return Db.ITEMS.has(item) and Db.ITEMS[item].kind != "upgrade"
+
+
+## Hold -> vault. Returns units moved (limited by space and energy).
+func vault_deposit(item: String, qty: int) -> int:
+	if not can_vault(item):
+		return 0
+	qty = mini(qty, count(item))
+	qty = mini(qty, vault_cap() - vault_used())
+	if qty <= 0:
+		if vault_used() >= vault_cap():
+			notify.emit("Vault full. Expand its memory in the Homespace.", Color("ff6b6b"))
+		return 0
+	qty = _affordable(qty)
+	if qty <= 0:
+		return 0
+	energy -= uplink_cost(qty)
+	energy_changed.emit(energy, max_energy())
+	remove_item(item, qty)
+	vault[item] = vault_count(item) + qty
+	return qty
+
+
+## Vault -> hold. Cargo items still have to fit in the hold.
+func vault_withdraw(item: String, qty: int) -> int:
+	qty = mini(qty, vault_count(item))
+	if is_cargo(item):
+		qty = mini(qty, cargo_free())
+		if qty <= 0:
+			_cargo_full_warning()
+			return 0
+	qty = _affordable(qty)
+	if qty <= 0:
+		return 0
+	energy -= uplink_cost(qty)
+	energy_changed.emit(energy, max_energy())
+	vault[item] = vault_count(item) - qty
+	if vault[item] <= 0:
+		vault.erase(item)
+	add_item(item, qty, true, true)
+	return qty
+
+
+func _affordable(qty: int) -> int:
+	var per := uplink_cost(1)
+	if per <= 0.0:
+		return qty
+	var can := int(floor(energy / per))
+	if can < qty:
+		if can <= 0:
+			notify.emit("Not enough energy to uplink. Recharge or find a lit relay.", Color("ff6b6b"))
+		qty = can
+	return maxi(qty, 0)
+
+
+func vault_expand() -> bool:
+	if vault_level >= VAULT_UPGRADES.size():
+		return false
+	var cost: int = VAULT_UPGRADES[vault_level]
+	if credits < cost:
+		notify.emit("Need ⌬ %d to expand the vault." % cost, Color("ff6b6b"))
+		return false
+	add_credits(-cost, true)
+	vault_level += 1
+	notify.emit("Vault memory expanded to %d units." % vault_cap(), Color("5ff7ff"))
+	return true
+
+
+func send_mail(from: String, subject: String, body: String, items := {}, cr := 0, kind := "letter", order := {}) -> void:
+	_mail_seq += 1
+	inbox.push_front({"id": _mail_seq, "from": from, "subject": subject, "body": body, "items": items, "credits": cr,
+		"read": false, "claimed": items.is_empty() and cr == 0, "kind": kind, "order": order, "t": play_time})
+	while inbox.size() > 40:
+		inbox.pop_back()
+	mail_changed.emit()
+	if home_visits > 0:
+		notify.emit("New message in your Homespace (%s)" % key("home"), Color("5ff7ff"))
+		Sound.play("notify", -10.0, 0.0, "UI")
+
+
+func unread_mail() -> int:
+	var n := 0
+	for m in inbox:
+		if not m.read:
+			n += 1
+	return n
+
+
+func mail_by_id(id: int) -> Dictionary:
+	for m in inbox:
+		if int(m.id) == id:
+			return m
+	return {}
+
+
+## Take a message's attachments: into the hold, or straight to the vault.
+func mail_claim(id: int, to_vault := false) -> void:
+	var m := mail_by_id(id)
+	if m.is_empty() or m.claimed:
+		return
+	if int(m.credits) > 0:
+		add_credits(int(m.credits))
+	for it in m.items:
+		var q := int(m.items[it])
+		if to_vault and can_vault(it):
+			var room := vault_cap() - vault_used()
+			var put := mini(q, room)
+			vault[it] = vault_count(it) + put
+			q -= put
+		if q > 0:
+			add_item(it, q, true, true)
+	m.claimed = true
+	mail_changed.emit()
+
+
+func mail_delete(id: int) -> void:
+	var m := mail_by_id(id)
+	if not m.is_empty():
+		inbox.erase(m)
+		mail_changed.emit()
+
+
+## Standing orders from traders you've met: fill them from the vault (or the
+## hold) from anywhere, for more than a merchant would pay.
+func order_fillable(m: Dictionary) -> bool:
+	var o: Dictionary = m.get("order", {})
+	return not o.is_empty() and not o.get("done", false) and vault_count(o.item) + count(o.item) >= int(o.qty) and play_time < float(o.expires)
+
+
+func order_fulfill(id: int) -> bool:
+	var m := mail_by_id(id)
+	if m.is_empty() or not order_fillable(m):
+		return false
+	var o: Dictionary = m.order
+	var need := int(o.qty)
+	var from_vault := mini(need, vault_count(o.item))
+	if from_vault > 0:
+		vault[o.item] = vault_count(o.item) - from_vault
+		if vault[o.item] <= 0:
+			vault.erase(o.item)
+	if need - from_vault > 0:
+		remove_item(o.item, need - from_vault)
+	o["done"] = true
+	m.claimed = true
+	add_credits(int(o.pay))
+	gain_skill_xp("exploration", 20)
+	_quest_event("sell", o.item, need)
+	Sound.play("coin", -4.0, 0.0, "UI")
+	mail_changed.emit()
+	return true
+
+
+func _update_orders(delta: float) -> void:
+	# expire old orders
+	for m in inbox:
+		var o: Dictionary = m.get("order", {})
+		if not o.is_empty() and not o.get("done", false) and play_time >= float(o.expires) and not o.get("expired", false):
+			o["expired"] = true
+			m.claimed = true
+	if visited_towns.is_empty():
+		return
+	_order_t -= delta
+	if _order_t > 0.0:
+		return
+	_order_t = randf_range(420.0, 720.0)
+	var open := 0
+	for m in inbox:
+		var o: Dictionary = m.get("order", {})
+		if not o.is_empty() and not o.get("done", false) and not o.get("expired", false):
+			open += 1
+	if open >= 3:
+		return
+	var tk: String = visited_towns[randi() % visited_towns.size()]
+	var parts := tk.split(":")
+	var pl: Dictionary = Galaxy.planet(int(parts[0]), int(parts[1]))
+	if pl.get("town", {}).is_empty():
+		return
+	var pool := ["ferrite", "biofiber", "plasma", "alloy", "nickel", "cryo_ice", "kelp"]
+	if level >= 5:
+		pool.append_array(["cobalt", "sporegel", "polymer", "scrap"])
+	if level >= 10:
+		pool.append_array(["lumen", "circuit", "stardust"])
+	if level >= 16:
+		pool.append_array(["voidshard", "exotic", "sea_pearl"])
+	var item: String = pool[randi() % pool.size()]
+	var value := int(Db.VALUES.get(item, 5))
+	var qty := clampi(int(round(float(randi_range(160, 320)) / value)), 2, 30)
+	var pay := int(round(qty * value * randf_range(1.3, 1.7)))
+	var town_name: String = pl.town.name
+	send_mail(town_name, "Order: %d %s" % [qty, Db.item_name(item)],
+		"We're short on %s at %s and can't wait for a caravan. Beam it to us from your vault and we'll pay well over market." % [Db.item_name(item), town_name],
+		{}, 0, "order", {"item": item, "qty": qty, "pay": pay, "expires": play_time + 1500.0, "town": tk})
+
+
+func _welcome_mail() -> void:
+	send_mail("The Archivist", "Welcome home, Unit",
+		"Every frame in the Circuit carries a little space inside it: your Homespace. Step in from anywhere with %s. The Vault here holds what your cargo hold can't, though uplinking costs energy, and less where a relay is lit. Letters and trader orders arrive in this Inbox. Look after the place. It is the only home a nomad gets." % key("home"),
+		{"energy_cell": 2}, 50)
+
+
+func open_home() -> void:
+	if in_home or not in_game or ui_open or get_tree().paused:
+		return
+	var sc := get_tree().current_scene
+	if sc == null or not sc.name in ["Planet", "Space", "Dig", "Sea", "Grotto", "Orbit"]:
+		return
+	if hull <= 0.0:
+		return
+	var p = sc.get("player")
+	if p and (p.get("dead") == true or p.get("launching") == true):
+		return
+	var home := preload("res://scripts/home/homespace.gd").new()
+	get_tree().root.add_child(home)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.is_action("home"):
+		open_home()
