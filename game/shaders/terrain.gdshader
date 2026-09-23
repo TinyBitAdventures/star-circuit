@@ -8,6 +8,7 @@ uniform float sea_radius = 0.0;     // object-space sea radius (0 = none)
 uniform float bump_strength = 0.55;
 uniform float snow_sparkle = 1.0;
 uniform float grid_glow = 0.0; // machine world: glowing circuit lines
+uniform float paint = 1.0; // TOON variant: how bold the colour is
 
 varying vec3 obj_pos;
 varying vec3 obj_n;
@@ -83,7 +84,13 @@ void fragment() {
 	vec3 grad = vec3(vnoise(pb + vec3(e, 0, 0)) - h0, vnoise(pb + vec3(0, e, 0)) - h0, vnoise(pb + vec3(0, 0, e)) - h0) / e;
 	grad -= up * dot(grad, up);
 	vec3 bump_view = (VIEW_MATRIX * MODEL_MATRIX * vec4(grad, 0.0)).xyz;
+#ifdef TOON
+	// illustrative: landforms carry the light, not micro-bumps
+	NORMAL = normalize(NORMAL - bump_view * bump_strength * 0.12 * (1.0 + rocky));
+#define TOON_SOFT
+#else
 	NORMAL = normalize(NORMAL - bump_view * bump_strength * (0.35 + 0.65 * near_detail) * (1.0 + rocky));
+#endif
 
 	// snow / ice sparkle
 	float luma = dot(base, vec3(0.299, 0.587, 0.114));
@@ -104,6 +111,22 @@ void fragment() {
 		col *= 0.9;
 		METALLIC = 0.6;
 	}
+#ifdef TOON
+	// illustrative: two-tone painted patches, crisp rock bands, richer colour
+	vec3 wp = obj_pos * detail_scale;
+	float warp = fbm(wp * 0.6);
+	float blot = smoothstep(0.47, 0.53, fbm(wp * 0.9 + vec3(warp * 2.0)));
+	float fine = smoothstep(0.5, 0.56, vnoise(wp * 3.3 + vec3(warp * 3.0))) * near_detail;
+	// sunlit patches lean warm and light, shaded patches cool: like broad brush strokes
+	vec3 warm = base * vec3(1.1, 1.06, 0.86);
+	vec3 cool = base * vec3(0.86, 0.93, 1.04);
+	vec3 flat_col = mix(cool, warm, blot) * (0.97 + 0.06 * fine);
+	float rocky_t = smoothstep(0.19, 0.23, slope);
+	flat_col *= mix(1.0, 0.8 + 0.12 * step(0.5, strata), rocky_t);
+	col = mix(col, flat_col, 0.85);
+	float luma2 = dot(col, vec3(0.299, 0.587, 0.114));
+	col = mix(vec3(luma2), col, 1.0 + 0.08 * paint);
+#endif
 	ALBEDO = col;
 	SPECULAR = 0.25;
 	// soft Spore-ish rim

@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "style":
+		await _style_tour()
+		get_tree().quit()
+		return
 	if which == "portraits":
 		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 		await _wait(2.0)
@@ -1487,3 +1491,45 @@ func _volcano_tour() -> void:
 	w.elapsed = 60.0
 	await _wait(1.0)
 	await shot("vol_cutaway")
+
+
+
+## Same four scenes under each art style, for a side-by-side comparison.
+func _style_tour() -> void:
+	Sound.show_tips = false
+	var only := OS.get_environment("STYLES")
+	for st in [0, 1, 2]:
+		if only != "" and not str(st) in only:
+			continue
+		Sound.art_style = st
+		var tag: String = ["A", "B", "C"][st]
+		# [planet index, day fraction, label, camera yaw, pitch, arm, face the sun]
+		for spec in [[0, 0.1, "cradle", 2.4, -0.28, 9.0, false], [1, 0.0, "desert", 2.6, -0.22, 10.0, false], [3, 0.26, "crystal", 0.0, 0.02, 9.0, true], [0, 0.05, "robot", 3.3, -0.12, 3.2, false]]:
+			Game.new_game("scout", "Tester")
+			if spec[0] != 0:
+				Game.go_to_planet(0, spec[0])
+			await _wait(6.5 if spec[0] != 0 else 4.5)
+			var w := _scene()
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			Game.invulnerable = true
+			for e in w.enemies:
+				e.set_physics_process(false)
+			w.hud.visible = false
+			w.weather.storm = 0.0 if w.weather else 0.0
+			Game.play_time = w.DAY_LENGTH * float(spec[1])
+			var p = w.player
+			p.cam_yaw = spec[3]
+			p.cam_pitch = spec[4]
+			p.spring.spring_length = spec[5]
+			if spec[6]:
+				var up: Vector3 = p.global_position.normalized()
+				var sd: Vector3 = w.sun_dir
+				var flat := (sd - up * sd.dot(up)).normalized()
+				p.cam_yaw = (p.ref_fwd as Vector3).signed_angle_to(flat, up)
+			await _wait(2.0)
+			if OS.get_environment("DBG") != "":
+				print("[style] outline node=", p.camera.get_node_or_null("InkOutline"), " style=", Sound.art_style)
+			await shot("style_%s_%s" % [spec[2], tag])
+			if OS.get_environment("DBG") != "":
+				get_tree().quit()
+				return

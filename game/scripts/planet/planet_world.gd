@@ -130,6 +130,9 @@ func _ready() -> void:
 	hud.refresh_survey(survey_status())
 	Game.land_dir = spawn_dir
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_apply_art_style.call_deferred()
+	get_tree().node_added.connect(_on_node_added)
+	Sound.art_style_changed.connect(_apply_art_style)
 	var vents := pois.filter(func(p): return p.type == "volcano").size()
 	hud.show_location_banner(planet.name, "%s world  ·  %s system  ·  Danger level %d%s" % [biome.name, Galaxy.star(Game.star_index).name, danger_level, ("  ·  %d Volcanic Vents" % vents) if vents > 0 else ""])
 	get_tree().create_timer(6.0).timeout.connect(func():
@@ -1101,3 +1104,26 @@ func refresh_music(fade := 2.5) -> void:
 		Sound.play_music("town", fade)
 	else:
 		Sound.play_music(Sound.music_for_biome(planet.biome), fade)
+
+
+
+# --------------------------------------------------------------------------
+# art style (Classic / Illustrative / Storybook)
+# --------------------------------------------------------------------------
+
+func _apply_art_style() -> void:
+	if not is_inside_tree():
+		return
+	ArtStyle.apply(self)
+	ArtStyle.apply_env(env, player.camera if player else null)
+
+
+func _on_node_added(n: Node) -> void:
+	# things spawned later (drops, effects, enemies) pick up the current style
+	if Sound.art_style > 0 and (n is GeometryInstance3D) and is_ancestor_of(n):
+		ArtStyle.apply_node.call_deferred(n)
+
+
+func _exit_tree() -> void:
+	if get_tree().node_added.is_connected(_on_node_added):
+		get_tree().node_added.disconnect(_on_node_added)

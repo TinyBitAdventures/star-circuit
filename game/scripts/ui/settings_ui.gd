@@ -103,6 +103,15 @@ func _general(v: VBoxContainer) -> void:
 		Sound.fullscreen = x
 		Sound.apply_display()
 	)
+	var ast := _row(v, "Art style (preview)")
+	for si in 3:
+		var sb := UiKit.button(["Classic", "Illustrative", "Storybook"][si], func():
+			Sound.set_art_style(si)
+			_build()
+		)
+		if Sound.art_style == si:
+			_mark(sb)
+		ast.add_child(sb)
 	var gq := _row(v, "Graphics quality")
 	for qi in 3:
 		var b := UiKit.button(["Low", "Medium", "High"][qi], func():
