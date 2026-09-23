@@ -688,6 +688,9 @@ func _spawn_pois(outpost_dir: Vector3) -> void:
 	types.append("cave")
 	if not is_home:
 		types.append("cave")
+	# volcanoes last of all, so saves from before they existed keep their indices
+	if biome.get("lava", false):
+		types.append("volcano")
 	var first_cave := true
 	var placed: Array[Vector3] = []
 	var safe := outpost_dir if is_home else spawn_dir

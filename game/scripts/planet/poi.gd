@@ -23,7 +23,7 @@ func setup(w: Node3D, t: String, idx: int, d: Vector3) -> void:
 	def = Db.POIS[t]
 	dir = d.normalized()
 	key = "%s:%d" % [w.planet.key, idx]
-	var m := ModelUtil.instance(def.model)
+	var m: Node3D = ModelUtil.instance(def.model) if def.model != "" else _volcano_model()
 	add_child(m)
 	if t == "monolith":
 		m.scale = Vector3(1.7, 1.5, 1.7)
@@ -33,7 +33,7 @@ func setup(w: Node3D, t: String, idx: int, d: Vector3) -> void:
 	revealed = is_discovered()
 	_add_collision()
 	_add_beacon()
-	if def.loot.size() > 0 or def.lore or t == "cave":
+	if def.loot.size() > 0 or def.lore or t == "cave" or t == "volcano":
 		_add_cache()
 
 
@@ -61,8 +61,8 @@ func _add_collision() -> void:
 			sp.radius = 2.2
 			cs.shape = sp
 			cs.position.y = 1.0
-		"cave":
-			return # walk right onto the shaft
+		"cave", "volcano":
+			return # walk right onto the shaft / up the cone
 		"geode":
 			var sp2 := SphereShape3D.new()
 			sp2.radius = 3.0
@@ -126,8 +126,10 @@ func _add_cache() -> void:
 			offset = Vector3(0, 0.9, 2.3)
 		"cave":
 			offset = Vector3(0, 0.3, 0)
+		"volcano":
+			offset = Vector3(0, 1.0, 9.0)
 	c.position = offset
-	if type != "monolith" and type != "cave":
+	if type != "monolith" and type != "cave" and type != "volcano":
 		c.add_child(ModelUtil.instance("res://assets/models/poi_cache.glb"))
 	_cache = c
 	world.register_interactable(c)
@@ -150,6 +152,9 @@ func _process(delta: float) -> void:
 
 
 func cache_info() -> Dictionary:
+	if type == "volcano":
+		var runs := int(Game.volcanoes.get(key, {}).get("escapes", 0))
+		return {"text": "[E] Climb down into the volcano%s" % ("  ·  escaped %d time%s" % [runs, "" if runs == 1 else "s"] if runs > 0 else ""), "color": def.color, "instant": true}
 	if type == "cave":
 		var st: Dictionary = Game.digs.get(key, {})
 		var n: int = st.get("chambers", []).size()
@@ -164,6 +169,11 @@ func cache_info() -> Dictionary:
 
 
 func open_cache() -> void:
+	if type == "volcano":
+		if not is_discovered():
+			Game.discover_poi(key, def.name)
+		Game.enter_volcano(key, dir, int(world.planet.seed), world.planet.biome)
+		return
 	if type == "cave":
 		if not is_discovered():
 			Game.discover_poi(key, def.name)
@@ -180,3 +190,70 @@ func open_cache() -> void:
 		if li >= 0:
 			world.hud.show_lore(li)
 	world.check_survey()
+
+
+
+## A smoking cone with a glowing crater (built here rather than in Blender).
+func _volcano_model() -> Node3D:
+	var root := Node3D.new()
+	var cone := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 3.5
+	cm.bottom_radius = 13.0
+	cm.height = 9.0
+	cm.radial_segments = 14
+	cm.rings = 3
+	var rock := StandardMaterial3D.new()
+	rock.albedo_color = Color("3a2a26")
+	rock.roughness = 1.0
+	cm.material = rock
+	cone.mesh = cm
+	cone.position.y = 4.0
+	root.add_child(cone)
+	var lava := MeshInstance3D.new()
+	var lm := CylinderMesh.new()
+	lm.top_radius = 3.0
+	lm.bottom_radius = 3.0
+	lm.height = 0.3
+	var lmat := StandardMaterial3D.new()
+	lmat.albedo_color = Color("ff5a1a")
+	lmat.emission_enabled = true
+	lmat.emission = Color(1.0, 0.45, 0.1)
+	lmat.emission_energy_multiplier = 4.0
+	lm.material = lmat
+	lava.mesh = lm
+	lava.position.y = 8.45
+	root.add_child(lava)
+	var smoke := CPUParticles3D.new()
+	smoke.amount = 30
+	smoke.lifetime = 5.0
+	smoke.preprocess = 5.0
+	smoke.position.y = 9.0
+	smoke.direction = Vector3.UP
+	smoke.spread = 15.0
+	smoke.initial_velocity_min = 2.0
+	smoke.initial_velocity_max = 4.0
+	smoke.gravity = Vector3.ZERO
+	smoke.scale_amount_min = 3.0
+	smoke.scale_amount_max = 6.0
+	var q := QuadMesh.new()
+	var qm := StandardMaterial3D.new()
+	qm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	qm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	qm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	qm.albedo_texture = ModelUtil.soft_dot()
+	qm.vertex_color_use_as_albedo = true
+	q.material = qm
+	smoke.mesh = q
+	var g := Gradient.new()
+	g.set_color(0, Color(0.35, 0.3, 0.3, 0.5))
+	g.set_color(1, Color(0.2, 0.2, 0.2, 0.0))
+	smoke.color_ramp = g
+	root.add_child(smoke)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.45, 0.15)
+	glow.light_energy = 3.0
+	glow.omni_range = 18.0
+	glow.position.y = 10.0
+	root.add_child(glow)
+	return root

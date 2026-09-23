@@ -67,6 +67,9 @@ var sea := {} # the ocean we're diving (not saved: dives always resume on the su
 var max_sea_depth := 0
 var warp := {} # the jump in progress: {from, to, relay, interdict} (not saved: you're already at the destination)
 var interdictions := 0 # pirate ambushes survived in hyperspace
+var volcano := {} # the volcano we're in (not saved: runs always resume on the surface)
+var volcanoes := {} # poi key -> {"escapes": n}
+var volcano_runs := 0
 var orbit := {} # the world we're orbiting (not saved: orbit always resumes in space)
 var species_names := {} # species key -> display name (species log)
 var world_species := {} # planet key -> species on that world (for the log)
@@ -902,7 +905,7 @@ func save_game() -> void:
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
 		"milestones": milestones, "crafted_once": crafted_once,
-		"workers": workers, "home": home, "interdictions": interdictions,
+		"workers": workers, "home": home, "interdictions": interdictions, "volcanoes": volcanoes, "volcano_runs": volcano_runs,
 		"vault": vault, "vault_level": vault_level, "inbox": inbox, "mail_seq": _mail_seq, "order_t": _order_t, "home_visits": home_visits, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
@@ -973,6 +976,8 @@ func load_game(n := -1) -> bool:
 	home_visits = int(d.get("home_visits", 0))
 	workers = d.get("workers", [])
 	interdictions = int(d.get("interdictions", 0))
+	volcanoes = d.get("volcanoes", {})
+	volcano_runs = int(d.get("volcano_runs", 0))
 	home = d.get("home", {})
 	if home_visits == 0 and inbox.is_empty():
 		_welcome_mail()
@@ -1726,6 +1731,7 @@ func metric(m: String) -> int:
 		"relics": return relics_found
 		"gem_types": return gem_types()
 		"sea_depth": return max_sea_depth
+		"volcano_runs": return volcano_runs
 		"relays": return lit_relays.size() - 1 # Solace's relay starts lit
 		"best_skill":
 			var b := 0
@@ -2501,3 +2507,31 @@ func finish_warp(result: Dictionary = {}) -> void:
 		interdictions += 1
 	warp = {}
 	go_to_space()
+
+
+
+# --------------------------------------------------------------------------
+# volcanoes: the eruption run
+# --------------------------------------------------------------------------
+
+func enter_volcano(poi_key: String, dir: Vector3, planet_seed: int, biome: String) -> void:
+	var runs := int(volcanoes.get(poi_key, {}).get("escapes", 0))
+	volcano = {"key": poi_key, "dir": [dir.x, dir.y, dir.z], "seed": hash(poi_key) ^ planet_seed ^ (runs * 7919), "biome": biome,
+		"star": star_index, "planet": planet_index}
+	land_dir = dir
+	save_game()
+	Sound.play("atmo_entry", -8.0, 0.0)
+	fade_to("res://scenes/volcano.tscn")
+
+
+func leave_volcano(escaped: bool) -> void:
+	if escaped:
+		var k: String = volcano.get("key", "")
+		if not volcanoes.has(k):
+			volcanoes[k] = {"escapes": 0}
+		volcanoes[k].escapes = int(volcanoes[k].escapes) + 1
+		volcano_runs += 1
+	var d: Array = volcano.get("dir", [0, 1, 0])
+	land_dir = Vector3(d[0], d[1], d[2])
+	volcano = {}
+	go_to_planet(star_index, planet_index)

@@ -192,6 +192,9 @@ func _refresh_location() -> void:
 	elif mode == "sea":
 		var ps: Dictionary = Galaxy.planet(Game.star_index, Game.planet_index)
 		location_label.text = "The Deep Sea  ·  %s\n%s system" % [ps.name, star.name]
+	elif mode == "volcano":
+		var pv: Dictionary = Galaxy.planet(Game.star_index, Game.planet_index)
+		location_label.text = "Inside a volcano  ·  %s\n%s system" % [pv.name, star.name]
 	elif mode == "warp":
 		location_label.text = "In hyperspace\nBound for %s" % star.name
 	elif mode == "orbit":
@@ -437,6 +440,8 @@ func _build_hints() -> void:
 		l.text = "A/D move + drill sideways · S drill down · W/Space thrust (drills up at a ceiling) · E lift / enter chamber · T emergency lift · R energy · G repair · I C K J panels"
 	elif mode == "sea":
 		l.text = "WASD swim · Space up · Ctrl down · Shift boost · push into rock to cut · E harvest / open / surface · Q scan · T emergency ascent · R energy · G repair · I C K J panels"
+	elif mode == "volcano":
+		l.text = "A/D run · W/Space jump, hold for jetpack · E mine / climb out at the rim · R energy · G repair · I C K J panels"
 	elif mode == "warp":
 		l.text = "WASD steer · Mouse aim · LMB cannons · RMB homing missiles · G repair · R energy · Space skip (calm jumps)"
 	elif mode == "orbit":

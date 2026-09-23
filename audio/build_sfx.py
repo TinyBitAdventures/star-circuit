@@ -592,9 +592,25 @@ def hyper_loop():
     return S.crossfade_loop(rush * 0.5 + whine + sub, 1.0)
 
 
+def volcano_rumble_loop():
+    # the mountain groaning around you: sub rumble, grinding rock, far-off pops
+    S.seed(71)
+    n = N(9.0)
+    t = t_axis(n)
+    sub = S.lowpass(S.noise(n), 90) * (0.7 + 0.3 * np.sin(2 * np.pi * 0.13 * t)) * 3.0
+    grind = S.bandpass(S.noise(n), 150, 600) * (0.4 + 0.3 * np.sin(2 * np.pi * 0.31 * t + 1.0)) * 0.6
+    r = S.rng()
+    for k in range(7):
+        i = int(r.uniform(0.3, 8.5) * SR)
+        m = N(0.2)
+        pop = S.lowpass(S.noise(m), 800) * S.exp_decay(m, 0.03) * 0.6
+        sub[i:i + m] += pop[:n - i]
+    return S.crossfade_loop(sub + grind, 1.2)
+
+
 SFX = {
     "klaxon": klaxon,
-    "hyper_loop": hyper_loop,
+    "hyper_loop": hyper_loop, "volcano_rumble_loop": volcano_rumble_loop,
     "home_enter": home_enter, "home_exit": home_exit,
     "sonar_ping": sonar_ping, "splash": splash, "bubble_pop": bubble_pop, "ocean_loop": ocean_loop,
     "whale_call": whale_call, "jelly_sting": jelly_sting, "probe_launch": probe_launch,

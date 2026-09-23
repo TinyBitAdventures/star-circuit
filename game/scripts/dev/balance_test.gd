@@ -76,6 +76,8 @@ func _build_sources() -> void:
 	for g in ["gem_verdant", "gem_dune", "gem_frost", "gem_ember", "gem_prism", "gem_bloom", "gem_giant", "gem_abyss", "gem_tempest", "gem_forge"]:
 		_src(g, "", 0, "orbit probe")
 	_src("plasma", "siphoning", 1, "vent/giant skim")
+	for it in ["obsidian", "fire_opal", "core_ember"]:
+		_src(it, "", 0, "volcano")
 
 
 func _src(item: String, skill: String, req: int, where: String) -> void:

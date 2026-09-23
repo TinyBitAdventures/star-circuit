@@ -137,6 +137,12 @@ fullscreen, graphics quality and volume.
     cruises the Abyss. All of them go into your Species Log.
   - Below about 200 m the Abyss crushes an unprotected hull, so fabricate a **Pressure Hull** first. Kelp presses into Bio-Polymer.
     Quest "Into the Blue", milestone "Deep Diver" (250 m).
+- **Volcanoes: the Eruption Run**: volcanic worlds have a smoking Volcanic Vent. Climb down into a 2D cutaway of the volcano:
+  the Crater, Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle, with the planet's core glowing below. Magma rises the whole
+  time and the volcano erupts after 2.5 minutes. Run, jump and jetpack down the winding tube, mine crystals in the side pockets
+  (Obsidian, Fire Opals, Core Embers and rare ores, richer the deeper you go), ride geysers back up, and climb out at the rim before it blows.
+  Heat builds with depth and near lava (Heat Plating halves it). Get caught in the eruption and you lose half of what you mined.
+  Quest "Into the Fire", milestone "Firewalker", and a new Obsidian recipe for Heat Plating.
 - **Hyperspace**: every warp and relay jump is a flight down a tunnel of light. Calm jumps take a few seconds (Space skips).
   Sometimes pirates **interdict** you mid-jump (more often on long, dangerous lanes, rarely on the relit Circuit): swarm drones
   that flare and dive at you, raiders and gunships that strafe from ahead, and mine fields. Steer with WASD, aim with the mouse,
@@ -261,6 +267,8 @@ Dev checks:
 Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your settings or real save slots.
 
     godot --headless --path game res://scenes/dev_smoke.tscn   # gameplay loop, prints [smoke] lines
+    godot --headless --path game res://scenes/dev_volcano.tscn # eruption run: vent, mining, geysers, magma, escape vs eruption
+    SHOTS=volcano godot --path game res://scenes/dev_shots.tscn # the vent, each zone, a geyser, the full cutaway
     godot --headless --path game res://scenes/dev_warp.tscn    # hyperspace: interdiction waves, kills, hits, arrival, relay jump
     SHOTS=warp godot --path game res://scenes/dev_shots.tscn   # hyperspace tunnel, firefight, mines, relay colours
     godot --headless --path game res://scenes/dev_home.tscn    # Homespace: vault uplink costs, inbox, trader orders, pause/resume

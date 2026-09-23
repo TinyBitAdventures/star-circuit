@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "volcano":
+		await _volcano_tour()
+		get_tree().quit()
+		return
 	if which == "warp":
 		await _warp_tour()
 		get_tree().quit()
@@ -1414,3 +1418,60 @@ func _warp_tour() -> void:
 	Game.start_warp(0, true)
 	await _wait(2.5)
 	await shot("warp_relay")
+
+
+
+func _volcano_tour() -> void:
+	Sound.show_tips = false
+	Game.new_game("scout", "Tester")
+	await _wait(3.0)
+	var target := Vector2i(-1, -1)
+	for s in Galaxy.stars.size():
+		for p in Galaxy.star(s).planets:
+			if Db.BIOMES[p.biome].get("lava", false) and not p.has("moon_of") and target.x < 0:
+				target = Vector2i(s, p.index)
+	Game.go_to_planet(target.x, target.y)
+	await _wait(6.0)
+	var pw := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	for e in pw.enemies:
+		e.set_physics_process(false)
+	var vent: Poi = null
+	for p in pw.pois:
+		if p.type == "volcano":
+			vent = p
+	await _look_at_from(pw, pw.player, vent.global_position, 40.0, -0.25, 14.0)
+	await _wait(1.0)
+	await shot("vol_vent_3d")
+	vent.open_cache()
+	await _wait(3.5)
+	var w := _scene()
+	var r: VolcanoRunner = w.runner
+	await shot("vol_crater")
+	for z in [1, 2, 3, 4]:
+		for d in w.deposits:
+			if int(d.zone) == z:
+				r.position = d.pos + Vector2(-60, -20)
+				break
+		if z == 4:
+			w.elapsed = 128.0
+		await _wait(1.6)
+		await shot("vol_zone_%d" % z)
+	# a geyser mid-blast
+	var g: Dictionary = w.geysers[2]
+	w.elapsed = 40.0
+	r.position = Vector2((g.x + 3.5) * w.CS, (g.y - 1) * w.CS)
+	g.state = "blast"
+	g.t = 1.3
+	await _wait(0.5)
+	await shot("vol_geyser")
+	# zoomed out cutaway overview
+	r.set_physics_process(false)
+	var cam: Camera2D = r._cam
+	cam.zoom = Vector2(0.16, 0.16)
+	cam.position_smoothing_enabled = false
+	r.position = Vector2(w.W * w.CS * 0.5, w.H * w.CS * 0.46)
+	w.elapsed = 60.0
+	await _wait(1.0)
+	await shot("vol_cutaway")

@@ -2,6 +2,12 @@
 
 ## Unreleased (v0.3.0)
 
+### Volcanoes
+- Volcanic worlds now have a Volcanic Vent leading into the **Eruption Run**: a 2D cutaway of the volcano from the crater down through the Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle to the glowing core.
+- Magma rises the whole time and the volcano erupts after 2.5 minutes. Dive for crystals in the side pockets, ride geysers back up, and climb out at the rim in time. Getting caught in the eruption costs half your haul.
+- A heat meter and jetpack fuel, plus new materials: Obsidian, Fire Opal and Core Ember.
+- The "Into the Fire" quest, the "Firewalker" milestone, an Obsidian Heat Plating recipe, and a rumbling ambience.
+
 ### Hyperspace
 - Warps and relay jumps now fly you down a hyperspace tunnel. Calm jumps last a few seconds and can be skipped.
 - Pirate interdictions: swarm drones that telegraph and dive, raiders and gunships firing from ahead, and mine fields. Aim with the mouse, fire cannons and homing missiles, and dodge with WASD. Clearing every wave pays a salvage bounty; getting knocked out drops you at the destination with some cargo lost.
