@@ -129,7 +129,7 @@ func _build_world() -> void:
 		var rv := RobotVisual.new()
 		base.add_child(rv)
 		rv.setup(id)
-		rv.rotation.y = 0.0
+		rv.rotation.y = PI - 0.35
 		robots[id] = rv
 		pedestals[id] = base
 		var spot := SpotLight3D.new()
@@ -154,7 +154,19 @@ func _cam_title() -> Transform3D:
 
 func _cam_robot(i: int) -> Transform3D:
 	var p := Vector3((i - 1.5) * 3.2, 0, 0)
-	return Transform3D(Basis(), p + Vector3(-1.6, 1.6, 5.4)).looking_at(p + Vector3(-1.1, 1.0, 0), Vector3.UP)
+	return Transform3D(Basis(), p + Vector3(0, 1.6, 5.4)).looking_at(p + Vector3(0, 1.0, 0), Vector3.UP)
+
+
+## Slide the view so the chosen robot sits in the middle of the space left
+## of the info panel, whatever shape the window is.
+func _select_offset() -> float:
+	var vs := get_viewport().get_visible_rect().size
+	var free_centre := (vs.x - 560.0) * 0.5
+	var fx := free_centre / vs.x
+	var dist := 5.43
+	var half_h := dist * tan(deg_to_rad(cam.fov) * 0.5)
+	var half_w := half_h * vs.x / vs.y
+	return (0.5 - fx) * 2.0 * half_w
 
 
 func _move_cam(t: Transform3D) -> void:
@@ -170,12 +182,14 @@ func _process(delta: float) -> void:
 		_cam_blend = minf(1.0, _cam_blend + delta * 1.4)
 		var e := 1.0 - pow(1.0 - _cam_blend, 3.0)
 		cam.global_transform = _cam_from.interpolate_with(_cam_to, e)
+	cam.h_offset = lerpf(cam.h_offset, _select_offset() if state == "select" else 0.0, clampf(delta * 4.0, 0.0, 1.0))
 	for i in ORDER.size():
 		var id: String = ORDER[i]
 		var rv: RobotVisual = robots[id]
 		var active := state == "select" and i == selected
 		pedestals[id].visible = state == "select"
-		rv.rotation.y = lerp_angle(rv.rotation.y, (_t * 0.8) if active else 0.35, delta * 3.0)
+		var face := PI + (sin(_t * 0.7) * 0.75 if active else -0.35)
+		rv.rotation.y = lerp_angle(rv.rotation.y, face, delta * 3.0)
 		rv.position.y = sin(_t * 1.6 + i) * 0.06 + (0.15 if active else 0.0)
 		rv.working = active and fmod(_t, 6.0) > 4.8
 		var spot: SpotLight3D = pedestals[id].get_meta("spot")
