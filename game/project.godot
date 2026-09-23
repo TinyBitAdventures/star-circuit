@@ -13,7 +13,7 @@ config_version=5
 config/name="Star Circuit"
 config/description="A robot space-RPG: fly between stars, explore planets, gather, craft and master professions."
 run/main_scene="res://scenes/main_menu.tscn"
-config/version="0.1.0"
+config/version="0.2.0"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.png"
 
