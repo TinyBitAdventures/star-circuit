@@ -17,6 +17,22 @@ var env: Environment
 var underwater := 0.0 # 0..1, set by the player when the camera is below the sea
 var underwater_depth := 0.0
 var _uw_fog := false
+var _post: CanvasLayer
+var _post_mat: ShaderMaterial
+
+## Per-world look for the atmosphere pass: heat haze, sun-shaft strength,
+## colour grade, and whether cold nights frost the lens.
+const POST := {
+	"dune": {"shimmer": 1.0, "rays": 0.35, "grade": Color(1.06, 1.0, 0.9), "grade_amt": 0.5},
+	"ember": {"shimmer": 1.3, "rays": 0.3, "grade": Color(1.1, 0.95, 0.85), "grade_amt": 0.4, "hot_night": true},
+	"forge": {"shimmer": 1.1, "rays": 0.3, "grade": Color(1.08, 0.96, 0.88), "grade_amt": 0.4, "hot_night": true},
+	"frost": {"shimmer": 0.0, "rays": 0.4, "grade": Color(0.92, 0.98, 1.08), "grade_amt": 0.5, "frost": true},
+	"verdant": {"shimmer": 0.0, "rays": 0.55, "grade": Color(1.02, 1.03, 0.97), "grade_amt": 0.3},
+	"bloom": {"shimmer": 0.15, "rays": 0.6, "grade": Color(1.05, 0.95, 1.08), "grade_amt": 0.5},
+	"prism": {"shimmer": 0.2, "rays": 0.5, "grade": Color(1.02, 0.96, 1.1), "grade_amt": 0.4},
+	"abyss": {"shimmer": 0.0, "rays": 0.5, "grade": Color(0.92, 1.0, 1.08), "grade_amt": 0.4},
+	"tempest": {"shimmer": 0.0, "rays": 0.25, "grade": Color(0.9, 0.95, 1.05), "grade_amt": 0.5},
+}
 var spawn_dir := Vector3.UP
 var flora_tint := Color.WHITE
 var is_home := false
@@ -148,6 +164,7 @@ func _process(delta: float) -> void:
 		env.fog_light_color = (biome.horizon as Color).darkened(0.2) * day + Color(0.02, 0.03, 0.07) * (1.0 - day)
 		env.ambient_light_energy = lerpf(0.25, 0.6, day)
 		sun.light_energy = 1.25 * smoothstep(-0.12, 0.12, up.dot(sun_dir))
+		_update_post(up, day)
 		if underwater > 0.0:
 			var wc: Color = biome.water
 			var murk := Color(wc.r, wc.g, wc.b).darkened(0.35 + clampf(underwater_depth * 0.03, 0.0, 0.5))
@@ -196,11 +213,8 @@ func _build_environment() -> void:
 	sun = DirectionalLight3D.new()
 	sun.light_color = (star.color as Color).lerp(Color.WHITE, 0.5)
 	sun.light_energy = 1.2
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = [60.0, 100.0, 140.0][Sound.gfx_quality]
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if Sound.gfx_quality == 0 else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	Sound.tune_sun(sun)
 	sun.light_angular_distance = 0.6 if Sound.gfx_quality == 2 else 0.0
-	sun.shadow_blur = 1.5
 	add_child(sun)
 
 
@@ -995,3 +1009,64 @@ func _compute_quest_target() -> Dictionary:
 					if n.role == ("merchant" if o.type == "sell" else "trainer"):
 						return {"pos": n.global_position, "label": n.npc_name}
 	return {}
+
+
+
+# --------------------------------------------------------------------------
+# atmosphere post-process
+# --------------------------------------------------------------------------
+
+func _update_post(up: Vector3, day: float) -> void:
+	if player == null or player.camera == null:
+		return
+	var cfg: Dictionary = POST.get(planet.biome, POST.verdant)
+	if _post == null:
+		_post = CanvasLayer.new()
+		_post.layer = 1
+		add_child(_post)
+		var r := ColorRect.new()
+		r.set_anchors_preset(Control.PRESET_FULL_RECT)
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_post_mat = ShaderMaterial.new()
+		_post_mat.shader = preload("res://shaders/atmo_post.gdshader")
+		r.material = _post_mat
+		_post.add_child(r)
+	# the underwater pass takes over below the surface
+	_post.visible = underwater < 0.5
+	if not _post.visible:
+		return
+	var cam: Camera3D = player.camera
+	var vs := get_viewport().get_visible_rect().size
+	_post_mat.set_shader_parameter("aspect", vs.x / maxf(vs.y, 1.0))
+	# where the horizon sits on screen: a point far out along the level view direction
+	var fwd := -cam.global_basis.z
+	var flat := (fwd - up * fwd.dot(up)).normalized()
+	var hp := cam.global_position + flat * 400.0 - up * 12.0
+	var hy := 0.5
+	if not cam.is_position_behind(hp):
+		hy = clampf(cam.unproject_position(hp).y / vs.y, -0.2, 1.2)
+	_post_mat.set_shader_parameter("horizon_y", hy)
+	var storm := weather.storm if weather else 0.0
+	# heat haze comes with the daytime heat (volcanic worlds stay hot all night)
+	var heat: float = cfg.shimmer * (1.0 if cfg.get("hot_night", false) else smoothstep(0.1, 0.6, day))
+	_post_mat.set_shader_parameter("shimmer", heat)
+	# sun shafts: medium+ quality, strongest when the sun is low or the air is thick
+	var sun_p := cam.global_position + sun_dir * 2000.0
+	var vis := 0.0
+	var suv := Vector2(0.5, 0.2)
+	if Sound.gfx_quality >= 1 and not cam.is_position_behind(sun_p):
+		suv = cam.unproject_position(sun_p) / vs
+		var elev := up.dot(sun_dir)
+		vis = smoothstep(-0.08, 0.05, elev) * (1.0 - smoothstep(-0.5, 1.2, absf(suv.x - 0.5) + absf(suv.y - 0.5) - 0.5))
+	var low_sun := 1.0 - smoothstep(0.15, 0.6, up.dot(sun_dir))
+	_post_mat.set_shader_parameter("sun_uv", suv)
+	_post_mat.set_shader_parameter("sun_vis", vis)
+	_post_mat.set_shader_parameter("rays", float(cfg.rays) * (0.5 + 0.5 * low_sun + 0.3 * storm))
+	_post_mat.set_shader_parameter("ray_color", (sun.light_color as Color).lerp(biome.horizon, 0.4))
+	# frost on glacial worlds at night and in blizzards
+	var fr := 0.0
+	if cfg.get("frost", false):
+		fr = maxf(1.0 - day, storm) * 0.8
+	_post_mat.set_shader_parameter("frost", fr)
+	_post_mat.set_shader_parameter("grade", cfg.grade)
+	_post_mat.set_shader_parameter("grade_amt", cfg.grade_amt)

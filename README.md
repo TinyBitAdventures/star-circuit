@@ -165,6 +165,10 @@ fullscreen, graphics quality and volume.
   - Lighting uses AgX tone mapping, SSAO, softer sun shadows, rim light on robots and creatures, and a vignette.
   - In space, parallax dust gives a sense of speed, and streaks rush past when you boost.
   - A Low/Medium/High graphics setting is in the pause menu. Medium is the default: 60 fps on an M2 at 1600x900, High about 54.
+- **Atmosphere pass**: a post-process over each world. Heat shimmer rides the horizon on hot worlds (arid by day, volcanic and the
+  Machine world always). Sun shafts stream past silhouettes, strongest at sunrise, sunset and in storms. Frost rime creeps into the
+  screen corners on glacial nights and in blizzards, and each world type gets a gentle colour grade. Shadows use tighter cascades
+  and softer filtering at every quality level.
 - **Customisation**:
   - The **Outfitter** (a stall in every town, and a tab at every orbital station) has a live 3D preview you can drag to spin,
     in standing or flight pose.
@@ -241,6 +245,8 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     SHOTS=belt godot --path game res://scenes/dev_shots.tscn   # asteroid belt, scanner, mining laser, shards, comet
     SHOTS=spacefight godot --path game res://scenes/dev_shots.tscn  # pirates, cannons, missiles, threat markers, Marauder
     SHOTS=orbit godot --path game res://scenes/dev_shots.tscn  # orbit prompt, three worlds probed (verdant, crystalline, gas giant)
+    SHOTS=atmo godot --path game res://scenes/dev_shots.tscn   # dusk shafts, desert noon, glacial night frost, crystal sunset
+    SHOTS=shadow TAG=_x godot --path game res://scenes/dev_shots.tscn  # shadow quality comparison, Low / Medium / High
     SHOTS=sea godot --path game res://scenes/dev_shots.tscn    # 3D underwater, then each Deep Sea zone
     SHOTS=mine godot --path game res://scenes/dev_shots.tscn   # mining / botany / siphon animation
     godot --headless --path game res://scenes/dev_sea.tscn     # swim, dive, scan, cut, clam, abyss pressure, surface

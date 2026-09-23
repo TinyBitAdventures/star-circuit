@@ -41,6 +41,14 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "atmo":
+		await _atmo_tour()
+		get_tree().quit()
+		return
+	if which == "shadow":
+		await _shadow_tour()
+		get_tree().quit()
+		return
 	if which == "sea":
 		await _sea_tour()
 		get_tree().quit()
@@ -1199,3 +1207,64 @@ func _sea_tour() -> void:
 		s._scan()
 		await _wait(0.5)
 		await shot("sea2d_" + band[1])
+
+
+
+func _shadow_tour() -> void:
+	Sound.show_tips = false
+	var tag := OS.get_environment("TAG")
+	for q in [0, 1, 2]:
+		Sound.gfx_quality = q
+		Sound.apply_gfx()
+		Game.new_game("scout", "Tester")
+		Game.star_index = 0
+		Game.planet_index = 1
+		Game.go_to_planet(0, 1)
+		await _wait(6.0)
+		var w := _scene()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		Game.invulnerable = true
+		for e in w.enemies:
+			e.set_physics_process(false)
+		# late afternoon so shadows are long
+		Game.play_time = w.DAY_LENGTH * 0.18
+		var p = w.player
+		p.cam_pitch = -0.35
+		p.cam_yaw = 2.6
+		await _wait(1.5)
+		await shot("shadow_q%d%s" % [q, tag])
+		if q == 1:
+			p.cam_yaw = 0.2
+			p.cam_pitch = -0.08
+			await _wait(1.0)
+			await shot("shadow_q%d_view%s" % [q, tag])
+
+
+
+func _atmo_tour() -> void:
+	Sound.show_tips = false
+	Sound.gfx_quality = 1
+	# [planet, time of day (fraction), label, look toward sun]
+	for spec in [[0, 0.24, "verdant_dusk", true], [1, 0.0, "dune_noon", false], [2, 0.55, "frost_night", false], [3, 0.26, "prism_sunset", true]]:
+		Game.new_game("scout", "Tester")
+		Game.go_to_planet(0, spec[0])
+		await _wait(6.0)
+		var w := _scene()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		Game.invulnerable = true
+		for e in w.enemies:
+			e.set_physics_process(false)
+		Game.play_time = w.DAY_LENGTH * float(spec[1])
+		var p = w.player
+		p.cam_pitch = -0.05
+		await _wait(0.5)
+		if spec[3]:
+			# swing the camera to face the sun
+			var up: Vector3 = p.global_position.normalized()
+			var sd: Vector3 = w.sun_dir
+			var flat := (sd - up * sd.dot(up)).normalized()
+			var basef: Vector3 = p.ref_fwd
+			p.cam_yaw = basef.signed_angle_to(flat, up)
+			p.cam_pitch = 0.05
+		await _wait(1.5)
+		await shot("atmo_" + spec[2])

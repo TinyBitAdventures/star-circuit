@@ -344,6 +344,26 @@ func _fade(t: Tween, p: AudioStreamPlayer, from_db: float, to_db: float, dur: fl
 
 
 
+## Shadow settings for a sun at the current quality. Tight first cascades
+## keep the robot's shadow crisp; better PCF filtering keeps edges soft
+## instead of stair-stepped.
+func tune_sun(sun: DirectionalLight3D) -> void:
+	var q := clampi(gfx_quality, 0, 2)
+	RenderingServer.directional_shadow_atlas_set_size(4096, true)
+	RenderingServer.directional_soft_shadow_filter_set_quality([RenderingServer.SHADOW_QUALITY_SOFT_LOW, RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, RenderingServer.SHADOW_QUALITY_SOFT_HIGH][q])
+	sun.shadow_enabled = true
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS if q > 0 else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sun.directional_shadow_max_distance = [45.0, 90.0, 130.0][q]
+	sun.directional_shadow_split_1 = 0.22 if q == 0 else 0.06
+	sun.directional_shadow_split_2 = 0.16
+	sun.directional_shadow_split_3 = 0.4
+	sun.directional_shadow_blend_splits = q > 0
+	sun.directional_shadow_fade_start = 0.75
+	sun.shadow_blur = [1.6, 1.3, 1.0][q]
+	sun.shadow_normal_bias = 1.2
+	sun.shadow_bias = 0.04
+
+
 func apply_gfx() -> void:
 	var vp := get_viewport()
 	if vp:
