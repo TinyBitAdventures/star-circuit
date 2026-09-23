@@ -1,0 +1,695 @@
+extends Node
+## Renders a tour of the game to PNGs in res://../shots/. Run windowed:
+##   godot --path . res://scenes/dev_shots.tscn
+
+var out_dir := ""
+var n := 0
+
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	out_dir = ProjectSettings.globalize_path("res://").path_join("../shots")
+	DirAccess.make_dir_recursive_absolute(out_dir)
+	_detach.call_deferred()
+
+
+func _detach() -> void:
+	var root := get_tree().root
+	get_parent().remove_child(self)
+	root.add_child(self)
+	_run()
+
+
+func _wait(sec: float) -> void:
+	await get_tree().create_timer(sec).timeout
+
+
+func shot(label: String) -> void:
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	n += 1
+	var path := out_dir.path_join("%02d_%s.png" % [n, label])
+	img.save_png(path)
+	print("[shots] ", path)
+
+
+func _scene() -> Node:
+	return get_tree().current_scene
+
+
+func _run() -> void:
+	var which: String = OS.get_environment("SHOTS")
+	if which == "":
+		which = "all"
+	if which == "station":
+		await _station_tour()
+		get_tree().quit()
+		return
+	if which == "spacefight":
+		await _spacefight_tour()
+		get_tree().quit()
+		return
+	if which == "belt":
+		await _belt_tour()
+		get_tree().quit()
+		return
+	if which == "town":
+		await _town_tour()
+		get_tree().quit()
+		return
+	if which == "sky":
+		await _sky_tour()
+		get_tree().quit()
+		return
+	if which == "depth":
+		await _depth_tour()
+		get_tree().quit()
+		return
+	if which == "combat":
+		await _combat_tour()
+		get_tree().quit()
+		return
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	await _wait(2.5)
+	await shot("menu")
+	var m := _scene()
+	m._show_select()
+	await _wait(1.6)
+	await shot("select_scout")
+	m._select(1)
+	await _wait(1.6)
+	await shot("select_miner")
+	m._select(3)
+	await _wait(1.6)
+	await shot("select_siphon")
+	Game.new_game(OS.get_environment("ROBOT") if OS.get_environment("ROBOT") != "" else "engineer", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await shot("planet_arrive")
+	var p = w.player
+	p.cam_pitch = -0.15
+	p.cam_yaw = PI
+	await _wait(0.6)
+	await shot("planet_behind")
+	p.cam_yaw = PI * 0.5
+	p.spring.spring_length = 14.0
+	p.cam_pitch = -0.5
+	await _wait(0.6)
+	await shot("planet_wide")
+	# walk away from the outpost and look around
+	p.cam_yaw = 0.8
+	p.cam_pitch = -0.2
+	p.spring.spring_length = 7.0
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	await _wait(4.0)
+	Input.action_release("move_forward")
+	Input.action_release("sprint")
+	await _wait(0.8)
+	await shot("planet_explore")
+	w.scan(p.global_position, 90.0)
+	await _wait(0.5)
+	await shot("planet_scan")
+	# jetpack high
+	Input.action_press("jump")
+	await _wait(2.5)
+	Input.action_release("jump")
+	p.cam_pitch = -0.9
+	p.spring.spring_length = 16.0
+	await _wait(0.3)
+	await shot("planet_jetpack")
+	await _wait(2.0)
+	p.cam_pitch = -0.3
+	p.spring.spring_length = 7.0
+	Game.add_item("ferrite", 20)
+	Game.add_item("plasma", 10)
+	Game.add_item("biofiber", 8)
+	Game.add_item("cobalt", 5)
+	for panel in ["crafting", "inventory", "skills", "quests", "dialog"]:
+		w.hud.toggle_panel(panel)
+		await _wait(0.3)
+		await shot("panel_" + panel)
+	w.hud.close_panel()
+	# night
+	Game.play_time += 360.0
+	await _wait(0.5)
+	await shot("planet_night")
+	Game.play_time -= 360.0
+	p._start_launch()
+	await _wait(5.0)
+	var s := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await shot("space_launch")
+	# swing around to look at the system
+	s.player.look_at(Vector3.ZERO, Vector3.UP)
+	s.player.snap_camera()
+	await _wait(0.5)
+	await shot("space_star")
+	var p1 = s.planets[1]
+	s.player.global_position = p1.node.global_position + Vector3(20, 10, 45)
+	s.player.look_at(p1.node.global_position, Vector3.UP)
+	s.player.snap_camera()
+	await _wait(0.5)
+	await shot("space_planet")
+	s.hud.toggle_panel("map")
+	await _wait(0.4)
+	await shot("galaxy_map")
+	s.hud.close_panel()
+	for idx in [1, 2, 3]:
+		s = _scene()
+		s.land(s.planets[idx], s.planets[idx].node.global_position + Vector3(0, 60, 10))
+		await _wait(5.0)
+		w = _scene()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		w.player.cam_pitch = -0.25
+		await _wait(0.5)
+		await shot("world_" + w.planet.biome)
+		Game.play_time += 0.0
+		w.player._start_launch()
+		await _wait(4.5)
+	# visit a volcanic / fungal world elsewhere if any
+	for si in range(1, Galaxy.stars.size()):
+		var st: Dictionary = Galaxy.star(si)
+		for pl in st.planets:
+			if pl.biome in ["ember", "bloom"] and not has_meta(pl.biome):
+				set_meta(pl.biome, true)
+				Game.star_index = si
+				Game.land_dir = Vector3(0.3, 0.8, 0.2).normalized()
+				Game.go_to_planet(si, pl.index)
+				await _wait(5.0)
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+				await shot("world_" + pl.biome)
+		if has_meta("ember") and has_meta("bloom"):
+			break
+	print("[shots] done")
+	get_tree().quit()
+
+
+func _combat_tour() -> void:
+	Game.new_game(OS.get_environment("ROBOT") if OS.get_environment("ROBOT") != "" else "miner", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var p = w.player
+	var e: Enemy = w.enemies[0]
+	for c in w.enemies:
+		if c.global_position.distance_to(p.global_position) < e.global_position.distance_to(p.global_position):
+			e = c
+	var ed: Vector3 = e.home_dir
+	var pd: Vector3 = (ed + (p.global_position.normalized() - ed).normalized() * 16.0 / w.gen.radius).normalized()
+	p.place_at(pd, w.gen)
+	await _wait(0.3)
+	# point the camera at the camp
+	var to: Vector3 = e.global_position - p.global_position
+	var up: Vector3 = p.global_position.normalized()
+	to = (to - up * to.dot(up)).normalized()
+	p.ref_fwd = to
+	p.cam_yaw = 0.0
+	p.cam_pitch = -0.12
+	await _wait(1.0)
+	await shot("combat_approach")
+	await _wait(1.2)
+	for i in 6:
+		p._shoot(p._aim_ray(), up)
+		p._fire_pose = 0.6
+		await _wait(0.12)
+	await shot("combat_firing")
+	await _wait(1.2)
+	await shot("combat_melee")
+	p.ability_cd = 0.0
+	Game.energy = Game.max_energy()
+	p._use_ability(p.global_position.normalized())
+	await _wait(0.15)
+	await shot("combat_ability")
+	# brute on a harder world
+	Game.land_dir = Vector3(0.3, 0.8, 0.2).normalized()
+	Game.go_to_planet(0, 2)
+	await _wait(5.5)
+	w = _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	p = w.player
+	var b: Enemy = null
+	for c in w.enemies:
+		if c.elite:
+			b = c
+			break
+	if b:
+		var bd: Vector3 = b.home_dir
+		var pb: Vector3 = (bd + PlanetGen.align_basis(bd).x * 5.0 / w.gen.radius).normalized()
+		p.place_at(pb, w.gen)
+		up = p.global_position.normalized()
+		var tb: Vector3 = b.global_position - p.global_position
+		p.ref_fwd = (tb - up * tb.dot(up)).normalized()
+		p.cam_yaw = 0.25
+		p.cam_pitch = -0.2
+		p.spring.spring_length = 10.0
+		Game.invulnerable = true
+		b.aggro()
+		await _wait(3.2)
+		await shot("combat_brute")
+		await _wait(0.6)
+		await shot("combat_brute2")
+	Game.invulnerable = false
+	Game.take_damage(99999.0)
+	await _wait(1.0)
+	await shot("combat_death")
+	await _wait(4.5)
+	w.hud.toggle_panel("inventory")
+	await _wait(0.3)
+	await shot("combat_inventory")
+
+
+func _look_at_from(w, p, target: Vector3, dist: float, pitch := -0.15, arm := 9.0) -> void:
+	var td: Vector3 = target.normalized()
+	var b := PlanetGen.align_basis(td)
+	p.place_at((td + b.x * dist / w.gen.radius).normalized(), w.gen)
+	var up: Vector3 = p.global_position.normalized()
+	var to: Vector3 = target - p.global_position
+	p.ref_fwd = (to - up * to.dot(up)).normalized()
+	p.cam_yaw = 0.0
+	p.cam_pitch = pitch
+	p.spring.spring_length = arm
+	await _wait(0.8)
+
+
+func _depth_tour() -> void:
+	Game.new_game("scout", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var p = w.player
+	Game.invulnerable = true
+	for e in w.enemies:
+		e.set_physics_process(false)
+	await shot("depth_arrive_compass")
+	for poi in w.pois:
+		poi.revealed = true
+	await _wait(0.3)
+	await shot("depth_compass_revealed")
+	var done := {}
+	for poi in w.pois:
+		if done.has(poi.type):
+			continue
+		done[poi.type] = true
+		await _look_at_from(w, p, poi.global_position, 20.0 if poi.type != "monolith" else 26.0, -0.05 if poi.type == "monolith" else -0.2)
+		await shot("depth_poi_" + poi.type)
+	# lore popup
+	var mono: Poi = null
+	for poi in w.pois:
+		if poi.type == "monolith":
+			mono = poi
+	if mono:
+		mono.open_cache()
+		await _wait(0.5)
+		await shot("depth_lore")
+		w.hud.close_panel()
+	w.hud.toggle_panel("quests")
+	await _wait(0.3)
+	await shot("depth_codex")
+	w.hud.close_panel()
+	# night sky with sister planets
+	p.cam_pitch = 0.45
+	p.spring.spring_length = 6.0
+	Game.play_time = 360.0
+	await _wait(0.6)
+	await shot("depth_night_sky")
+	Game.play_time = 0.0
+	# storm
+	w.weather._phase = 260.0 * 0.25 - Game.play_time
+	w.weather.storm = 1.0
+	p.cam_pitch = -0.1
+	await _wait(1.5)
+	await shot("depth_rainstorm")
+	# ringed crystal world with floating islands
+	Game.land_dir = Vector3(0.2, 0.3, 1.0).normalized()
+	Game.go_to_planet(0, 3)
+	await _wait(6.0)
+	w = _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	p = w.player
+	for e in w.enemies:
+		e.set_physics_process(false)
+	p.cam_pitch = 0.35
+	p.spring.spring_length = 8.0
+	await _wait(0.8)
+	await shot("depth_rings_islands_day")
+	Game.play_time = 360.0
+	await _wait(0.8)
+	await shot("depth_rings_islands_night")
+	Game.play_time = 0.0
+	w.weather.storm = 1.0
+	w.weather._phase = 260.0 * 0.25
+	p.cam_pitch = -0.15
+	await _wait(1.5)
+	await shot("depth_crystal_squall")
+	# desert craters from orbit
+	p._start_launch()
+	await _wait(5.5)
+	var s := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var pl = s.planets[1]
+	s.player.set_physics_process(false)
+	s.player.global_position = pl.node.global_position + Vector3(0.2, 0.9, 0.5).normalized() * pl.radius * 3.2
+	s.player.look_at(pl.node.global_position, Vector3.UP)
+	s.player.snap_camera()
+	await _wait(0.6)
+	await shot("depth_craters_orbit")
+
+
+## Find a surface spot + time of day where `target` sits ~elev radians above
+## the horizon at night, then frame it.
+func _frame_sky(w, target_fn: Callable, elev := 0.3) -> void:
+	var p = w.player
+	var best := {}
+	var best_score := INF
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for i in 3000:
+		var a := rng.randf() * TAU
+		var z := rng.randf_range(-0.9, 0.9)
+		var r := sqrt(1.0 - z * z)
+		var up := Vector3(r * cos(a), z, r * sin(a))
+		var ta := rng.randf() * TAU
+		var sun := Vector3(cos(ta) * 0.93, 0.28, sin(ta) * 0.93).normalized()
+		if up.dot(sun) > -0.35:
+			continue
+		if w.gen.has_liquid() and w.gen.height(up) < w.gen.sea + 0.004:
+			continue
+		var tgt: Vector3 = target_fn.call(ta)
+		var to: Vector3 = (tgt - up * w.gen.surface_radius(up)).normalized()
+		var e := asin(clampf(to.dot(up), -1.0, 1.0))
+		var score := absf(e - elev)
+		if score < best_score:
+			best_score = score
+			best = {"up": up, "ta": ta, "tgt": tgt}
+	Game.play_time = (best.ta - PI * 0.5) * w.DAY_LENGTH / TAU
+	await _wait(0.2)
+	p.place_at(best.up, w.gen)
+	var upv: Vector3 = p.global_position.normalized()
+	var tgt2: Vector3 = target_fn.call(best.ta)
+	var to2: Vector3 = tgt2 - p.global_position
+	p.ref_fwd = (to2 - upv * to2.dot(upv)).normalized()
+	p.cam_yaw = 0.0
+	p.cam_pitch = clampf(asin(to2.normalized().dot(upv)), -1.0, 0.6)
+	p.spring.spring_length = 5.0
+	await _wait(1.0)
+
+
+func _sky_tour() -> void:
+	Game.new_game("scout", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	for e in w.enemies:
+		e.set_physics_process(false)
+	# a sister planet in the night sky
+	var body: Node3D = w.sky_bodies[0]
+	await _frame_sky(w, func(ta):
+		w._sky_pivot.rotation.y = -(ta - PI * 0.5) + w._sky_offset
+		return w._sky_pivot.global_transform * body.position
+	)
+	await shot("sky_sister_planet_night")
+	# ringed world: the ring arc across the sky
+	Game.land_dir = Vector3(0.2, 0.3, 1.0).normalized()
+	Game.go_to_planet(0, 3)
+	await _wait(6.0)
+	w = _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	for e in w.enemies:
+		e.set_physics_process(false)
+	var ring: MeshInstance3D = w.ring_node
+	var rp: Vector3 = ring.global_transform * Vector3(w.gen.radius * 3.2, 0, 0)
+	await _frame_sky(w, func(_ta): return rp, 0.35)
+	await shot("sky_ring_night")
+	# daytime version of the same view
+	Game.play_time += w.DAY_LENGTH * 0.5
+	await _wait(1.0)
+	await shot("sky_ring_day")
+	# floating islands
+	var up: Vector3 = w.player.global_position.normalized()
+	var best_d := INF
+	var isl := Vector3.ZERO
+	for c in w.get_children():
+		if c is StaticBody3D:
+			for cs in c.get_children():
+				if cs is CollisionShape3D and cs.shape is CylinderShape3D and (cs.shape as CylinderShape3D).height < 5.0 and (cs.shape as CylinderShape3D).radius > 3.0:
+					var d: float = cs.global_position.distance_to(w.player.global_position)
+					if d < best_d:
+						best_d = d
+						isl = cs.global_position
+	if isl != Vector3.ZERO:
+		var id: Vector3 = isl.normalized()
+		var b := PlanetGen.align_basis(id)
+		w.player.place_at((id + b.x * 30.0 / w.gen.radius).normalized(), w.gen)
+		var upv: Vector3 = w.player.global_position.normalized()
+		var to: Vector3 = isl - w.player.global_position
+		w.player.ref_fwd = (to - upv * to.dot(upv)).normalized()
+		w.player.cam_yaw = 0.0
+		w.player.cam_pitch = clampf(asin(to.normalized().dot(upv)), -0.5, 0.6)
+		w.player.spring.spring_length = 6.0
+		Game.play_time = 0.0
+		await _wait(1.0)
+		await shot("sky_floating_island")
+
+
+func _town_tour() -> void:
+	Game.new_game("miner", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	var p = w.player
+	var t: Town = w.town
+	# wide view of the Cradle from the edge of town
+	await _look_at_from(w, p, t.centre, 30.0, -0.35, 16.0)
+	await _wait(2.0)
+	await shot("town_cradle_wide")
+	for npc in t.npcs:
+		if npc.role in ["merchant", "trainer", "board"]:
+			await _look_at_from(w, p, npc.global_position, 6.0, -0.1, 6.0)
+			await shot("town_" + npc.role)
+	for npc in t.npcs:
+		if npc.role == "folk":
+			await _look_at_from(w, p, npc.global_position, 4.0, -0.05, 5.0)
+			npc._bubble_t = 0.0
+			await _wait(1.2)
+			await shot("town_folk_chatter")
+			break
+	Game.add_item("ferrite", 30, true)
+	Game.add_item("biofiber", 12, true)
+	Game.add_item("cobalt", 6, true)
+	Game.add_credits(320, true)
+	Game.skills.mining.level = 22
+	var tp: Dictionary = w.town_planet()
+	w.hud.open_town_panel("trade", tp)
+	await _wait(0.4)
+	await shot("panel_trade_buy")
+	w.hud._trade_tab = "sell"
+	w.hud._rebuild_town_panel()
+	await _wait(0.3)
+	await shot("panel_trade_sell")
+	w.hud.close_panel()
+	w.hud.open_town_panel("trainer", tp)
+	await _wait(0.3)
+	await shot("panel_trainer")
+	w.hud.close_panel()
+	w.hud.open_town_panel("board", tp)
+	await _wait(0.3)
+	for o in Game.board_offers(tp).slice(0, 2):
+		Game.accept_bounty(o)
+	w.hud._rebuild_town_panel()
+	await _wait(0.3)
+	await shot("panel_board")
+	w.hud.close_panel()
+	await _wait(0.5)
+	await shot("hud_contracts")
+	# fly to a sister world with a hub and dock there
+	p._start_launch()
+	await _wait(5.5)
+	var sp := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var target = sp.planets[1]
+	sp.player.global_position = target.node.global_position + Vector3(0.2, 0.3, 1.0).normalized() * target.radius * 2.6
+	sp.player.look_at(target.node.global_position, Vector3.UP)
+	sp.player.snap_camera()
+	await _wait(0.8)
+	await shot("space_dock_prompt")
+	sp.land_at_town(target)
+	await _wait(7.0)
+	w = _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await _look_at_from(w, w.player, w.town.centre, 28.0, -0.3, 14.0)
+	await _wait(2.0)
+	await shot("town_second_hub")
+
+
+func _belt_tour() -> void:
+	Game.new_game("miner", "Tester")
+	await _wait(5.0)
+	Game.last_hit_time = -100.0
+	_scene().player._start_launch()
+	await _wait(5.5)
+	var s := _scene()
+	var sp = s.player
+	# wide view of the belt from above its plane
+	var br: float = s.star.belt.radius
+	sp.global_position = Vector3(br * 0.75, 90, br * 0.55)
+	sp.look_at(Vector3(br * 1.0, 0, br * 0.1), Vector3.UP)
+	sp.snap_camera()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await _wait(1.0)
+	await shot("belt_overview")
+	# fly up to a big rock and mine it
+	var rock: Asteroid = null
+	for a in s.asteroids:
+		if a.generation == 0 and a.type in ["rocky", "icy"] and a.size > 6.0:
+			rock = a
+			break
+	sp.global_position = rock.global_position + Vector3(6, 4, rock.size + 22.0)
+	sp.look_at(rock.global_position, Vector3.UP)
+	sp.velocity = Vector3.ZERO
+	sp.snap_camera()
+	await _wait(0.6)
+	sp._scan_cd = 0.0
+	Game.energy = Game.max_energy()
+	s.scan_space(sp.global_position, 520.0)
+	await _wait(1.6)
+	await shot("belt_scan_labels")
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	var hp0 := rock.hp
+	Input.action_press("fire")
+	await _wait(1.2)
+	print("[belt] captured=", Input.mouse_mode == Input.MOUSE_MODE_CAPTURED, " hp ", int(hp0), "->", int(rock.hp), " beam=", sp._beam.visible)
+	await shot("belt_laser")
+	await _wait(6.0)
+	Input.action_release("fire")
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	print("[belt] rock alive=", is_instance_valid(rock), " asteroids=", s.asteroids.size())
+	await _wait(0.4)
+	await shot("belt_shards")
+	# the comet
+	var c: Asteroid = s.belt.comet
+	if c:
+		sp.global_position = c.global_position + (c.global_position.normalized().cross(Vector3.UP).normalized() * 70.0) + Vector3(0, 20, 0)
+		sp.look_at(c.global_position, Vector3.UP)
+		sp.snap_camera()
+		await _wait(2.5)
+		await shot("belt_comet")
+
+
+func _spacefight_tour() -> void:
+	Game.new_game("scout", "Tester")
+	await _wait(5.0)
+	Game.last_hit_time = -100.0
+	_scene().player._start_launch()
+	await _wait(5.5)
+	var s := _scene()
+	var sp = s.player
+	Game.invulnerable = true
+	sp.velocity = Vector3.ZERO
+	# a raider wing + gunship dead ahead, a swarm behind (off-screen arrows)
+	var ahead: Vector3 = sp.global_position - sp.global_basis.z * 140.0
+	var wing := []
+	for t in ["raider", "raider", "gunship"]:
+		var e: SpaceEnemy = s._spawn_pirate(t, 3, ahead + Vector3(randf_range(-30, 30), randf_range(-12, 12), randf_range(-20, 20)), ahead)
+		e.aggro()
+		wing.append(e)
+	var behind: Vector3 = sp.global_position + sp.global_basis.z * 200.0
+	for i in 3:
+		s._spawn_pirate("swarmer", 3, behind + Vector3(randf_range(-20, 20), 0, randf_range(-20, 20)), behind).aggro()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await _wait(1.5)
+	sp.look_at(wing[0].global_position, Vector3.UP)
+	sp.snap_camera()
+	await _wait(0.2)
+	await shot("space_engage")
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	for i in 25:
+		if is_instance_valid(wing[0]) and wing[0].is_alive():
+			sp.look_at(wing[0].global_position, Vector3.UP)
+		Input.action_press("fire")
+		await _wait(0.05)
+	await shot("space_cannons")
+	Input.action_release("fire")
+	sp._missile_cd = 0.0
+	Game.energy = Game.max_energy()
+	var tgt: SpaceEnemy = null
+	for e in wing:
+		if is_instance_valid(e) and e.is_alive():
+			tgt = e
+	if tgt:
+		sp.look_at(tgt.global_position, Vector3.UP)
+		sp._launch_missiles(tgt)
+		await _wait(0.35)
+		await shot("space_missiles")
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await _wait(1.5)
+	await shot("space_melee")
+	# the flagship
+	for e in s.space_enemies.duplicate():
+		e.queue_free()
+	s.space_enemies.clear()
+	var m: SpaceEnemy = s._spawn_pirate("marauder", 6, sp.global_position - sp.global_basis.z * 170.0, sp.global_position)
+	m.aggro()
+	await _wait(2.5)
+	sp.look_at(m.global_position, Vector3.UP)
+	sp.snap_camera()
+	await _wait(0.3)
+	await shot("space_marauder")
+	s._ambush()
+	await _wait(0.8)
+	await shot("space_ambush")
+
+
+func _station_tour() -> void:
+	Game.new_game("miner", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	var p = w.player
+	for e in w.enemies:
+		e.set_physics_process(false)
+	# sprint on open ground
+	var d: Vector3 = w._find_land(Vector3(0.6, 0.5, 0.6).normalized())
+	p.place_at(d, w.gen)
+	p.cam_yaw = 2.0
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await _wait(0.5)
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	await _wait(1.6)
+	await shot("planet_sprint")
+	Input.action_release("sprint")
+	Input.action_release("move_forward")
+	Game.add_item("ferrite", 60, true)
+	Game.add_item("cobalt", 25, true)
+	Game.add_item("nickel", 30, true)
+	Game.add_item("biofiber", 20, true)
+	Game.last_hit_time = -100.0
+	p._start_launch()
+	await _wait(5.5)
+	var s := _scene()
+	var sp = s.player
+	var st: OrbitalStation = s.station
+	sp.global_position = st.global_position + Vector3(60, 18, 70)
+	sp.look_at(st.global_position, Vector3.UP)
+	sp.snap_camera()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await _wait(1.0)
+	await shot("station_approach")
+	sp.global_position = st.global_position + Vector3(0, 6, 36)
+	sp.look_at(st.global_position, Vector3.UP)
+	sp.snap_camera()
+	await _wait(0.6)
+	await shot("station_dock_prompt")
+	s.hud.open_station_panel(Game.star_index)
+	await _wait(0.4)
+	await shot("station_sell")
+	for tab in ["buy", "services", "contracts"]:
+		s.hud._station_tab = tab
+		s.hud._rebuild_town_panel()
+		await _wait(0.3)
+		await shot("station_" + tab)
+	s.hud._station_tab = "sell"
+	s.hud.close_panel()
