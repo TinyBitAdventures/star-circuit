@@ -195,7 +195,10 @@ func _build_terrain() -> void:
 	add_child(mi)
 	var body := StaticBody3D.new()
 	var cs := CollisionShape3D.new()
-	cs.shape = mesh.create_trimesh_shape()
+	var tri := mesh.create_trimesh_shape()
+	# collide from both sides: nothing may ever slip underneath the ground
+	(tri as ConcavePolygonShape3D).backface_collision = true
+	cs.shape = tri
 	body.add_child(cs)
 	add_child(body)
 	terrain_body = body
@@ -402,11 +405,12 @@ func _build_outpost(d: Vector3) -> void:
 	var cs := CollisionShape3D.new()
 	var cyl := CylinderShape3D.new()
 	cyl.radius = 7.0
-	cyl.height = 0.6
+	cyl.height = 6.0
 	cs.shape = cyl
 	pad_body.add_child(cs)
 	add_child(pad_body)
-	pad_body.global_transform = Transform3D(b, base + d * 0.3)
+	# tall enough to reach into the ground everywhere under the rim
+	pad_body.global_transform = Transform3D(b, base + d * 0.3 - d * 2.7)
 
 	var npc := ArchivistNpc.new()
 	add_child(npc)

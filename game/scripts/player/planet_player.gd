@@ -48,6 +48,8 @@ var _low_energy_warned := false
 var _dust: CPUParticles3D
 var shake := CamShake.new()
 var _dropping := false
+var _stuck_t := 0.0
+var _last_pos := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -187,11 +189,18 @@ func _physics_process(delta: float) -> void:
 	var jetting := false
 	if launching:
 		launch_time += delta
-		vv = lerpf(vv, 60.0, delta * 1.5)
+		vv = lerpf(maxf(vv, 0.0), 60.0, delta * 1.5)
 		jetting = true
+		# lift-off ignores collisions so nothing can pin the robot down
+		global_position += up * vv * delta
+		velocity = up * vv
+		_update_basis(up)
+		_update_camera(up, delta)
+		visual.jetting = true
+		visual.boost = true
 		if launch_time > 1.6:
 			_finish_launch(up)
-			return
+		return
 	elif in_liquid and not is_lava:
 		if _dropping:
 			_touchdown(up)
@@ -235,6 +244,7 @@ func _physics_process(delta: float) -> void:
 	velocity = hv + up * vv
 	up_direction = up
 	move_and_slide()
+	_unstick(up, wish, delta)
 	if is_on_floor() and not _was_on_floor and air_time > 0.35:
 		Sound.play("land", -6.0 - (0.0 if air_time > 1.0 else 6.0))
 	_was_on_floor = is_on_floor()
@@ -673,3 +683,28 @@ func _touchdown(up: Vector3) -> void:
 	var t := create_tween()
 	t.tween_property(spring, "spring_length", 7.0, 1.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	t.parallel().tween_property(self, "cam_pitch", -0.3, 1.6)
+
+
+
+## Safety nets against getting wedged: never below the ground, and if the
+## player pushes for a while without moving, pop them up and free.
+func _unstick(up: Vector3, wish: Vector3, delta: float) -> void:
+	var gen: PlanetGen = world.gen
+	var ground := gen.surface_radius(up)
+	var r := global_position.length()
+	if r < ground - 0.25:
+		global_position = up * (ground + 0.4)
+		velocity = Vector3.ZERO
+	if wish.length() > 0.5 and not _dropping:
+		if global_position.distance_to(_last_pos) < 0.02:
+			_stuck_t += delta
+			if _stuck_t > 1.8:
+				_stuck_t = 0.0
+				var free_dir := _clear_spot(up, gen)
+				global_position = gen.surface_point(free_dir) + free_dir * 1.2
+				velocity = Vector3.ZERO
+		else:
+			_stuck_t = 0.0
+	else:
+		_stuck_t = 0.0
+	_last_pos = global_position

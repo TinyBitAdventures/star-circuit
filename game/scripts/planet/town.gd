@@ -31,7 +31,7 @@ func build(w: Node3D, town: Dictionary, d: Vector3, home: bool) -> void:
 		var pad := ModelUtil.instance("res://assets/models/prop_outpost.glb")
 		w.add_child(pad)
 		pad.global_transform = Transform3D(b, centre - dir * 0.35)
-		_collider(body, CylinderShape3D.new(), 7.0, 0.6, centre + dir * 0.0)
+		_collider(body, CylinderShape3D.new(), 7.0, 6.0, centre - dir * 2.7)
 		var fab := Fabricator.new()
 		w.add_child(fab)
 		fab.setup(w)
