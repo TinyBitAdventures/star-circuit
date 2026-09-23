@@ -673,6 +673,7 @@ func accept_quest() -> void:
 			notify.emit("+2 Deep Probes loaded", Color("9bd1ff"))
 		"gem_types":
 			quest_progress = gem_types()
+	_reconcile_quest()
 	big_notify.emit("QUEST ACCEPTED", q.title, Color("ffd23f"))
 	quest_changed.emit()
 	_check_quest_complete()
@@ -716,6 +717,23 @@ func _quest_event(kind: String, what: String, amount := 1) -> void:
 			quest_progress = mini(o.count, quest_progress + 1)
 		"gem_types":
 			quest_progress = mini(o.count, gem_types())
+	quest_changed.emit()
+	_check_quest_complete()
+
+
+## A quest asking for something you already have (an upgrade you installed
+## earlier, gems already in the hold) counts as done.
+func _reconcile_quest() -> void:
+	var q := current_quest()
+	if q.is_empty() or not quest_accepted:
+		return
+	var o: Dictionary = q.obj
+	if o.type == "craft" and Db.ITEMS.get(o.item, {}).get("kind", "") == "upgrade" and has_upgrade(o.item):
+		quest_progress = int(o.count)
+	elif o.type == "gem_types":
+		quest_progress = mini(int(o.count), gem_types())
+	else:
+		return
 	quest_changed.emit()
 	_check_quest_complete()
 
@@ -965,6 +983,7 @@ func load_game(n := -1) -> bool:
 	else:
 		fade_to("res://scenes/planet.tscn")
 	check_milestones(false) # older saves: grant quietly
+	_reconcile_quest.call_deferred()
 	return true
 
 

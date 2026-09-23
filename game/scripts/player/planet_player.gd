@@ -17,6 +17,7 @@ var ref_fwd := Vector3.FORWARD
 var cam_yaw := 0.0
 var cam_pitch := -0.3
 var visual: RobotVisual
+var harvest_fx: HarvestFx
 var cam_rig: Node3D
 var spring: SpringArm3D
 var camera: Camera3D
@@ -65,6 +66,8 @@ func _ready() -> void:
 
 	visual = RobotVisual.new()
 	add_child(visual)
+	harvest_fx = HarvestFx.new()
+	add_child(harvest_fx)
 	visual.setup(Game.robot_id)
 	visual.apply_look.call_deferred(Game.appearance)
 	Game.appearance_changed.connect(func(): visual.apply_look(Game.appearance))
@@ -550,6 +553,7 @@ func _update_interaction(delta: float, ui_block: bool) -> void:
 	var hud = world.hud
 	if target == null or ui_block or launching:
 		visual.working = false
+		harvest_fx.update(false, "", Vector3.ZERO, Vector3.ZERO, 0.0, Color.WHITE, delta)
 		_harvest_sound("")
 		hud.set_prompt("", Color.WHITE, 0.0)
 		return
@@ -559,13 +563,26 @@ func _update_interaction(delta: float, ui_block: bool) -> void:
 		if Input.is_action_just_pressed("interact"):
 			target.interact(self)
 		visual.working = false
+		harvest_fx.update(false, "", Vector3.ZERO, Vector3.ZERO, 0.0, Color.WHITE, delta)
 		return
 	if Input.is_action_pressed("interact") and info.get("ok", true):
 		harvest_progress += delta * Game.harvest_speed(info.skill) / info.time
 		visual.working = true
+		visual.work_skill = info.skill
+		visual.work_progress = harvest_progress
 		_harvest_sound(info.skill)
+		var aim: Vector3 = target.work_point() if target.has_method("work_point") else target.global_position
+		var col: Color = Db.item_color(target.def.item) if "def" in target and target.def.has("item") else Color.WHITE
+		harvest_fx.update(true, info.skill, visual.hand_position(), aim, harvest_progress, col, delta)
+		if target.has_method("work"):
+			target.work(harvest_progress, info.skill, delta)
+		if info.skill == "mining":
+			shake.add(delta * 0.35)
 		if harvest_progress >= 1.0:
 			harvest_progress = 0.0
+			HarvestFx.burst(world, aim, col, info.skill, self)
+			if info.skill == "mining":
+				shake.add(0.25)
 			target.interact(self)
 			target = null
 			_harvest_sound("")
@@ -574,6 +591,9 @@ func _update_interaction(delta: float, ui_block: bool) -> void:
 			Game.notify.emit(info.get("why", "Can't do that yet."), Color("ff6b6b"))
 		harvest_progress = maxf(0.0, harvest_progress - delta * 2.0)
 		visual.working = false
+		harvest_fx.update(false, "", Vector3.ZERO, Vector3.ZERO, 0.0, Color.WHITE, delta)
+		if target.has_method("work"):
+			target.work(0.0, "", delta)
 		_harvest_sound("")
 	hud.set_prompt(info.text, info.color, harvest_progress)
 

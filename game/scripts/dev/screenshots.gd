@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "mine":
+		await _mine_tour()
+		get_tree().quit()
+		return
 	if which == "orbit":
 		await _orbit_tour()
 		get_tree().quit()
@@ -1092,3 +1096,40 @@ func _orbit_tour() -> void:
 		await shot("orb_%s_got" % info.biome)
 		w._leave()
 		await _wait(3.0)
+
+
+
+func _mine_tour() -> void:
+	Game.new_game("miner", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	for e in w.enemies:
+		e.set_physics_process(false)
+	for s in ["mining", "botany", "siphoning"]:
+		Game.skills[s].level = 60
+	var p = w.player
+	for skill in ["mining", "botany", "siphoning"]:
+		var node: ResourceNode = null
+		for n in w._nodes:
+			if is_instance_valid(n) and n.def.skill == skill:
+				node = n
+				break
+		if node == null:
+			continue
+		await _look_at_from(w, p, node.global_position, 2.6, -0.2, 5.0)
+		p.cam_yaw = 0.9
+		Input.action_press("interact")
+		await _wait(0.9)
+		await shot("mine_%s_work" % skill)
+		await _wait(0.5)
+		await shot("mine_%s_late" % skill)
+		var t := 0.0
+		while is_instance_valid(node) and not node._dying and t < 8.0:
+			await get_tree().process_frame
+			t += get_process_delta_time()
+		await _wait(0.12)
+		await shot("mine_%s_burst" % skill)
+		Input.action_release("interact")
+		await _wait(0.6)

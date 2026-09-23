@@ -10,6 +10,8 @@ var _label: Label3D
 var _beam: MeshInstance3D
 var _reveal_time := 0.0
 var _dying := false
+var _model: Node3D
+var _shake := 0.0
 
 
 func setup(type: String, id: int, w: Node3D) -> void:
@@ -19,6 +21,7 @@ func setup(type: String, id: int, w: Node3D) -> void:
 	def = Db.NODES[type]
 	var m := ModelUtil.instance(def.model)
 	add_child(m)
+	_model = m
 	if def.item in ["biofiber", "sporegel"]:
 		# plants take the planet's flora tint
 		var tint: Color = world.flora_tint
@@ -94,3 +97,33 @@ func _process(delta: float) -> void:
 		if _reveal_time <= 0.0 and _label:
 			_label.visible = false
 			_beam.visible = false
+
+
+
+## Where the robot's beam should land: the middle of the node, not its base.
+func work_point() -> Vector3:
+	return global_position + global_basis.y.normalized() * 0.9 * scale.y
+
+
+## Feedback while being worked: rock shudders harder as it's about to
+## crack, plants sway, energy wells pulse.
+func work(progress: float, skill: String, delta: float) -> void:
+	if _model == null or _dying:
+		return
+	if skill == "":
+		_shake = move_toward(_shake, 0.0, delta * 4.0)
+		_model.position = _model.position.lerp(Vector3.ZERO, clampf(delta * 10.0, 0.0, 1.0))
+		_model.rotation = _model.rotation.lerp(Vector3.ZERO, clampf(delta * 10.0, 0.0, 1.0))
+		_model.scale = _model.scale.lerp(Vector3.ONE, clampf(delta * 10.0, 0.0, 1.0))
+		return
+	_shake += delta
+	match skill:
+		"mining":
+			var a := 0.025 + progress * 0.07
+			_model.position = Vector3(randf_range(-a, a), randf_range(0.0, a), randf_range(-a, a))
+			_model.scale = Vector3.ONE * (1.0 + progress * 0.08)
+		"botany":
+			_model.rotation = Vector3(sin(_shake * 9.0) * 0.12 * (0.4 + progress), 0, cos(_shake * 7.0) * 0.12 * (0.4 + progress))
+		_:
+			var s := 1.0 - progress * 0.25 + sin(_shake * 14.0) * 0.05
+			_model.scale = Vector3(s, 1.0 + progress * 0.1, s)

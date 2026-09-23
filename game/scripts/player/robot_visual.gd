@@ -9,6 +9,8 @@ var move_amount := 0.0 # 0..1 walk blend
 var airborne := false
 var jetting := false
 var working := false # harvesting / crafting
+var work_skill := "" # mining / botany / siphoning: picks the working pose
+var work_progress := 0.0
 var flying := false # space flight pose
 var boost := false
 var aiming := false
@@ -124,10 +126,33 @@ func _process(delta: float) -> void:
 		_pose("LegL", Vector3.ZERO, Vector3(-swing * 0.8, 0, 0))
 		_pose("LegR", Vector3.ZERO, Vector3(swing * 0.8, 0, 0))
 	elif working:
-		_pose("ArmL", Vector3.ZERO, Vector3(-0.9 + sin(_t * 18.0) * 0.25, 0, 0))
-		_pose("ArmR", Vector3.ZERO, Vector3(-1.3 + sin(_t * 22.0 + 1.0) * 0.35, 0, 0))
-		_pose("LegL", Vector3.ZERO, Vector3.ZERO)
-		_pose("LegR", Vector3.ZERO, Vector3.ZERO)
+		match work_skill:
+			"mining":
+				# tool arm locked on target, bucking with the cutter's recoil; off arm braces
+				var kick := sin(_t * 31.0) * 0.06 + sin(_t * 13.0) * 0.04
+				_pose("Torso", Vector3(0, idle, 0), Vector3(0.22 + kick * 0.5, 0, sin(_t * 23.0) * 0.02))
+				_pose("ArmR", Vector3.ZERO, Vector3(-1.5 + kick, 0, 0.12))
+				_pose("ArmL", Vector3.ZERO, Vector3(-1.1 + kick * 0.5, 0, -0.35))
+				_pose("LegL", Vector3.ZERO, Vector3(-0.3, 0, -0.08))
+				_pose("LegR", Vector3.ZERO, Vector3(0.25, 0, 0.08))
+				_pose("Head", Vector3.ZERO, Vector3(0.18, 0, 0))
+			"botany":
+				# both hands out, coaxing the plant loose
+				var sway := sin(_t * 3.5) * 0.12
+				_pose("Torso", Vector3(0, idle, 0), Vector3(0.15, sway * 0.3, 0))
+				_pose("ArmR", Vector3.ZERO, Vector3(-1.35 + sway, 0, 0.25))
+				_pose("ArmL", Vector3.ZERO, Vector3(-1.35 - sway, 0, -0.25))
+				_pose("LegL", Vector3.ZERO, Vector3.ZERO)
+				_pose("LegR", Vector3.ZERO, Vector3.ZERO)
+			_:
+				# siphoning: arms raised wide, drinking in the light
+				var pulse := sin(_t * 5.0) * 0.08
+				_pose("Torso", Vector3(0, idle + 0.03 * work_progress, 0), Vector3(-0.08, 0, 0))
+				_pose("ArmR", Vector3.ZERO, Vector3(-1.9 + pulse, 0, 0.55))
+				_pose("ArmL", Vector3.ZERO, Vector3(-1.9 + pulse, 0, -0.55))
+				_pose("LegL", Vector3.ZERO, Vector3.ZERO)
+				_pose("LegR", Vector3.ZERO, Vector3.ZERO)
+				_pose("Head", Vector3.ZERO, Vector3(-0.15, 0, 0))
 	elif airborne:
 		_pose("ArmL", Vector3.ZERO, Vector3(0.3, 0, -0.5))
 		_pose("ArmR", Vector3.ZERO, Vector3(0.3, 0, 0.5))
@@ -304,3 +329,12 @@ func _tint_flames(c: Color) -> void:
 	grad.add_point(0.35, Color(c.lightened(0.2), 0.9))
 	for f in _flames:
 		f.color_ramp = grad
+
+
+
+## Where the tool arm's hand is, for beams and effects.
+func hand_position() -> Vector3:
+	var arm: Node3D = _parts.get("ArmR")
+	if arm == null:
+		return global_position + global_basis.y * 1.2
+	return arm.global_transform * Vector3(0, -0.62, 0)

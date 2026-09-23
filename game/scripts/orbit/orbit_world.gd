@@ -87,8 +87,24 @@ func _ready() -> void:
 
 func _layout() -> void:
 	var vs := get_viewport_rect().size
+	var old_r := R
 	centre = Vector2(vs.x * 0.5, vs.y * 0.5)
 	R = minf(vs.x, vs.y) * 0.29
+	# the window changed size mid-orbit: keep everything inside the world where it was
+	if not gems.is_empty() and old_r > 0.0 and absf(R - old_r) > 0.01:
+		var k := R / old_r
+		for g in gems:
+			g.pos *= k
+		for o in ores:
+			o.pos *= k
+		for rk in rocks:
+			rk.pos *= k
+			rk.r *= k
+			var poly: PackedVector2Array = rk.poly
+			for i in poly.size():
+				poly[i] *= k
+			rk.poly = poly
+		probe_pos = centre + (probe_pos - centre) * k
 	if _planet:
 		var ext := 1.4
 		_planet.position = centre - Vector2.ONE * R * ext
@@ -201,8 +217,12 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+func ship_radius() -> float:
+	return R * 1.24 + 18.0
+
+
 func ship_pos() -> Vector2:
-	return centre + Vector2.from_angle(ship_angle) * (R * 1.24 + 18.0)
+	return centre + Vector2.from_angle(ship_angle) * ship_radius()
 
 
 func _to_local(p: Vector2) -> Vector2:
@@ -303,8 +323,8 @@ func _probe_down(delta: float, steer: float, ui: bool) -> void:
 			Sound.play("rock_break", -6.0, 0.1)
 			_start_reel()
 			return
-	# drifted back out into space: reel it in
-	if r > R * 1.3:
+	# steered back up past the ship's orbit: reel it in
+	if r > ship_radius() + 12.0:
 		_start_reel()
 
 
