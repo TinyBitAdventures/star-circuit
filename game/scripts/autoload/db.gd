@@ -118,6 +118,8 @@ const ITEMS := {
 	"missile_rack": {"name": "Missile Rack", "kind": "upgrade", "color": Color("ffb86b"), "desc": "Fires two homing missiles per volley and reloads 40% faster."},
 	"cargo_pods": {"name": "Cargo Pods", "kind": "upgrade", "color": Color("c9b8a6"), "desc": "+100 cargo capacity."},
 	"cargo_pods_mk2": {"name": "Cargo Pods Mk II", "kind": "upgrade", "color": Color("e8c890"), "desc": "+200 cargo capacity."},
+	"scatter_mod": {"name": "Scatter Emitter", "kind": "upgrade", "color": Color("ffb347"), "desc": "Unlocks the Scatter weapon loadout (Outfitter or X to swap)."},
+	"rail_mod": {"name": "Rail Coil", "kind": "upgrade", "color": Color("9bd1ff"), "desc": "Unlocks the Rail weapon loadout (Outfitter or X to swap)."},
 	"lava_plating": {"name": "Heat Plating", "kind": "upgrade", "color": Color("ff7a3d"), "desc": "Immune to lava and heat drain."},
 }
 
@@ -157,6 +159,8 @@ const RECIPES := [
 	{"id": "missile_rack", "out": "missile_rack", "qty": 1, "in": {"scrap": 12, "power_core": 1, "circuit": 2}, "req": 26, "xp": 130, "cat": "Upgrades"},
 	{"id": "cargo_pods", "out": "cargo_pods", "qty": 1, "in": {"alloy": 6, "polymer": 2}, "req": 8, "xp": 80, "cat": "Upgrades"},
 	{"id": "cargo_pods_mk2", "out": "cargo_pods_mk2", "qty": 1, "in": {"alloy": 10, "nickel": 12, "circuit": 2}, "req": 28, "xp": 140, "cat": "Upgrades"},
+	{"id": "scatter_mod", "out": "scatter_mod", "qty": 1, "in": {"scrap": 10, "alloy": 4, "circuit": 1}, "req": 14, "xp": 90, "cat": "Upgrades"},
+	{"id": "rail_mod", "out": "rail_mod", "qty": 1, "in": {"power_core": 1, "circuit": 2, "cobalt": 8}, "req": 24, "xp": 120, "cat": "Upgrades"},
 	{"id": "drill_mk2", "out": "drill_mk2", "qty": 1, "in": {"alloy": 4, "biofiber": 4}, "req": 3, "xp": 60, "cat": "Upgrades"},
 	{"id": "jet_booster", "out": "jet_booster", "qty": 1, "in": {"alloy": 3, "plasma": 4}, "req": 6, "xp": 60, "cat": "Upgrades"},
 	{"id": "capacitor", "out": "capacitor", "qty": 1, "in": {"alloy": 2, "polymer": 2, "plasma": 5}, "req": 15, "xp": 80, "cat": "Upgrades"},
@@ -313,6 +317,53 @@ const VALUES := {
 ## Items that take up cargo space (consumables and fuel ride in equipment slots).
 const CARGO_KINDS := ["resource", "component"]
 const CARGO_BASE := 150
+
+# --------------------------------------------------------------------------
+# Customisation
+# --------------------------------------------------------------------------
+const COSMETICS := {
+	"head": [
+		{"id": "default", "name": "Factory Head", "price": 0},
+		{"id": "dome", "name": "Visor Dome", "price": 150, "model": "res://assets/models/head_dome.glb"},
+		{"id": "box", "name": "Scanner Box", "price": 150, "model": "res://assets/models/head_box.glb"},
+		{"id": "crest", "name": "Crested Helm", "price": 300, "model": "res://assets/models/head_crest.glb"},
+		{"id": "mono", "name": "Mono-Eye", "price": 300, "model": "res://assets/models/head_mono.glb"},
+	],
+	"top": [
+		{"id": "none", "name": "Bare", "price": 0},
+		{"id": "antenna", "name": "Signal Antenna", "price": 50, "model": "res://assets/models/top_antenna.glb"},
+		{"id": "flower", "name": "Space Daisy", "price": 80, "model": "res://assets/models/top_flower.glb"},
+		{"id": "horns", "name": "Horns", "price": 120, "model": "res://assets/models/top_horns.glb"},
+		{"id": "dish", "name": "Satellite Dish", "price": 150, "model": "res://assets/models/top_dish.glb"},
+		{"id": "tophat", "name": "Top Hat", "price": 200, "model": "res://assets/models/top_tophat.glb"},
+		{"id": "crown", "name": "Circuit Crown", "price": 500, "model": "res://assets/models/top_crown.glb"},
+	],
+	"pack": [
+		{"id": "default", "name": "Factory Thruster", "price": 0},
+		{"id": "rockets", "name": "Twin Rockets", "price": 200, "model": "res://assets/models/pack_rockets.glb"},
+		{"id": "wings", "name": "Glider Wings", "price": 350, "model": "res://assets/models/pack_wings.glb"},
+		{"id": "ring", "name": "Jet Ring", "price": 400, "model": "res://assets/models/pack_ring.glb"},
+	],
+	"finish": [
+		{"id": "standard", "name": "Standard", "price": 0},
+		{"id": "matte", "name": "Matte", "price": 60},
+		{"id": "chrome", "name": "Chrome", "price": 250},
+		{"id": "neon", "name": "Neon Trim", "price": 300},
+		{"id": "gold", "name": "Gold Plate", "price": 600},
+	],
+}
+
+const PAINT_SWATCHES := [
+	Color("f4f4f2"), Color("2a2d36"), Color("e0453a"), Color("ff9f43"), Color("ffd23f"), Color("6ee06a"),
+	Color("18c2b0"), Color("39a0ff"), Color("5a5fd8"), Color("b06bff"), Color("ff7eb6"), Color("8c6a4f"),
+]
+
+## Weapon loadouts: used on foot and in flight.
+const WEAPONS := {
+	"pulse": {"name": "Pulse", "desc": "Balanced rapid fire.", "rate": 1.0, "dmg": 1.0, "pellets": 1, "spread": 0.0, "range": 1.0, "cost": 1.0, "pierce": false, "unlock": ""},
+	"scatter": {"name": "Scatter", "desc": "Close-range spread of 6 pellets. Shreds swarms.", "rate": 1.8, "dmg": 0.32, "pellets": 6, "spread": 0.07, "range": 0.4, "cost": 2.2, "pierce": false, "unlock": "scatter_mod"},
+	"rail": {"name": "Rail", "desc": "Slow, heavy slug that pierces everything in a line.", "rate": 4.0, "dmg": 3.4, "pellets": 1, "spread": 0.0, "range": 1.8, "cost": 4.5, "pierce": true, "unlock": "rail_mod"},
+}
 
 const STATION_SUFFIX := ["Exchange", "Station", "Waypoint", "Depot", "Harbor", "Ring"]
 

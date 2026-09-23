@@ -5,6 +5,7 @@ extends Node3D
 
 const FOLK_NAMES := ["Pim", "Rook", "Tesla", "Bolt", "Nib", "Ferra", "Quill", "Dot", "Sprocket", "Ivy", "Coil", "Juno", "Mote", "Hex"]
 const MERCHANTS := ["Mar", "Tobb", "Lysa", "Kettle", "Vend-9", "Orla"]
+const OUTFITTERS := ["Pip-3", "Glint", "Sable", "Rivet", "Neon Nell"]
 const TRAINERS := ["Tutor Voss", "Master Anvil", "Sage Wren", "Mentor Kade", "Elder Cobb"]
 
 var world: Node3D
@@ -56,6 +57,9 @@ func build(w: Node3D, town: Dictionary, d: Vector3, home: bool) -> void:
 	_place("town_stall", a_t, 11.0, body, 2.0, rng)
 	_npc("trainer", trainer_name, "Profession Trainer", Color("8f6cf0"), a_t, 9.6)
 	_npc("board", "Bounty Board", "", Color.WHITE, a_b, 10.0)
+	var a_o := angle + PI * 1.75
+	_place("town_stall", a_o, 11.0, body, 2.0, rng)
+	_npc("outfitter", "Pip-3" if home else OUTFITTERS[rng.randi() % OUTFITTERS.size()], "Outfitter", Color("ff7eb6"), a_o, 9.6)
 	_collider_at(body, a_b, 10.0, 1.8)
 
 	for i in 6:

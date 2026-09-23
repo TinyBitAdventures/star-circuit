@@ -36,6 +36,9 @@ var bounties: Array = [] # accepted bounty dicts
 var visited_towns: Array = []
 var trader_bought := {} # "town_key:day" -> {item: qty bought}
 var _cap_warned := {}
+var appearance := {} # shell/accent/glow/flame colours (html) + head/top/pack/finish ids
+var owned_cosmetics: Array = []
+var weapon := "pulse"
 var inventory := {}
 var upgrades: Array = []
 var skills := {}
@@ -89,7 +92,7 @@ func _register_input() -> void:
 		"interact": [KEY_E], "scan": [KEY_Q], "use_cell": [KEY_R],
 		"inventory": [KEY_I, KEY_TAB], "crafting": [KEY_C], "skills": [KEY_K],
 		"quests": [KEY_J], "map": [KEY_M], "takeoff": [KEY_T], "help": [KEY_H, KEY_F1],
-		"pause": [KEY_ESCAPE], "ability": [KEY_F], "repair": [KEY_G],
+		"pause": [KEY_ESCAPE], "ability": [KEY_F], "repair": [KEY_G], "weapon_cycle": [KEY_X],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
@@ -145,6 +148,9 @@ func _reset_state() -> void:
 	bounties = []
 	visited_towns = []
 	trader_bought = {}
+	appearance = {}
+	owned_cosmetics = []
+	weapon = "pulse"
 
 
 func new_game(robot: String, pname: String) -> void:
@@ -739,6 +745,7 @@ func save_game() -> void:
 		"discovered_pois": discovered_pois, "looted_pois": looted_pois, "codex": codex, "surveyed": surveyed,
 		"credits": credits, "skill_tiers": skill_tiers, "bounties": bounties, "visited_towns": visited_towns,
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
+		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
 		"star_index": star_index, "planet_index": planet_index, "location": location,
 		"visited_planets": visited_planets, "visited_stars": visited_stars,
@@ -819,6 +826,9 @@ func load_game() -> bool:
 	bounties = d.get("bounties", [])
 	visited_towns = d.get("visited_towns", [])
 	trader_bought = d.get("trader_bought", {})
+	appearance = d.get("appearance", {})
+	owned_cosmetics = d.get("owned_cosmetics", [])
+	weapon = d.get("weapon", "pulse")
 	# quests are saved by id so new quests can be inserted without breaking saves
 	var qid: String = d.get("quest_id", "")
 	if qid == "done":
@@ -1183,7 +1193,7 @@ func _station_mod(item: String, star_i: int) -> float:
 	elif st.surplus.has(item):
 		mod = 0.6
 	# prices drift a little every day
-	var h := hash("%d:%s:%d" % [star_i, item, game_day()])
+	var h: int = hash("%d:%s:%d" % [star_i, item, game_day()])
 	mod *= 0.85 + float(h % 1000) / 1000.0 * 0.3
 	return mod
 
@@ -1301,3 +1311,84 @@ func station_as_town(star_i: int) -> Dictionary:
 	var st: Dictionary = Galaxy.star(star_i).station
 	return {"key": "station:%d" % star_i, "star": star_i, "index": 0, "biome": Galaxy.planet(star_i, 0).biome,
 		"town": {"name": st.name, "seed": st.seed, "specialty": st.demand[0], "max_tier": 0}}
+
+
+
+# --------------------------------------------------------------------------
+# customisation + loadouts
+# --------------------------------------------------------------------------
+
+signal appearance_changed
+
+func cosmetic(slot: String, id: String) -> Dictionary:
+	for c in Db.COSMETICS[slot]:
+		if c.id == id:
+			return c
+	return Db.COSMETICS[slot][0]
+
+
+func owns_cosmetic(slot: String, id: String) -> bool:
+	return cosmetic(slot, id).price == 0 or owned_cosmetics.has("%s:%s" % [slot, id])
+
+
+func equipped(slot: String) -> String:
+	return appearance.get(slot, Db.COSMETICS[slot][0].id)
+
+
+## Buy (if needed) and equip a part or finish. Returns true on success.
+func equip_cosmetic(slot: String, id: String) -> bool:
+	var c := cosmetic(slot, id)
+	if not owns_cosmetic(slot, id):
+		if credits < c.price:
+			notify.emit("%s costs %d credits." % [c.name, c.price], Color("ff6b6b"))
+			return false
+		add_credits(-int(c.price), true)
+		owned_cosmetics.append("%s:%s" % [slot, id])
+		notify.emit("Purchased %s" % c.name, Color("ffd23f"))
+		Sound.play("coin", -4.0, 0.0, "UI")
+	appearance[slot] = id
+	appearance_changed.emit()
+	return true
+
+
+func set_paint(channel: String, color: Color) -> void:
+	appearance[channel] = color.to_html(false)
+	appearance_changed.emit()
+
+
+func reset_paint() -> void:
+	for ch in ["shell", "accent", "glow", "flame"]:
+		appearance.erase(ch)
+	appearance_changed.emit()
+
+
+func weapon_def() -> Dictionary:
+	return Db.WEAPONS.get(weapon, Db.WEAPONS.pulse)
+
+
+func weapon_unlocked(id: String) -> bool:
+	var u: String = Db.WEAPONS[id].unlock
+	return u == "" or has_upgrade(u)
+
+
+func set_weapon(id: String) -> void:
+	if not weapon_unlocked(id):
+		notify.emit("%s loadout is locked. Craft the %s first." % [Db.WEAPONS[id].name, Db.item_name(Db.WEAPONS[id].unlock)], Color("ff6b6b"))
+		return
+	weapon = id
+	notify.emit("Weapon: %s" % Db.WEAPONS[id].name, Color("ffb86b"))
+	Sound.play("turret_deploy", -10.0, 0.05, "UI")
+	appearance_changed.emit()
+
+
+func cycle_weapon() -> void:
+	var ids: Array = Db.WEAPONS.keys()
+	var i := ids.find(weapon)
+	for k in range(1, ids.size() + 1):
+		var nxt: String = ids[(i + k) % ids.size()]
+		if weapon_unlocked(nxt):
+			if nxt != weapon:
+				set_weapon(nxt)
+			else:
+				notify.emit("Craft a Scatter Emitter or Rail Coil to unlock more loadouts.", Color("9aa0a6"))
+			return

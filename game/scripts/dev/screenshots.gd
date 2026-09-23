@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "outfit":
+		await _outfit_tour()
+		get_tree().quit()
+		return
 	if which == "station":
 		await _station_tour()
 		get_tree().quit()
@@ -693,3 +697,47 @@ func _station_tour() -> void:
 		await shot("station_" + tab)
 	s.hud._station_tab = "sell"
 	s.hud.close_panel()
+
+
+func _outfit_tour() -> void:
+	var looks := [
+		{"robot": "scout", "look": {"head": "dome", "top": "flower", "pack": "wings", "shell": "ff7eb6", "accent": "f4f4f2", "glow": "ffd23f", "flame": "ff7eb6", "finish": "standard"}},
+		{"robot": "miner", "look": {"head": "crest", "top": "horns", "pack": "rockets", "shell": "2a2d36", "accent": "e0453a", "glow": "e0453a", "flame": "ff9f43", "finish": "matte"}},
+		{"robot": "engineer", "look": {"head": "mono", "top": "tophat", "pack": "ring", "shell": "39a0ff", "accent": "ffd23f", "glow": "6ee06a", "flame": "39a0ff", "finish": "neon"}},
+		{"robot": "siphon", "look": {"head": "box", "top": "crown", "pack": "rockets", "shell": "f4f4f2", "accent": "b06bff", "glow": "b06bff", "flame": "b06bff", "finish": "gold"}},
+	]
+	Game.new_game("engineer", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.add_credits(5000, true)
+	Game.add_item("scatter_mod", 1)
+	w.hud.open_outfitter()
+	await _wait(0.6)
+	await shot("outfit_paint_default")
+	var i := 0
+	for L in looks:
+		Game.robot_id = L.robot
+		Game.appearance = L.look.duplicate()
+		for slot in ["head", "top", "pack", "finish"]:
+			Game.owned_cosmetics.append("%s:%s" % [slot, L.look[slot]])
+		Game.appearance_changed.emit()
+		w.hud._outfit_tab = ["paint", "parts", "parts", "loadout"][i]
+		w.hud._preview_fly = i == 2
+		w.hud._rebuild_town_panel()
+		await _wait(0.8)
+		await shot("outfit_%s" % L.robot)
+		i += 1
+	w.hud.close_panel()
+	# the engineer look in the world, walking and flying
+	Game.robot_id = "engineer"
+	Game.appearance = looks[2].look.duplicate()
+	Game.appearance_changed.emit()
+	var p = w.player
+	p.visual.setup("engineer")
+	p.visual.apply_look(Game.appearance)
+	p.cam_yaw = PI
+	p.cam_pitch = -0.1
+	p.spring.spring_length = 5.0
+	await _wait(1.0)
+	await shot("outfit_in_world")

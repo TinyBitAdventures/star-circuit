@@ -42,6 +42,11 @@ var cargo_bar: ProgressBar
 var cargo_label: Label
 var _station_star := 0
 var _station_tab := "sell"
+var _outfit_tab := "paint"
+var _outfit_channel := "shell"
+var _preview_robot: RobotVisual
+var _preview_pivot: Node3D
+var _preview_fly := false
 var _threats: Array = []
 
 var panel_host: Control
@@ -84,7 +89,7 @@ func _ready() -> void:
 	Game.hull_changed.connect(_refresh_status)
 	Game.credits_changed.connect(func():
 		_refresh_status()
-		if current_panel in ["trade", "trainer", "board", "station"]:
+		if current_panel in ["trade", "trainer", "board", "station", "outfitter"]:
 			_rebuild_town_panel()
 	)
 	Game.player_damaged.connect(_on_damaged)
@@ -537,6 +542,7 @@ func _build_panel() -> void:
 		"trainer": _panel_trainer()
 		"board": _panel_board()
 		"station": _panel_station()
+		"outfitter": _panel_outfitter()
 
 
 func _panel_inventory() -> void:
@@ -837,7 +843,8 @@ Fly close to a planet and press [b]E[/b] to land ([b]F[/b] to dock at its trade 
 Cut asteroids in the belt and fly through the shards  ·  [b]Q[/b] scan the belt  ·  Red arrows at the screen edge point to pirates
 
 [b][color=#5ff7ff]Panels[/color][/b]
-I / Tab cargo  ·  C fabricator  ·  K professions  ·  J quest log  ·  Esc pause
+I / Tab cargo  ·  C fabricator  ·  K professions  ·  J quest log  ·  X swap weapon  ·  Esc pause
+Visit an [b]Outfitter[/b] (towns, or the Outfitting tab at stations) to paint your robot, fit new parts and change loadouts.
 
 [b][color=#ffd23f]Tips[/color][/b]
 Energy recharges in sunlight. Night falls - plan your jetpack use.
@@ -966,7 +973,9 @@ func _build_combat() -> void:
 		root.add_child(pc)
 		var av := VBoxContainer.new()
 		pc.add_child(av)
-		ability_label = UiKit.label("[F] %s  ·  LMB fire  ·  G repair" % ab.name, 14, Game.robot().color.lightened(0.35))
+		ability_label = UiKit.label("", 14, Game.robot().color.lightened(0.35))
+		_update_ability_label()
+		Game.appearance_changed.connect(_update_ability_label)
 		ability_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		av.add_child(ability_label)
 		ability_bar = UiKit.bar(Game.robot().color, 6)
@@ -1448,6 +1457,10 @@ func _panel_station() -> void:
 		_panel_board()
 		_station_tabs_into(_panel_body())
 		return
+	if _station_tab == "outfit":
+		_panel_outfitter()
+		_station_tabs_into(_panel_body())
+		return
 	var v := _frame("⌬ %s" % st.name.to_upper(), Vector2(1080, 700))
 	_station_tabs_into(v)
 	var info := HBoxContainer.new()
@@ -1541,7 +1554,7 @@ func _panel_body() -> VBoxContainer:
 func _station_tabs_into(v: VBoxContainer) -> void:
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 8)
-	for t in [["sell", "Sell"], ["buy", "Buy"], ["services", "Services"], ["contracts", "Contracts"]]:
+	for t in [["sell", "Sell"], ["buy", "Buy"], ["services", "Services"], ["contracts", "Contracts"], ["outfit", "Outfitting"]]:
 		var b := UiKit.button(t[1], func():
 			_station_tab = t[0]
 			_rebuild_town_panel()
@@ -1552,3 +1565,252 @@ func _station_tabs_into(v: VBoxContainer) -> void:
 		tabs.add_child(b)
 	v.add_child(tabs)
 	v.move_child(tabs, 2)
+
+
+func _update_ability_label() -> void:
+	if ability_label:
+		ability_label.text = "[F] %s  ·  LMB %s (X swap)  ·  G repair" % [Game.robot().ability.name, Game.weapon_def().name]
+
+
+# --------------------------------------------------------------------------
+# outfitter: paint, parts, loadout with a live preview
+# --------------------------------------------------------------------------
+
+func open_outfitter() -> void:
+	toggle_panel("outfitter")
+
+
+func _panel_outfitter() -> void:
+	var v := _frame("OUTFITTER  ·  %s" % Game.player_name.to_upper(), Vector2(1180, 720))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 22)
+	h.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(h)
+	h.add_child(_build_preview())
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 10)
+	h.add_child(right)
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 8)
+	right.add_child(tabs)
+	for t in [["paint", "Paint"], ["parts", "Parts"], ["loadout", "Loadout"]]:
+		var b := UiKit.button(t[1], func():
+			_outfit_tab = t[0]
+			_rebuild_town_panel()
+		)
+		b.custom_minimum_size = Vector2(130, 40)
+		if _outfit_tab == t[0]:
+			b.add_theme_stylebox_override("normal", UiKit.box(Color(0.1, 0.22, 0.34, 1), UiKit.ACCENT, 8, 2, 8))
+		tabs.add_child(b)
+	right.add_child(UiKit.label("Credits ⌬ %d" % Game.credits, 16, Color("ffd23f")))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(scroll)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 10)
+	scroll.add_child(body)
+	match _outfit_tab:
+		"paint": _outfit_paint(body)
+		"parts": _outfit_parts(body)
+		"loadout": _outfit_loadout(body)
+
+
+func _build_preview() -> Control:
+	var box := VBoxContainer.new()
+	var svc := SubViewportContainer.new()
+	svc.custom_minimum_size = Vector2(420, 540)
+	svc.stretch = true
+	box.add_child(svc)
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.msaa_3d = Viewport.MSAA_4X
+	svc.add_child(vp)
+	var env := WorldEnvironment.new()
+	var e := Environment.new()
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = Color(0.04, 0.06, 0.12)
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	e.ambient_light_color = Color(0.6, 0.65, 0.8)
+	e.ambient_light_energy = 0.6
+	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	e.glow_enabled = true
+	env.environment = e
+	vp.add_child(env)
+	var key := DirectionalLight3D.new()
+	key.rotation_degrees = Vector3(-35, 30, 0)
+	key.light_energy = 1.4
+	vp.add_child(key)
+	var rim := DirectionalLight3D.new()
+	rim.rotation_degrees = Vector3(-10, 200, 0)
+	rim.light_energy = 0.8
+	rim.light_color = Color("7ad7ff")
+	vp.add_child(rim)
+	var ped := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 1.2
+	cyl.bottom_radius = 1.3
+	cyl.height = 0.2
+	ped.mesh = cyl
+	var pm := StandardMaterial3D.new()
+	pm.albedo_color = Color("1b2233")
+	pm.metallic = 0.7
+	pm.roughness = 0.3
+	ped.material_override = pm
+	ped.position.y = -0.1
+	vp.add_child(ped)
+	_preview_pivot = Node3D.new()
+	vp.add_child(_preview_pivot)
+	_preview_robot = RobotVisual.new()
+	_preview_pivot.add_child(_preview_robot)
+	_preview_robot.setup(Game.robot_id)
+	_preview_robot.apply_look(Game.appearance)
+	_preview_robot.flying = _preview_fly
+	if _preview_fly:
+		_preview_robot.rotation = Vector3(-PI * 0.45, 0, 0)
+		_preview_robot.position = Vector3(0, 1.3, 0.9)
+	var cam := Camera3D.new()
+	cam.fov = 40.0
+	vp.add_child(cam)
+	cam.look_at_from_position(Vector3(0, 1.6, 6.2), Vector3(0, 1.15, 0), Vector3.UP)
+	svc.gui_input.connect(func(ev):
+		if ev is InputEventMouseMotion and ev.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			_preview_pivot.rotation.y += ev.relative.x * 0.01
+	)
+	_preview_pivot.rotation.y = 0.6
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	row.add_child(UiKit.label("Drag to rotate", 13, UiKit.MUTED))
+	var sp := Control.new()
+	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(sp)
+	row.add_child(UiKit.button("Flight pose" if not _preview_fly else "Standing pose", func():
+		_preview_fly = not _preview_fly
+		_rebuild_town_panel()
+	))
+	return box
+
+
+func _process(delta: float) -> void:
+	if is_instance_valid(_preview_pivot) and _preview_pivot.is_inside_tree():
+		_preview_pivot.rotation.y += delta * 0.35
+
+
+func _outfit_paint(body: VBoxContainer) -> void:
+	var chans := [["shell", "Hull"], ["accent", "Accent"], ["glow", "Glow / eyes"], ["flame", "Thruster flame"]]
+	var ch_row := HBoxContainer.new()
+	ch_row.add_theme_constant_override("separation", 8)
+	body.add_child(ch_row)
+	for c in chans:
+		var b := UiKit.button(c[1], func():
+			_outfit_channel = c[0]
+			_rebuild_town_panel()
+		)
+		if _outfit_channel == c[0]:
+			b.add_theme_stylebox_override("normal", UiKit.box(Color(0.1, 0.22, 0.34, 1), UiKit.ACCENT, 8, 2, 8))
+		ch_row.add_child(b)
+	body.add_child(UiKit.label("Pick a colour for %s. Paint is free." % _channel_name(_outfit_channel), 14, UiKit.MUTED))
+	var grid := GridContainer.new()
+	grid.columns = 6
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	body.add_child(grid)
+	for col in Db.PAINT_SWATCHES:
+		var sw := Button.new()
+		sw.custom_minimum_size = Vector2(64, 44)
+		sw.focus_mode = Control.FOCUS_NONE
+		var cur: String = Game.appearance.get(_outfit_channel, "")
+		var selected: bool = cur != "" and Color(cur).is_equal_approx(col)
+		sw.add_theme_stylebox_override("normal", UiKit.box(col, Color.WHITE if selected else col.lightened(0.3), 8, 3 if selected else 1, 0))
+		sw.add_theme_stylebox_override("hover", UiKit.box(col.lightened(0.15), Color.WHITE, 8, 2, 0))
+		sw.add_theme_stylebox_override("pressed", UiKit.box(col.darkened(0.1), Color.WHITE, 8, 2, 0))
+		sw.pressed.connect(func():
+			Sound.ui()
+			Game.set_paint(_outfit_channel, col)
+			_rebuild_town_panel()
+		)
+		grid.add_child(sw)
+	var custom := HBoxContainer.new()
+	custom.add_theme_constant_override("separation", 10)
+	body.add_child(custom)
+	custom.add_child(UiKit.label("Custom:", 15))
+	var picker := ColorPickerButton.new()
+	picker.custom_minimum_size = Vector2(120, 40)
+	picker.edit_alpha = false
+	picker.color = Color(Game.appearance.get(_outfit_channel, "#ffffff"))
+	picker.popup_closed.connect(func():
+		Game.set_paint(_outfit_channel, picker.color)
+		_rebuild_town_panel()
+	)
+	custom.add_child(picker)
+	custom.add_child(UiKit.button("Factory colours", func():
+		Game.reset_paint()
+		_rebuild_town_panel()
+	))
+	body.add_child(HSeparator.new())
+	body.add_child(UiKit.label("FINISH", 13, UiKit.MUTED, true))
+	_cosmetic_grid(body, "finish")
+
+
+func _channel_name(ch: String) -> String:
+	return {"shell": "the hull", "accent": "the accents", "glow": "eyes and lights", "flame": "the thruster flame"}.get(ch, ch)
+
+
+func _outfit_parts(body: VBoxContainer) -> void:
+	for slot in [["head", "HEAD"], ["top", "TOPPER"], ["pack", "FLIGHT RIG"]]:
+		body.add_child(UiKit.label(slot[1], 13, UiKit.MUTED, true))
+		_cosmetic_grid(body, slot[0])
+
+
+func _cosmetic_grid(body: VBoxContainer, slot: String) -> void:
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	body.add_child(grid)
+	for c in Db.COSMETICS[slot]:
+		var owned: bool = Game.owns_cosmetic(slot, c.id)
+		var on: bool = Game.equipped(slot) == c.id
+		var label := "%s\n%s" % [c.name, "Equipped" if on else ("Owned" if owned else "⌬ %d" % c.price)]
+		var b := UiKit.button(label, func():
+			if Game.equip_cosmetic(slot, c.id):
+				_rebuild_town_panel()
+		)
+		b.custom_minimum_size = Vector2(180, 58)
+		if on:
+			b.add_theme_stylebox_override("normal", UiKit.box(Color(0.1, 0.26, 0.2, 1), Color("6ee06a"), 8, 2, 8))
+		elif not owned and Game.credits < int(c.price):
+			b.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
+		grid.add_child(b)
+
+
+func _outfit_loadout(body: VBoxContainer) -> void:
+	body.add_child(UiKit.label("Your weapon fires on foot and in flight. Press X anywhere to cycle unlocked loadouts.", 14, UiKit.MUTED))
+	for id in Db.WEAPONS:
+		var w: Dictionary = Db.WEAPONS[id]
+		var pc := PanelContainer.new()
+		var on: bool = Game.weapon == id
+		pc.add_theme_stylebox_override("panel", UiKit.box(Color(0.06, 0.09, 0.15, 0.95), Color("6ee06a") if on else UiKit.LINE, 10, 2 if on else 1, 12))
+		body.add_child(pc)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 14)
+		pc.add_child(row)
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(info)
+		info.add_child(UiKit.label(String(w.name).to_upper(), 18, Color("ffb86b"), true))
+		info.add_child(UiKit.label(w.desc, 15))
+		var dps := float(w.dmg) * float(w.pellets) / float(w.rate)
+		var stats := UiKit.label("Damage/shot x%.1f  ·  Pellets %d  ·  Rate x%.2f  ·  Range x%.1f  ·  DPS x%.2f  ·  Energy x%.1f%s" % [w.dmg, w.pellets, 1.0 / float(w.rate), w.range, dps, w.cost, "  ·  pierces" if w.pierce else ""], 13, UiKit.MUTED)
+		stats.autowrap_mode = TextServer.AUTOWRAP_WORD
+		info.add_child(stats)
+		if on:
+			row.add_child(UiKit.label("Equipped", 16, Color("6ee06a")))
+		elif Game.weapon_unlocked(id):
+			row.add_child(UiKit.button("Equip", func():
+				Game.set_weapon(id)
+				_rebuild_town_panel()
+			))
+		else:
+			row.add_child(UiKit.label("Craft the %s\nto unlock" % Db.item_name(w.unlock), 14, Color("ff9f43")))

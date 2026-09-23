@@ -132,6 +132,47 @@ func _run() -> void:
 	for b in Game.bounties.duplicate():
 		Game.turn_in_bounty(b)
 	print("[smoke] bounties turned in: credits ", cr, "->", Game.credits, " remaining=", Game.bounties.size())
+	# ---- customisation + loadouts ----
+	Game.add_credits(2000, true)
+	var cr_c := Game.credits
+	Game.equip_cosmetic("head", "mono")
+	Game.equip_cosmetic("top", "crown")
+	Game.equip_cosmetic("pack", "wings")
+	Game.equip_cosmetic("finish", "chrome")
+	Game.set_paint("shell", Color("e0453a"))
+	Game.set_paint("glow", Color("6ee06a"))
+	await get_tree().process_frame
+	var vis: RobotVisual = p.visual
+	print("[smoke] cosmetics spent ", cr_c - Game.credits, " owned=", Game.owned_cosmetics, " head=", vis.model.find_child("CustomHead", true, false) != null, " top=", vis.model.find_child("CustomTop", true, false) != null, " pack=", vis.model.find_child("CustomThruster", true, false) != null)
+	Game.cycle_weapon()
+	print("[smoke] weapon before unlock=", Game.weapon)
+	Game.add_item("scatter_mod", 1)
+	Game.add_item("rail_mod", 1)
+	Game.cycle_weapon()
+	var w1 := Game.weapon
+	Game.cycle_weapon()
+	print("[smoke] weapons cycle: ", w1, " -> ", Game.weapon)
+	var tgt: Enemy = null
+	for en in w.enemies:
+		if en.is_alive():
+			tgt = en
+			break
+	if tgt:
+		for wid in ["scatter", "rail"]:
+			Game.set_weapon(wid)
+			p.place_at((tgt.dir + PlanetGen.align_basis(tgt.dir).x * 8.0 / w.gen.radius).normalized(), w.gen)
+			var up2: Vector3 = p.global_position.normalized()
+			var to2: Vector3 = tgt.global_position + up2 * 1.0 - p.global_position
+			p.ref_fwd = (to2 - up2 * to2.dot(up2)).normalized()
+			p.cam_yaw = 0.0
+			p.cam_pitch = -0.05
+			await get_tree().physics_frame
+			await get_tree().physics_frame
+			var hpb: float = tgt.hp
+			p.camera.look_at(tgt.global_position + tgt.global_basis.y * 1.2, up2)
+			p._shoot(up2)
+			print("[smoke] ", wid, " shot: enemy hp ", int(hpb), "->", int(tgt.hp) if is_instance_valid(tgt) else -1)
+	Game.set_weapon("pulse")
 	# save/load round trip keeps quest by id
 	var qid: String = Game.current_quest().get("id", "")
 	Game.save_game()

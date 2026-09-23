@@ -36,6 +36,8 @@ func _ready() -> void:
 	visual = RobotVisual.new()
 	add_child(visual)
 	visual.setup(Game.robot_id)
+	visual.apply_look.call_deferred(Game.appearance)
+	Game.appearance_changed.connect(func(): visual.apply_look(Game.appearance))
 	visual.flying = true
 	visual.rotation = Vector3(-PI * 0.45, 0, 0)
 	visual.position = Vector3(0, -0.8, 0)
@@ -230,6 +232,8 @@ func _update_mining(delta: float, ui: bool) -> void:
 	_scan_cd = maxf(0.0, _scan_cd - delta)
 	_fire_cd = maxf(0.0, _fire_cd - delta)
 	_missile_cd = maxf(0.0, _missile_cd - delta)
+	if not ui and Input.is_action_just_pressed("weapon_cycle"):
+		Game.cycle_weapon()
 	if not ui and Input.is_action_just_pressed("scan") and _scan_cd <= 0.0:
 		if Game.spend_energy(5.0):
 			_scan_cd = 3.0
@@ -263,7 +267,7 @@ func _update_mining(delta: float, ui: bool) -> void:
 	# left mouse is contextual: laser on rock, cannons on everything else
 	if rock:
 		_mine(rock, hit, delta)
-	elif _fire_cd <= 0.0 and Game.energy >= CANNON_COST:
+	elif _fire_cd <= 0.0 and Game.energy >= CANNON_COST * float(Game.weapon_def().cost):
 		_fire_cannons(hit, foe)
 
 
@@ -286,18 +290,46 @@ func _mine(rock: Asteroid, hit: Dictionary, delta: float) -> void:
 		CombatFx.spark(world, hit.position, rock.def.vein, 0.6)
 
 
-func _fire_cannons(hit: Dictionary, foe: SpaceEnemy) -> void:
-	_fire_cd = CANNON_RATE
-	Game.drain_energy(CANNON_COST)
+func _fire_cannons(_hit: Dictionary, _foe: SpaceEnemy) -> void:
+	var wd := Game.weapon_def()
+	_fire_cd = CANNON_RATE * float(wd.rate) * (0.7 if wd.name == "Scatter" else 1.0)
+	Game.drain_energy(CANNON_COST * float(wd.cost))
 	_gun_side = -_gun_side
 	var muzzle := global_transform * Vector3(0.9 * _gun_side, -0.5, -1.4)
-	var end: Vector3 = hit.position if not hit.is_empty() else camera.global_position - camera.global_basis.z * CANNON_RANGE
-	CombatFx.tracer(world, muzzle, end, Game.robot().color.lightened(0.4))
-	Sound.play("blaster", -9.0, 0.12, "SFX", 0.0)
-	if foe and foe.is_alive():
-		var crit := randf() < 0.1
-		foe.take_hit(Game.space_weapon_damage() * randf_range(0.9, 1.1) * (1.8 if crit else 1.0), crit)
-		Sound.play_3d("crit" if crit else "hit", end, -6.0, 0.1, 40.0)
+	var from := camera.global_position
+	var fwd := -camera.global_basis.z
+	var reach: float = CANNON_RANGE * float(wd.range)
+	var col: Color = Game.robot().color.lightened(0.4)
+	if Game.appearance.has("glow"):
+		col = Color(Game.appearance.glow)
+	match wd.name:
+		"Rail":
+			Sound.play("sentinel_shot", -4.0, 0.05, "SFX", 0.0)
+		"Scatter":
+			Sound.play("blaster", -5.0, 0.2, "SFX", 0.0)
+		_:
+			Sound.play("blaster", -9.0, 0.12, "SFX", 0.0)
+	for i in int(wd.pellets):
+		var dir := fwd
+		if float(wd.spread) > 0.0:
+			dir = (fwd + camera.global_basis.x * randf_range(-1, 1) * float(wd.spread) * 0.6 + camera.global_basis.y * randf_range(-1, 1) * float(wd.spread) * 0.6).normalized()
+		var exclude: Array[RID] = []
+		var end := from + dir * reach
+		for pierce in (5 if wd.pierce else 1):
+			var q := PhysicsRayQueryParameters3D.create(from, from + dir * reach, Asteroid.LAYER | SpaceEnemy.LAYER, exclude)
+			var r := get_world_3d().direct_space_state.intersect_ray(q)
+			if r.is_empty():
+				break
+			end = r.position
+			var e := r.get("collider") as SpaceEnemy
+			if e == null:
+				break
+			if e.is_alive():
+				var crit := randf() < 0.1
+				e.take_hit(Game.space_weapon_damage() * float(wd.dmg) * randf_range(0.9, 1.1) * (1.8 if crit else 1.0), crit)
+				Sound.play_3d("crit" if crit else "hit", r.position, -6.0, 0.1, 40.0)
+			exclude.append(e.get_rid())
+		CombatFx.tracer(world, muzzle, end, col * (1.6 if wd.pierce else 1.0))
 
 
 func _launch_missiles(aimed: SpaceEnemy) -> void:

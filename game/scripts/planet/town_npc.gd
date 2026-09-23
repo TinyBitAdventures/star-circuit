@@ -40,13 +40,13 @@ func setup(w: Node3D, r: String, n: String, t: String, tint: Color, centre: Vect
 	plate.outline_size = 10
 	plate.pixel_size = 0.006
 	plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	plate.modulate = CombatFx.hdr(Color("ffd23f") if role in ["merchant", "trainer", "board"] else Color("b8e3ff"))
+	plate.modulate = CombatFx.hdr(Color("ffd23f") if role in ["merchant", "trainer", "board", "outfitter"] else Color("b8e3ff"))
 	plate.position.y = 3.9 if role == "board" else 2.5
 	add_child(plate)
 	_plate = plate
-	if role in ["merchant", "trainer", "board"]:
+	if role in ["merchant", "trainer", "board", "outfitter"]:
 		var mark := Label3D.new()
-		mark.text = {"merchant": "$", "trainer": "✦", "board": "!"}[role]
+		mark.text = {"merchant": "$", "trainer": "✦", "board": "!", "outfitter": "✎"}[role]
 		mark.font = UiKit.body_font()
 		mark.font_size = 90
 		mark.outline_size = 16
@@ -137,6 +137,8 @@ func interact_info() -> Dictionary:
 			return {"text": "[E] Trade with %s" % npc_name, "color": Color("ffd23f"), "instant": true}
 		"trainer":
 			return {"text": "[E] Train with %s" % npc_name, "color": Color("ffd23f"), "instant": true}
+		"outfitter":
+			return {"text": "[E] Customise your robot with %s" % npc_name, "color": Color("ff7eb6"), "instant": true}
 		"board":
 			var ready := 0
 			for b in Game.bounties:
@@ -152,6 +154,8 @@ func interact(_player: Node) -> void:
 			world.hud.open_town_panel("trade", world.town_planet())
 		"trainer":
 			world.hud.open_town_panel("trainer", world.town_planet())
+		"outfitter":
+			world.hud.open_outfitter()
 		"board":
 			world.hud.open_town_panel("board", world.town_planet())
 		_:

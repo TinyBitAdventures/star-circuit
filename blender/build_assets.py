@@ -1013,6 +1013,139 @@ def build_station():
     export("orbital_station")
 
 
+# --------------------------------------------------------------------------
+# cosmetic parts. Materials: Shell / Accent / Metal / Eye get recoloured by
+# the player's paint job; anything else keeps its own colour.
+# Heads + toppers: origin at the base. Packs: origin at the mount point,
+# body extends backward (Blender -Y) with nozzles pointing down.
+# --------------------------------------------------------------------------
+
+def _cos_mats():
+    return (mat("Shell", hexc("#e6e8ec"), 0.2, 0.4), mat("Accent", hexc("#18c2b0"), 0.3, 0.35),
+            mat("Metal", hexc("#2a3140"), 0.8, 0.35), mat("Eye", (1, 1, 1), emission=hexc("#5ff7ff"), strength=6))
+
+
+def build_heads():
+    # dome with a wraparound visor
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    h = part("Dome", "sphere", (0.66, 0.62, 0.56), shell, loc=(0, 0, 0.28), parent=root)
+    part("Visor", "torus", (0.62, 0.58, 0.5), eye, loc=(0, 0, 0.02), rot=(0.25, 0, 0), parent=h, minor=0.06)
+    part("Collar", "cyl", (0.5, 0.5, 0.1), metal, loc=(0, 0, 0.03), parent=root)
+    export("head_dome")
+    # boxy head with a scanner strip
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    b = part("Box", "cube", (0.66, 0.58, 0.5), shell, loc=(0, 0, 0.28), parent=root, bevel=0.12)
+    part("Strip", "cube", (0.5, 0.06, 0.12), eye, loc=(0, 0.3, 0.04), parent=b, bevel=0.03)
+    for sd in (-1, 1):
+        part(f"Ear{sd}", "cyl", (0.2, 0.2, 0.12), accent, loc=(0.36 * sd, 0, 0.02), rot=(0, math.pi / 2, 0), parent=b)
+    export("head_box")
+    # crested knight helm
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    hm = part("Helm", "sphere", (0.62, 0.66, 0.6), shell, loc=(0, 0, 0.3), parent=root)
+    part("Slit", "cube", (0.44, 0.08, 0.07), eye, loc=(0, 0.31, 0.02), parent=hm, bevel=0.02)
+    part("Crest", "cone", (0.12, 0.7, 0.5), accent, loc=(0, -0.05, 0.28), offset=(0, 0, 0.2), parent=hm, seg=4, r2=0.02, smooth=False)
+    export("head_crest")
+    # cyclops mono-eye
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    m = part("Ball", "sphere", (0.64, 0.64, 0.64), shell, loc=(0, 0, 0.32), parent=root)
+    ring = part("EyeRing", "cyl", (0.4, 0.4, 0.1), metal, loc=(0, 0.28, 0.02), rot=(math.pi / 2, 0, 0), parent=m)
+    part("Eye", "sphere", (0.3, 0.12, 0.3), eye, loc=(0, 0.05, 0), rot=(-math.pi / 2, 0, 0), parent=ring)
+    part("Band", "torus", (0.66, 0.66, 0.66), accent, loc=(0, 0, -0.08), parent=m, minor=0.05)
+    export("head_mono")
+
+
+def build_toppers():
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    part("Rod", "cyl", (0.05, 0.05, 0.6), metal, offset=(0, 0, 0.3), parent=root)
+    part("Ball", "sphere", (0.16, 0.16, 0.16), eye, loc=(0, 0, 0.62), parent=root)
+    export("top_antenna")
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    for sd in (-1, 1):
+        part(f"Horn{sd}", "cone", (0.14, 0.14, 0.5), accent, loc=(0.2 * sd, 0, 0), offset=(0, 0, 0.22), rot=(0, 0.45 * sd, 0), parent=root, seg=10)
+    export("top_horns")
+    reset_scene()
+    black = mat("Hat", hexc("#1c1c22"), 0.1, 0.6)
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    part("Brim", "cyl", (0.62, 0.62, 0.05), black, loc=(0, 0, 0.02), parent=root)
+    part("Crown", "cyl", (0.4, 0.4, 0.45), black, offset=(0, 0, 0.24), parent=root)
+    part("Band", "cyl", (0.41, 0.41, 0.08), accent, loc=(0, 0, 0.09), parent=root)
+    export("top_tophat")
+    reset_scene()
+    gold = mat("Gold", hexc("#f2c14e"), 1.0, 0.2)
+    gem = mat("Gem", (1, 1, 1), emission=hexc("#ff3d6e"), strength=3)
+    root = empty("Part")
+    part("Band", "cyl", (0.5, 0.5, 0.14), gold, offset=(0, 0, 0.07), parent=root, seg=10)
+    for i in range(5):
+        a = i / 5 * math.tau
+        part(f"Spike{i}", "cone", (0.12, 0.12, 0.22), gold, loc=(math.cos(a) * 0.22, math.sin(a) * 0.22, 0.13), offset=(0, 0, 0.1), parent=root, seg=4)
+    part("Gem", "ico", (0.12, 0.12, 0.12), gem, loc=(0, 0.25, 0.08), parent=root, sub=0)
+    export("top_crown")
+    reset_scene()
+    stem = mat("Stem", hexc("#4f9d3a"), 0.0, 0.7)
+    petal = mat("Petal", hexc("#ff7eb6"), 0.0, 0.5)
+    centre = mat("Centre", hexc("#ffd23f"), 0.0, 0.4)
+    root = empty("Part")
+    part("Stem", "cyl", (0.04, 0.04, 0.4), stem, offset=(0, 0, 0.2), rot=(0.25, 0, 0), parent=root)
+    fl = empty("Flower", loc=(0, 0.1, 0.4), parent=root)
+    part("Centre", "sphere", (0.14, 0.14, 0.08), centre, parent=fl)
+    for i in range(6):
+        a = i / 6 * math.tau
+        part(f"Petal{i}", "sphere", (0.14, 0.08, 0.04), petal, loc=(math.cos(a) * 0.12, math.sin(a) * 0.12, 0), rot=(0, 0, a), parent=fl)
+    export("top_flower")
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    part("Post", "cyl", (0.06, 0.06, 0.25), metal, offset=(0, 0, 0.12), parent=root)
+    d = part("Dish", "sphere", (0.42, 0.42, 0.14), shell, loc=(0, 0, 0.28), rot=(0.6, 0, 0.4), parent=root)
+    part("Feed", "cyl", (0.03, 0.03, 0.2), metal, loc=(0, 0, 0.1), parent=d)
+    part("Tip", "sphere", (0.07, 0.07, 0.07), eye, loc=(0, 0, 0.2), parent=d)
+    export("top_dish")
+
+
+def build_packs():
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    for sd in (-1, 1):
+        body = part(f"Rocket{sd}", "cyl", (0.26, 0.26, 0.9), shell, loc=(0.2 * sd, -0.05, 0.05), parent=root)
+        part(f"Nose{sd}", "cone", (0.26, 0.26, 0.3), accent, loc=(0, 0, 0.6), parent=body)
+        part(f"Nozzle{sd}", "cone", (0.3, 0.3, 0.22), metal, loc=(0, 0, -0.52), rot=(math.pi, 0, 0), parent=body, r2=0.16)
+        part(f"Fin{sd}", "cube", (0.04, 0.3, 0.3), accent, loc=(0.14 * sd, 0, -0.3), parent=body)
+    export("pack_rockets")
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    part("Pod", "cube", (0.36, 0.3, 0.5), metal, loc=(0, -0.05, 0.0), parent=root, bevel=0.08)
+    for sd in (-1, 1):
+        part(f"Wing{sd}", "cube", (1.1, 0.35, 0.05), accent, loc=(0.6 * sd, -0.12, 0.2), rot=(0, 0.35 * sd, -0.4 * sd), parent=root, bevel=0.02)
+        part(f"WingTip{sd}", "sphere", (0.1, 0.1, 0.1), eye, loc=(1.12 * sd, -0.12, 0.42), parent=root)
+    part("Nozzle", "cone", (0.26, 0.26, 0.2), shell, loc=(0, -0.05, -0.32), rot=(math.pi, 0, 0), parent=root, r2=0.14)
+    export("pack_wings")
+    reset_scene()
+    shell, accent, metal, eye = _cos_mats()
+    root = empty("Part")
+    part("Hub", "sphere", (0.36, 0.3, 0.36), metal, loc=(0, -0.08, 0), parent=root)
+    part("Ring", "torus", (0.95, 0.95, 0.95), accent, loc=(0, -0.12, 0), rot=(math.pi / 2, 0, 0), parent=root, minor=0.07)
+    part("RingGlow", "torus", (0.95, 0.95, 0.95), eye, loc=(0, -0.13, 0), rot=(math.pi / 2, 0, 0), parent=root, minor=0.02)
+    for i in range(3):
+        a = i / 3 * math.tau + math.pi / 2
+        part(f"Strut{i}", "cyl", (0.05, 0.05, 0.4), shell, loc=(math.cos(a) * 0.22, -0.1, math.sin(a) * 0.22), rot=(0, -a + math.pi / 2, 0), parent=root)
+    export("pack_ring")
+
+
 if __name__ == "__main__":
     build_scout()
     build_miner()
@@ -1059,4 +1192,7 @@ if __name__ == "__main__":
     build_swarmer()
     build_marauder()
     build_station()
+    build_heads()
+    build_toppers()
+    build_packs()
     print("[star-circuit] done")

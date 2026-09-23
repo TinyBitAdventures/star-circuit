@@ -62,6 +62,8 @@ func _ready() -> void:
 	visual = RobotVisual.new()
 	add_child(visual)
 	visual.setup(Game.robot_id)
+	visual.apply_look.call_deferred(Game.appearance)
+	Game.appearance_changed.connect(func(): visual.apply_look(Game.appearance))
 	visual.step.connect(func(): Sound.play("step_%d" % randi_range(1, 3), -14.0, 0.12, "SFX", 0.1))
 
 	cam_rig = Node3D.new()
@@ -271,6 +273,8 @@ func _physics_process(delta: float) -> void:
 				_start_launch()
 		if Input.is_action_just_pressed("repair"):
 			Game.use_repair_kit()
+		if Input.is_action_just_pressed("weapon_cycle"):
+			Game.cycle_weapon()
 		if Input.is_action_just_pressed("ability"):
 			_use_ability(up)
 	_update_combat(delta, up, ui_block)
@@ -301,16 +305,17 @@ func _update_combat(delta: float, up: Vector3, ui_block: bool) -> void:
 	if ui_block or launching or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	if Input.is_action_pressed("fire") and fire_cd <= 0.0:
-		if Game.energy < FIRE_COST:
+		var wd := Game.weapon_def()
+		if Game.energy < FIRE_COST * float(wd.cost):
 			if _warn_cd <= 0.0:
 				_warn_cd = 2.0
 				Game.notify.emit("Blaster offline: out of energy (R for a cell)", Color("ff6b6b"))
 			return
-		Game.drain_energy(FIRE_COST)
-		fire_cd = FIRE_RATE
-		Sound.play("blaster", -7.0, 0.1, "SFX", 0.0)
+		Game.drain_energy(FIRE_COST * float(wd.cost))
+		fire_cd = FIRE_RATE * float(wd.rate)
+		_weapon_sound(wd)
 		_fire_pose = 0.6
-		_shoot(hit, up)
+		_shoot(up)
 
 
 var _last_target: Enemy = null
@@ -330,17 +335,53 @@ func _aim_ray() -> Dictionary:
 	return r
 
 
-func _shoot(hit: Dictionary, up: Vector3) -> void:
+func _shoot(up: Vector3) -> void:
+	var wd := Game.weapon_def()
 	var muzzle := global_position + up * 1.3 + global_basis.x * 0.55 - global_basis.z * 0.5
-	var target: Vector3 = hit.position
-	world.tracer(muzzle, target, Game.robot().color.lightened(0.3))
-	var e := hit.get("collider") as Enemy
-	if e and e.is_alive():
-		var crit := randf() < 0.12
-		var dmg := Game.weapon_damage() * randf_range(0.9, 1.1) * (1.8 if crit else 1.0)
-		Sound.play_3d("crit" if crit else "hit", target, -4.0 if crit else -8.0)
-		e.take_hit(dmg, crit)
-		_last_target = e
+	var from := camera.global_position
+	var fwd := -camera.global_basis.z
+	var reach: float = AIM_RANGE * float(wd.range)
+	var col: Color = Game.robot().color.lightened(0.3)
+	if Game.appearance.has("glow"):
+		col = Color(Game.appearance.glow)
+	for i in int(wd.pellets):
+		var dir := fwd
+		if float(wd.spread) > 0.0:
+			dir = (fwd + camera.global_basis.x * randf_range(-1, 1) * float(wd.spread) + camera.global_basis.y * randf_range(-1, 1) * float(wd.spread)).normalized()
+		var exclude: Array[RID] = [get_rid()]
+		var end := from + dir * reach
+		# rail slugs punch through up to four targets
+		for pierce in (4 if wd.pierce else 1):
+			var q := PhysicsRayQueryParameters3D.create(from, from + dir * reach, 1 | 4, exclude)
+			var r := get_world_3d().direct_space_state.intersect_ray(q)
+			if r.is_empty():
+				break
+			end = r.position
+			var e := r.get("collider") as Enemy
+			if e == null:
+				break
+			if e.is_alive():
+				var crit := randf() < 0.12
+				var dmg := Game.weapon_damage() * float(wd.dmg) * randf_range(0.9, 1.1) * (1.8 if crit else 1.0)
+				Sound.play_3d("crit" if crit else "hit", r.position, -4.0 if crit else -8.0)
+				e.take_hit(dmg, crit)
+				_last_target = e
+			exclude.append(e.get_rid())
+		if wd.pierce:
+			CombatFx.tracer(world, muzzle, end, col * 1.6)
+			CombatFx.spark(world, end, col, 1.2)
+		else:
+			world.tracer(muzzle, end, col)
+
+
+func _weapon_sound(wd: Dictionary) -> void:
+	match wd.name:
+		"Rail":
+			Sound.play("sentinel_shot", -3.0, 0.05, "SFX", 0.0)
+		"Scatter":
+			Sound.play("blaster", -3.0, 0.2, "SFX", 0.0)
+		_:
+			Sound.play("blaster", -7.0, 0.1, "SFX", 0.0)
 
 
 func _use_ability(up: Vector3) -> void:

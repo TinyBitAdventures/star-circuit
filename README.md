@@ -50,6 +50,7 @@ The generated models and audio are committed, so Blender and Python are only nee
 | Left mouse | fire blaster at the crosshair (1 energy/shot) |
 | F | class ability (Phase Dash / Seismic Slam / Deploy Turret / Drain Nova) |
 | G | use a Repair Kit |
+| X | cycle weapon loadout (Pulse, Scatter, Rail) |
 | T | break orbit and fly to space |
 
 | Space | |
@@ -105,6 +106,14 @@ Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual 
     off-screen ones. Kills drop salvage shards (scrap, power cores, exotic matter) plus credits and Combat XP.
   - New upgrades are Twin Pulse Cannons and the Missile Rack, plus the "Pirate Problem" and "Hunt the Marauder" quests and "Pirate Hunt" bounties.
     If your ship is destroyed, an emergency beacon reboots you near the system's first world.
+- **Customisation**:
+  - The **Outfitter** (a stall in every town, and a tab at every orbital station) has a live 3D preview you can drag to spin,
+    in standing or flight pose.
+  - Paint the hull, accents, glow and thruster flame (free) with swatches or a colour picker. Buy finishes: Matte, Chrome, Neon Trim, Gold Plate.
+  - Parts, all built in Blender, fit every robot: 4 heads, 7 toppers (antenna, daisy, horns, dish, top hat, crown) and 4 flight rigs
+    (twin rockets, glider wings, jet ring). New parts take the robot's factory colours until you paint them.
+  - **Weapon loadouts** work on foot and in flight. Pulse is balanced, Scatter is a 6-pellet close-range spread, and Rail is a slow, heavy,
+    piercing slug. Unlock them by crafting the Scatter Emitter and Rail Coil, then press X anywhere to swap.
 - **Cargo & orbital stations**:
   - Raw resources and components fill a cargo hold: 150 units, +60 for the Miner. Craft Cargo Pods (+100) and Cargo Pods Mk II (+200)
     to carry more. Consumables and fuel don't count. When the hold is full, gathering and shard pickup stop until you sell.
@@ -164,6 +173,7 @@ Dev checks:
     SHOTS=belt godot --path game res://scenes/dev_shots.tscn   # asteroid belt, scanner, mining laser, shards, comet
     SHOTS=spacefight godot --path game res://scenes/dev_shots.tscn  # pirates, cannons, missiles, threat markers, Marauder
     SHOTS=station godot --path game res://scenes/dev_shots.tscn     # sprint, orbital station, market tabs
+    SHOTS=outfit godot --path game res://scenes/dev_shots.tscn      # outfitter preview, paint/parts/loadout, 4 styled robots
     godot --headless --path game res://scenes/dev_sprint.tscn       # walk vs sprint ground speed
     PIRATE=gunship godot --headless --path game res://scenes/dev_pirate.tscn  # one pirate's pursuit/fire behaviour
     godot --path game --write-movie /tmp/tour.avi --fixed-fps 30 res://scenes/dev_audio.tscn  # record a session with audio

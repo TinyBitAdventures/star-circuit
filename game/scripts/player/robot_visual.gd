@@ -153,3 +153,151 @@ func _pose(part: String, offset: Vector3, rot: Vector3) -> void:
 	var rest: Transform3D = _rest[part]
 	var target := Transform3D(rest.basis * Basis.from_euler(rot), rest.origin + offset)
 	n.transform = n.transform.interpolate_with(target, 0.25)
+
+
+
+# --------------------------------------------------------------------------
+# customisation
+# --------------------------------------------------------------------------
+
+## Rebuild the model with the player's parts, paint and finish.
+func apply_look(look: Dictionary) -> void:
+	if robot_id == "":
+		return
+	setup(robot_id)
+	# remember the robot's factory colours so new parts match when unpainted
+	var base := {"Shell": _find_color("Shell", Color("e6e8ec")), "Accent": _find_color("Accent", Color("18c2b0"))}
+	var head_id: String = look.get("head", "default")
+	if head_id != "default":
+		_swap_part("Head", Game.cosmetic("head", head_id).model)
+	var top_id: String = look.get("top", "none")
+	if top_id != "none":
+		_add_topper(Game.cosmetic("top", top_id).model)
+	var pack_id: String = look.get("pack", "default")
+	if pack_id != "default":
+		_swap_part("Thruster", Game.cosmetic("pack", pack_id).model)
+	var shell: Color = Color(look.shell) if look.has("shell") else base.Shell
+	var accent: Color = Color(look.accent) if look.has("accent") else base.Accent
+	var glow: Color = Color(look.glow) if look.has("glow") else Color(-1, 0, 0)
+	var flame: Color = Color(look.flame) if look.has("flame") else Color(-1, 0, 0)
+	_paint(shell, accent, glow, look.get("finish", "standard"))
+	if flame.r >= 0.0:
+		_tint_flames(flame)
+
+
+func _find_color(mat_name: String, fallback: Color) -> Color:
+	for mi in ModelUtil._mesh_instances(model):
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		for i in mesh.get_surface_count():
+			var m := mesh.surface_get_material(i)
+			if m is StandardMaterial3D and m.resource_name == mat_name:
+				return (m as StandardMaterial3D).albedo_color
+	return fallback
+
+
+## Replace a joint's own geometry (keeping the joint so it still animates).
+func _swap_part(joint: String, path: String) -> void:
+	var n: Node3D = _parts.get(joint)
+	if n == null:
+		return
+	if n is MeshInstance3D:
+		(n as MeshInstance3D).mesh = null
+	for c in n.get_children():
+		if c is CPUParticles3D:
+			continue
+		if c is Node3D:
+			(c as Node3D).visible = false
+	var inst := ModelUtil.instance(path)
+	inst.name = "Custom" + joint
+	n.add_child(inst)
+
+
+## Sit a topper on the highest point of whatever head is fitted.
+func _add_topper(path: String) -> void:
+	var head: Node3D = _parts.get("Head")
+	if head == null:
+		return
+	var box := AABB()
+	var first := true
+	for mi in ModelUtil._mesh_instances(head):
+		if not mi.is_visible_in_tree() or mi.mesh == null:
+			continue
+		var xf: Transform3D = head.global_transform.affine_inverse() * mi.global_transform if head.is_inside_tree() else _relative(head, mi)
+		var b: AABB = xf * mi.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	var inst := ModelUtil.instance(path)
+	inst.name = "CustomTop"
+	head.add_child(inst)
+	var c := box.get_center()
+	inst.position = Vector3(c.x, box.end.y - 0.04, c.z) if not first else Vector3(0, 0.5, 0)
+
+
+func _relative(ancestor: Node3D, n: Node3D) -> Transform3D:
+	var xf := Transform3D.IDENTITY
+	var cur: Node = n
+	while cur != null and cur != ancestor:
+		xf = (cur as Node3D).transform * xf
+		cur = cur.get_parent()
+	return xf
+
+
+func _paint(shell: Color, accent: Color, glow: Color, finish: String) -> void:
+	for mi in ModelUtil._mesh_instances(model):
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		for i in mesh.get_surface_count():
+			var m := mesh.surface_get_material(i)
+			if not (m is StandardMaterial3D):
+				continue
+			var sm := m as StandardMaterial3D
+			var role := ""
+			if sm.resource_name == "Shell":
+				role = "shell"
+			elif sm.resource_name == "Accent":
+				role = "accent"
+			elif sm.emission_enabled and not sm.resource_name.begins_with("ThrusterGlow") and not sm.resource_name.begins_with("Engine"):
+				role = "glow"
+			if role == "" or (role == "glow" and glow.r < 0.0):
+				continue
+			var d: StandardMaterial3D = sm.duplicate()
+			match role:
+				"shell":
+					d.albedo_color = shell
+				"accent":
+					d.albedo_color = accent
+				"glow":
+					d.albedo_color = glow
+					d.emission = glow
+			if role != "glow":
+				match finish:
+					"matte":
+						d.metallic = 0.0
+						d.roughness = 0.95
+					"chrome":
+						d.metallic = 1.0
+						d.roughness = 0.12
+						d.albedo_color = d.albedo_color.lightened(0.25)
+					"gold":
+						if role == "shell":
+							d.albedo_color = Color("e8b93a")
+						d.metallic = 1.0
+						d.roughness = 0.22
+					"neon":
+						if role == "accent":
+							d.emission_enabled = true
+							d.emission = accent
+							d.emission_energy_multiplier = 2.2
+			mi.set_surface_override_material(i, d)
+
+
+func _tint_flames(c: Color) -> void:
+	var grad := Gradient.new()
+	grad.set_color(0, Color(1, 1, 0.95, 1))
+	grad.set_color(1, Color(c.r, c.g, c.b, 0))
+	grad.add_point(0.35, Color(c.lightened(0.2), 0.9))
+	for f in _flames:
+		f.color_ramp = grad
