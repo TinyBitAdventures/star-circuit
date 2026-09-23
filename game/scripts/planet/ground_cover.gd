@@ -13,6 +13,9 @@ const LOOK := {
 	"prism": {"base": Color("3a2a6b"), "tip": Color("c9a6ff"), "density": 0.35, "height": 0.5, "sprig": "crystal", "sprig_density": 0.12, "emissive": 0.4},
 	"frost": {"base": Color("8fb3d1"), "tip": Color("f2f8ff"), "density": 0.35, "height": 0.45, "sprig": "", "sprig_density": 0.0},
 	"dune": {"base": Color("8c6a3c"), "tip": Color("e8cf94"), "density": 0.18, "height": 0.55, "sprig": "", "sprig_density": 0.0},
+	"abyss": {"base": Color("1f5f55"), "tip": Color("7ef0c8"), "density": 0.8, "height": 0.7, "sprig": "mushroom", "sprig_density": 0.05, "emissive": 0.15},
+	"tempest": {"base": Color("3a3650"), "tip": Color("b8b0ff"), "density": 0.3, "height": 0.5, "sprig": "crystal", "sprig_density": 0.05, "emissive": 0.3},
+	"forge": {"base": Color("2a2c33"), "tip": Color("ff8a3a"), "density": 0.0, "height": 0.3, "sprig": "", "sprig_density": 0.0},
 	"ember": {"base": Color("2a1d1d"), "tip": Color("ff6a2a"), "density": 0.0, "height": 0.3, "sprig": "", "sprig_density": 0.0},
 }
 

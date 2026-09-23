@@ -192,6 +192,8 @@ func _build_terrain() -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.material_override = gen.terrain_material()
+	if planet.biome == "forge":
+		(mi.material_override as ShaderMaterial).set_shader_parameter("grid_glow", 1.0)
 	add_child(mi)
 	var body := StaticBody3D.new()
 	var cs := CollisionShape3D.new()
@@ -834,17 +836,16 @@ void fragment() {
 
 
 func _orbit_pos(p: Dictionary) -> Vector3:
-	var a: float = p.angle
-	return Vector3(cos(a) * p.orbit, sin(a * 3.0) * 30.0, sin(a) * p.orbit)
+	return Galaxy.orbit_pos(p, Game.play_time)
 
 
 ## Spore-style floating rock islands on the stranger worlds, reachable by jetpack.
 func _build_floating_islands() -> void:
-	if not planet.biome in ["prism", "bloom", "verdant"]:
+	if not planet.biome in ["prism", "bloom", "verdant", "abyss"]:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = planet.seed + 131
-	var count := 22 if planet.biome != "verdant" else 10
+	var count: int = {"verdant": 10, "abyss": 40}.get(planet.biome, 22)
 	var rocks := []
 	var tops := []
 	var body := StaticBody3D.new()
@@ -868,7 +869,7 @@ func _build_floating_islands() -> void:
 		cs.transform = Transform3D(b, pos + d * s * 0.3)
 		body.add_child(cs)
 	ModelUtil.multimesh(self, "res://assets/models/prop_boulder.glb", rocks)
-	var top_model: String = {"prism": "res://assets/models/res_crystal.glb", "bloom": "res://assets/models/flora_mushroom.glb", "verdant": "res://assets/models/flora_tree_round.glb"}[planet.biome]
+	var top_model: String = {"prism": "res://assets/models/res_crystal.glb", "bloom": "res://assets/models/flora_mushroom.glb", "verdant": "res://assets/models/flora_tree_round.glb", "abyss": "res://assets/models/flora_tree_disc.glb"}[planet.biome]
 	ModelUtil.multimesh(self, top_model, tops, "Foliage", flora_tint)
 
 

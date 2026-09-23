@@ -20,6 +20,9 @@ const KINDS := {
 	"ember": {"name": "Ash storm", "color": Color(1.0, 0.45, 0.15, 1.0), "size": 0.09, "fall": -0.6, "drift": 1.5, "streak": false, "hazard": 1.0, "glow": true},
 	"bloom": {"name": "Spore bloom", "color": Color(0.8, 1.0, 0.6, 0.9), "size": 0.12, "fall": -0.3, "drift": 1.0, "streak": false, "hazard": 0.0, "glow": true},
 	"verdant": {"name": "Rain shower", "color": Color(0.7, 0.8, 1.0, 0.55), "size": 0.05, "fall": 22.0, "drift": 1.0, "streak": true, "hazard": 0.0},
+	"abyss": {"name": "Ocean squall", "color": Color(0.7, 0.85, 1.0, 0.55), "size": 0.05, "fall": 24.0, "drift": 3.0, "streak": true, "hazard": 0.0},
+	"tempest": {"name": "Eternal storm", "color": Color(0.8, 0.8, 1.0, 0.6), "size": 0.05, "fall": 26.0, "drift": 9.0, "streak": true, "hazard": 0.4, "always": true},
+	"forge": {"name": "Ember fall", "color": Color(1.0, 0.55, 0.2, 1.0), "size": 0.08, "fall": 0.8, "drift": 2.0, "streak": false, "hazard": 0.3, "glow": true},
 	"prism": {"name": "Crystal squall", "color": Color(0.9, 0.7, 1.0, 0.9), "size": 0.07, "fall": 1.2, "drift": 3.0, "streak": false, "hazard": 0.3, "glow": true},
 }
 
@@ -85,6 +88,9 @@ func _process(delta: float) -> void:
 	# storm cycle: ~20% of the time
 	var s := sin(t * TAU / STORM_PERIOD)
 	var target := smoothstep(0.55, 0.8, s)
+	if k.get("always", false):
+		target = 1.0
+		_lightning(delta)
 	storm = move_toward(storm, target, delta * 0.15)
 	var is_storm := storm > 0.4
 	_heavy.emitting = is_storm
@@ -101,3 +107,25 @@ func _process(delta: float) -> void:
 			Game.notify.emit(k.name + " passing", Color("9bd1ff"))
 	if is_storm and k.hazard > 0.0 and not (kind == "ember" and Game.has_upgrade("lava_plating")):
 		Game.drain_energy(k.hazard * delta)
+
+
+
+var _bolt_t := 3.0
+
+## Tempest worlds: lightning flashes the sky and thunder rolls in after.
+func _lightning(delta: float) -> void:
+	_bolt_t -= delta
+	if _bolt_t > 0.0:
+		return
+	_bolt_t = randf_range(2.5, 7.0)
+	var sun: DirectionalLight3D = world.sun
+	var e0 := sun.light_energy
+	var t := create_tween()
+	t.tween_property(sun, "light_energy", 6.0, 0.05)
+	t.tween_property(sun, "light_energy", e0, 0.25)
+	world.env.ambient_light_energy = 2.0
+	get_tree().create_timer(randf_range(0.4, 1.6)).timeout.connect(func():
+		Sound.play("slam", -8.0, 0.2)
+		if world.player:
+			world.player.shake.add(0.15)
+	)

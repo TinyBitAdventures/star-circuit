@@ -52,6 +52,14 @@ func _draw() -> void:
 		var d := Galaxy.distance(Game.star_index, s.index)
 		if s.index != Game.star_index and d <= rng:
 			draw_line(c, _to_screen(s.pos), Color(0.35, 0.95, 1.0, 0.18), 1.0)
+	# the relit Circuit: lines between every pair of lit relays that are near each other
+	var lit: Array = Game.lit_relays
+	for i in lit.size():
+		for j in range(i + 1, lit.size()):
+			var a: Dictionary = Galaxy.star(lit[i])
+			var b: Dictionary = Galaxy.star(lit[j])
+			if a.pos.distance_to(b.pos) < 30.0:
+				draw_line(_to_screen(a.pos), _to_screen(b.pos), Color(0.37, 0.97, 1.0, 0.55), 3.0)
 	var font := UiKit.body_font()
 	for s in Galaxy.stars:
 		var p := _to_screen(s.pos)
@@ -61,11 +69,16 @@ func _draw() -> void:
 		draw_circle(p, r, col)
 		if Game.visited_stars.has(s.index):
 			draw_arc(p, r + 4, 0, TAU, 24, Color(0.4, 1.0, 0.6, 0.8), 1.5)
+		if Game.relay_lit(s.index):
+			draw_circle(p, r + 7, Color(0.37, 0.97, 1.0, 0.18))
+		if s.has("legendary"):
+			draw_arc(p, r + 17, 0, TAU, 40, Color("ffd23f"), 2.0)
+			draw_string(font, p + Vector2(-40, r + 34), "EDGE WORLD", HORIZONTAL_ALIGNMENT_CENTER, 80, 12, Color("ffd23f"))
 		if s.index == Game.star_index:
 			draw_arc(p, r + 9, 0, TAU, 32, Color.WHITE, 2.0)
 		if s.index == selected:
 			draw_arc(p, r + 13, 0, TAU, 32, Color("ffd23f"), 2.5)
-		if s.index == hovered or s.index == selected or s.index == Game.star_index or Game.visited_stars.has(s.index):
+		if s.index == hovered or s.index == selected or s.index == Game.star_index or Game.visited_stars.has(s.index) or s.has("legendary"):
 			draw_string(font, p + Vector2(r + 8, 5), s.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, 0.9))
 
 
@@ -138,6 +151,16 @@ func _refresh_info() -> void:
 	if selected == Game.star_index:
 		_info.add_child(UiKit.label("You are here.", 16, UiKit.ACCENT))
 		return
+	var relay_jump: bool = Game.relay_lit(Game.star_index) and Game.relay_lit(selected)
+	_info.add_child(UiKit.label("Relay: %s" % ("ONLINE" if Game.relay_lit(selected) else "dark"), 15, Color("5ff7ff") if Game.relay_lit(selected) else UiKit.MUTED))
+	if s.has("legendary"):
+		_info.add_child(UiKit.label("An edge world orbits this star.", 15, Color("ffd23f")))
+	if relay_jump:
+		var rb := UiKit.button("RELAY JUMP  (free)", _relay_jump)
+		rb.custom_minimum_size = Vector2(0, 50)
+		rb.add_theme_font_override("font", UiKit.title_font())
+		_info.add_child(rb)
+		return
 	var in_range := d <= Game.warp_range()
 	var cells := Game.count("warp_cell")
 	_info.add_child(UiKit.label("Warp Cells: %d" % cells, 15, Color("9b6bff") if cells > 0 else Color("ff6b6b")))
@@ -158,6 +181,20 @@ func _warp() -> void:
 	Sound.play("warp", 0.0, 0.0)
 	Sound.loop_stop("engine", 2.0)
 	Game.big_notify.emit("WARP JUMP", "Destination: %s" % Galaxy.star(to).name, Color("9b6bff"))
+	Game.star_index = to
+	Game.planet_index = 0
+	Game.arrived_by_warp = true
+	Game.record_warp(to)
+	Game.go_to_space()
+
+
+
+func _relay_jump() -> void:
+	var to := selected
+	hud.close_panel(false)
+	Sound.play("warp", 0.0, 0.0)
+	Sound.loop_stop("engine", 2.0)
+	Game.big_notify.emit("RELAY JUMP", "Riding the Circuit to %s" % Galaxy.star(to).name, Color("5ff7ff"))
 	Game.star_index = to
 	Game.planet_index = 0
 	Game.arrived_by_warp = true

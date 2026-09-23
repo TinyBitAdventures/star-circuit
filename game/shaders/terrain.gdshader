@@ -7,6 +7,7 @@ uniform float detail_scale = 0.35;  // noise frequency in object units
 uniform float sea_radius = 0.0;     // object-space sea radius (0 = none)
 uniform float bump_strength = 0.55;
 uniform float snow_sparkle = 1.0;
+uniform float grid_glow = 0.0; // machine world: glowing circuit lines
 
 varying vec3 obj_pos;
 varying vec3 obj_n;
@@ -95,6 +96,14 @@ void fragment() {
 		EMISSION = vec3(1.0) * max(tw, 0.0) * 2.5 * near_detail * snow_sparkle;
 	}
 
+	if (grid_glow > 0.0) {
+		vec3 g = abs(fract(up * 60.0) - 0.5);
+		float line = smoothstep(0.03, 0.0, min(g.x, min(g.y, g.z)));
+		float pulse = 0.6 + 0.4 * sin(TIME * 1.5 + dot(up, vec3(40.0)));
+		EMISSION += vec3(1.0, 0.45, 0.12) * line * pulse * grid_glow * (0.4 + 0.6 * near_detail);
+		col *= 0.9;
+		METALLIC = 0.6;
+	}
 	ALBEDO = col;
 	SPECULAR = 0.25;
 	// soft Spore-ish rim

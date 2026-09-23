@@ -192,6 +192,12 @@ func _follow_camera(delta: float) -> void:
 func _update_prompt(ui: bool) -> void:
 	var near: Dictionary = world.nearest_planet(global_position)
 	var hud = world.hud
+	var it: Dictionary = world.space_interactable(global_position)
+	if not it.is_empty():
+		hud.set_prompt(it.text, it.color, 0.0)
+		if not ui and Input.is_action_just_pressed("interact") and it.action.is_valid():
+			it.action.call()
+		return
 	var st: OrbitalStation = world.station
 	if st and global_position.distance_to(st.global_position) < OrbitalStation.DOCK_RANGE:
 		hud.set_speed_text("Docking range  ·  %s" % st.data.name)

@@ -59,7 +59,7 @@ func generate() -> void:
 			"planets": [],
 		}
 		var count := rng.randi_range(2, 5)
-		var biomes: Array = Db.BIOMES.keys()
+		var biomes: Array = Db.BIOMES.keys().filter(func(k): return not Db.BIOMES[k].get("legendary", false))
 		if i == 0:
 			star.name = "Solace"
 			star.cls = "G"
@@ -93,6 +93,69 @@ func generate() -> void:
 			pl["_star_dist"] = pos.length()
 			pl["town"] = _make_town(i, pl, town_names)
 		stars.append(star)
+	_add_extras()
+
+
+## Everything added after launch uses its own seeded streams so the original
+## stars, planets and names never shift.
+func _add_extras() -> void:
+	# the three farthest stars hold the legendary edge worlds
+	var order: Array = range(1, stars.size())
+	order.sort_custom(func(a, b): return stars[a].pos.length() > stars[b].pos.length())
+	var legends := ["forge", "abyss", "tempest"]
+	var legend_names := ["Anvil", "Thalassa", "Maelstrom"]
+	for li in 3:
+		var st: Dictionary = stars[order[li]]
+		st["legendary"] = legends[li]
+		st.planets.append({"index": st.planets.size(), "star": st.index, "key": "%d:%d" % [st.index, st.planets.size()],
+			"name": legend_names[li], "biome": legends[li], "radius": 200.0, "seed": hash("legend:%d" % st.index),
+			"orbit": 380.0 + st.planets.size() * 260.0, "angle": 1.3, "tilt": 0.1, "rings": li == 1, "town": {}, "legendary": true})
+	for st in stars:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash("extras:%d" % st.index)
+		var home: bool = st.index == 0
+		# moons around some worlds
+		var parents: Array = st.planets.duplicate()
+		for p in parents:
+			if p.get("legendary", false):
+				continue
+			if (home and p.index == 0) or (not home and rng.randf() < 0.3):
+				var mi: int = st.planets.size()
+				st.planets.append({"index": mi, "star": st.index, "key": "%d:%d" % [st.index, mi],
+					"name": "%s %s" % [p.name, ["a", "b"][0]], "biome": ["frost", "dune", "ember", "prism"][rng.randi() % 4],
+					"radius": rng.randf_range(80.0, 100.0), "seed": rng.randi(), "orbit": 0.0, "angle": rng.randf() * TAU,
+					"tilt": 0.0, "rings": false, "town": {}, "moon_of": p.index, "moon_dist": rng.randf_range(95.0, 120.0)})
+		# a gas giant in about half the systems (always at home)
+		if home or rng.randf() < 0.5:
+			var outer := 0.0
+			for p in st.planets:
+				outer = maxf(outer, float(p.orbit))
+			st["giant"] = {"orbit": outer + 320.0, "angle": rng.randf() * TAU, "radius": rng.randf_range(55.0, 80.0),
+				"hue": rng.randf(), "rings": rng.randf() < 0.5, "name": "%s Giant" % st.name}
+		# derelicts to board
+		var derelicts := []
+		for k in (1 if home else rng.randi_range(1, 2)):
+			derelicts.append({"orbit": rng.randf_range(350.0, 900.0), "angle": rng.randf() * TAU, "height": rng.randf_range(-40, 60)})
+		st["derelicts"] = derelicts
+		# the system's relay beacon
+		st["relay"] = {"orbit": rng.randf_range(620.0, 780.0), "angle": rng.randf() * TAU}
+
+
+## Where a planet (or moon) is at time t, in system space coordinates.
+func orbit_pos(p: Dictionary, t: float) -> Vector3:
+	if p.has("moon_of"):
+		var parent: Dictionary = stars[p.star].planets[p.moon_of]
+		var c := orbit_pos(parent, t)
+		var a: float = p.angle + t * 0.02
+		return c + Vector3(cos(a), 0.15, sin(a)) * float(p.moon_dist)
+	var orbit: float = p.orbit
+	var w := 0.0025 * pow(400.0 / maxf(orbit, 100.0), 1.5)
+	var a2: float = p.angle + t * w
+	return Vector3(cos(a2) * orbit, sin(p.angle * 3.0) * 30.0, sin(a2) * orbit)
+
+
+func is_moon(p: Dictionary) -> bool:
+	return p.has("moon_of")
 
 
 func star(i: int) -> Dictionary:

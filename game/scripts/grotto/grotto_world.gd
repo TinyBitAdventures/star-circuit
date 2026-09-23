@@ -8,6 +8,7 @@ const THEME_LOOK := {
 	"fungal": {"rock": Color("3a2f3d"), "seam": Color("7ef0d8"), "light": Color("7ef0d8"), "fog": Color("0e2a26"), "nodes": {"glowcap": 5, "spore": 2, "fiber": 1}, "props": "res://assets/models/flora_mushroom.glb", "prop_scale": 0.45},
 	"fossil": {"rock": Color("5a4a3c"), "seam": Color("ffcf8a"), "light": Color("ffc98a"), "fog": Color("2a1c10"), "nodes": {"ferrite": 2, "cobalt": 2}, "props": "res://assets/models/prop_boulder.glb", "prop_scale": 0.7},
 	"crystal": {"rock": Color("2c2447"), "seam": Color("c9a6ff"), "light": Color("b98cff"), "fog": Color("150e2a"), "nodes": {"lumen": 4, "cobalt": 1}, "props": "res://assets/models/res_crystal.glb", "prop_scale": 1.1},
+	"derelict": {"rock": Color("4a4f5a"), "seam": Color("ff9f43"), "light": Color("ffb870"), "fog": Color("141210"), "nodes": {"salvage": 5, "energy": 1}, "props": "res://assets/models/prop_terminal.glb", "prop_scale": 1.0},
 	"vault": {"rock": Color("2a2a33"), "seam": Color("ffd98a"), "light": Color("ffd98a"), "fog": Color("1a1408"), "nodes": {"lumen": 1, "void": 2}, "props": "res://assets/models/poi_ruin.glb", "prop_scale": 0.3},
 }
 
@@ -43,6 +44,11 @@ func _ready() -> void:
 	player.global_position = Vector3(-(ROOM_R - 7.0), 1.0, 0.0)
 	player.cam_yaw = -PI * 0.5
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if theme == "derelict":
+		key = Game.cave.key
+		hud.show_location_banner("Derelict", "Hull breached long ago. The air is gone; the cargo isn't." if not Game.boarded.has(key) else "Already picked over")
+		Sound.play_music("space", 1.5)
+		return
 	var first: bool = not Game.dig_state(Game.cave.get("key", "dev")).chambers.has(int(chamber.id))
 	Game.record_chamber(Game.cave.get("key", "dev"), int(chamber.id), theme)
 	var tname: String = {"fungal": "Fungal Grotto", "fossil": "Fossil Bed", "crystal": "Crystal Cavern", "vault": "Ancient Vault"}[theme]
@@ -196,14 +202,16 @@ func _build_contents() -> void:
 			n.rotation.y = _rng.randf() * TAU
 			_interactables.append(n)
 	# relic pedestal / fossil slab
-	if theme in ["vault", "fossil"]:
+	if theme == "derelict":
+		key = Game.cave.key
+	if theme in ["vault", "fossil", "derelict"]:
 		var ped := RelicPedestal.new()
 		add_child(ped)
-		ped.setup(self, "ancient_relic" if theme == "vault" else "fossil", key)
+		ped.setup(self, {"vault": "ancient_relic", "fossil": "fossil", "derelict": "resonance_crystal"}[theme], key)
 		ped.position = Vector3(0, 0, -4.0)
 		_interactables.append(ped)
 	# cave species
-	var sp_count := 3 if theme != "vault" else 1
+	var sp_count := 3 if not theme in ["vault", "derelict"] else (1 if theme == "vault" else 0)
 	for v in 2:
 		var col: Color = (look.light as Color).lerp(Color.from_hsv(_rng.randf(), 0.6, 1.0), 0.35)
 		for i in sp_count:

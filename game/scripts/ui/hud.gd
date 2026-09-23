@@ -183,6 +183,8 @@ func _refresh_location() -> void:
 	if mode in ["dig", "grotto"]:
 		var p0: Dictionary = Galaxy.planet(Game.star_index, Game.planet_index)
 		location_label.text = "Beneath %s  ·  %s\n%s system" % [p0.name, "The Deep" if mode == "dig" else "Sealed chamber", star.name]
+		if Game.cave.get("origin", "") == "space":
+			location_label.text = "Aboard a derelict\n%s system" % star.name
 	elif mode == "planet":
 		var p: Dictionary = Galaxy.planet(Game.star_index, Game.planet_index)
 		location_label.text = "%s  ·  %s\n%s system (class %s)" % [p.name, Db.BIOMES[p.biome].name, star.name, star.cls]
@@ -245,6 +247,12 @@ static func objective_text(q: Dictionary) -> String:
 			return "Warp to another star (M in space)"
 		"land_unique":
 			return "Worlds visited: %d / %d" % [p, o.count]
+		"relay":
+			return "Relays relit (beyond home): %d / %d" % [p, o.count]
+		"legendary":
+			return "Land on an edge world: %d / %d" % [p, o.count]
+		"heart":
+			return "Destroy the Corruption Heart"
 		"dig":
 			return "Dig out tiles in a cave: %d / %d" % [p, o.count]
 		"chamber":
@@ -467,7 +475,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	for pair in [["inventory", "inventory"], ["crafting", "crafting"], ["skills", "skills"], ["quests", "quests"], ["help", "help"], ["map", "map"]]:
 		if event.is_action(pair[0]):
 			if pair[1] == "map" and mode != "space":
-				toast("The galaxy map works in space. Press T to break orbit.", UiKit.MUTED)
+				toast("The maps work in space. Press T to break orbit.", UiKit.MUTED)
+				return
+			if pair[1] == "map" and current_panel == "":
+				toggle_panel("sysmap")
+				get_viewport().set_input_as_handled()
+				return
+			if pair[1] == "map" and current_panel in ["sysmap", "map"]:
+				close_panel()
+				get_viewport().set_input_as_handled()
 				return
 			toggle_panel(pair[1])
 			get_viewport().set_input_as_handled()
@@ -554,6 +570,8 @@ func _build_panel() -> void:
 		"board": _panel_board()
 		"station": _panel_station()
 		"outfitter": _panel_outfitter()
+		"sysmap": _panel_sysmap()
+		"victory": _panel_victory()
 
 
 func _panel_inventory() -> void:
@@ -569,7 +587,7 @@ func _panel_inventory() -> void:
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	var kinds := {"resource": "Raw Resources", "component": "Components", "consumable": "Consumables", "fuel": "Fuel", "relic": "Relics & Fossils"}
+	var kinds := {"resource": "Raw Resources", "component": "Components", "consumable": "Consumables", "fuel": "Fuel", "key": "Relay Keys", "relic": "Relics & Fossils"}
 	var any := false
 	for kind in kinds:
 		var items := []
@@ -1447,6 +1465,9 @@ func _draw_threats() -> void:
 	var vp := threat_layer.size
 	var c := vp * 0.5
 	for t in _threats:
+		if t.get("waypoint", false):
+			_draw_waypoint(t, vp, c)
+			continue
 		var col := Color("ffd23f") if t.elite else (Color("ff4d4d") if t.attacking else Color(1, 0.6, 0.5, 0.7))
 		if t.on:
 			# bracket around the ship, tighter when far
@@ -1843,3 +1864,61 @@ func _outfit_loadout(body: VBoxContainer) -> void:
 			))
 		else:
 			row.add_child(UiKit.label("Craft the %s\nto unlock" % Db.item_name(w.unlock), 14, Color("ff9f43")))
+
+
+
+func _panel_sysmap() -> void:
+	var dim := ColorRect.new()
+	dim.color = Color(0.01, 0.015, 0.035, 0.94)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel_host.add_child(dim)
+	_panel = dim
+	var m := preload("res://scripts/ui/system_map.gd").new()
+	m.hud = self
+	m.world = get_parent()
+	m.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.add_child(m)
+
+
+func _draw_waypoint(t: Dictionary, vp: Vector2, c: Vector2) -> void:
+	var col := Color("ffd23f")
+	var font := UiKit.body_font()
+	if t.on:
+		var p: Vector2 = t.pos
+		threat_layer.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -12), p + Vector2(9, 0), p + Vector2(0, 12), p + Vector2(-9, 0)]), Color(col, 0.35))
+		threat_layer.draw_polyline(PackedVector2Array([p + Vector2(0, -12), p + Vector2(9, 0), p + Vector2(0, 12), p + Vector2(-9, 0), p + Vector2(0, -12)]), col, 2.0)
+		threat_layer.draw_string(font, p + Vector2(-80, 30), "%s  %d u" % [t.name, int(t.dist)], HORIZONTAL_ALIGNMENT_CENTER, 160, 14, col)
+	else:
+		var d: Vector2 = t.pos - c
+		var ang := d.angle()
+		var edge := c + Vector2(cos(ang) * (vp.x * 0.42), sin(ang) * (vp.y * 0.38))
+		threat_layer.draw_circle(edge, 9.0, Color(col, 0.35))
+		threat_layer.draw_arc(edge, 9.0, 0, TAU, 20, col, 2.0)
+		threat_layer.draw_string(font, edge + Vector2(-80, 26), "%s  %d u" % [t.name, int(t.dist)], HORIZONTAL_ALIGNMENT_CENTER, 160, 13, col)
+
+
+func show_victory() -> void:
+	toggle_panel("victory")
+
+
+func _panel_victory() -> void:
+	var v := _frame("THE CIRCUIT SHINES", Vector2(860, 560))
+	var t := UiKit.label("The Heart is gone. One relay after another, the old light runs from star to star again. The Archivist speaks your designation to every beacon, and every beacon answers.", 19)
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD
+	v.add_child(t)
+	v.add_child(HSeparator.new())
+	var pt := int(Game.play_time)
+	for line in [
+		"Time played  %d:%02d" % [pt / 3600, (pt / 60) % 60],
+		"Relays lit  %d" % Game.lit_relays.size(),
+		"Worlds visited  %d  ·  Stars  %d" % [Game.visited_planets.size(), Game.visited_stars.size()],
+		"Species logged  %d  ·  Relics  %d" % [Game.scanned.size(), Game.relics_found],
+		"Machines destroyed  %d" % Game.kills,
+		"Level  %d  ·  Credits  %d" % [Game.level, Game.credits],
+	]:
+		v.add_child(UiKit.label(line, 18, Color("ffd98a")))
+	var sp := Control.new()
+	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(sp)
+	v.add_child(UiKit.label("The galaxy is still yours to wander. Unlit relays, unnamed species and sealed vaults remain.", 15, UiKit.MUTED))
+	v.add_child(UiKit.button("Keep exploring", close_panel))

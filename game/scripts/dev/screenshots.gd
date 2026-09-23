@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "circuit":
+		await _circuit_tour()
+		get_tree().quit()
+		return
 	if which == "deep":
 		await _deep_tour()
 		get_tree().quit()
@@ -866,3 +870,88 @@ func _deep_tour() -> void:
 		g.player.cam_pitch = -0.18
 		await _wait(1.5)
 		await shot("grotto_" + c.theme)
+
+
+func _space_look(s, target: Vector3, off: Vector3) -> void:
+	var sp = s.player
+	sp.set_physics_process(false)
+	sp.global_position = target + off
+	sp.look_at(target, Vector3.UP)
+	sp.snap_camera()
+	await _wait(0.8)
+
+
+func _circuit_tour() -> void:
+	Game.new_game("scout", "Tester")
+	await _wait(4.0)
+	Game.go_to_space()
+	await _wait(4.5)
+	var s := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	await _space_look(s, s.giant.global_position, Vector3(0.3, 0.25, 1.0).normalized() * s.giant_r * 2.6)
+	await shot("circuit_gas_giant")
+	await _space_look(s, s.relay.global_position + Vector3(0, 19, 0), Vector3(40, 10, 70))
+	await shot("circuit_relay_lit")
+	await _space_look(s, s.derelicts[0].node.global_position, Vector3(30, 15, 60))
+	await shot("circuit_derelict")
+	var moon = null
+	for p in s.planets:
+		if Galaxy.is_moon(p.data):
+			moon = p
+	if moon:
+		await _space_look(s, moon.node.global_position, Vector3(10, 8, 35))
+		await shot("circuit_moon")
+	s.hud.toggle_panel("sysmap")
+	Game.waypoint = {"kind": "giant", "id": 0, "star": 0, "name": s.star.giant.name}
+	await _wait(0.6)
+	await shot("circuit_system_map")
+	s.hud.close_panel()
+	await _space_look(s, s.station.global_position, Vector3(0, 30, 160))
+	await _wait(0.3)
+	await shot("circuit_waypoint_hud")
+	# a dark relay under guard
+	Game.star_index = 3
+	Game.arrived_by_warp = true
+	Game.go_to_space()
+	await _wait(4.5)
+	s = _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await _space_look(s, s.relay.global_position + Vector3(0, 19, 0), Vector3(50, 10, 80))
+	await _wait(1.0)
+	await shot("circuit_relay_dark")
+	s.hud.toggle_panel("sysmap")
+	s.hud.toggle_panel("map")
+	await _wait(0.5)
+	await shot("circuit_galaxy_map")
+	s.hud.close_panel()
+	# the Heart
+	var forge := -1
+	for st in Galaxy.stars:
+		if st.get("legendary", "") == "forge":
+			forge = st.index
+	Game.star_index = forge
+	Game.arrived_by_warp = true
+	Game.go_to_space()
+	await _wait(4.5)
+	s = _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await _space_look(s, s.heart.global_position, Vector3(60, 40, 230))
+	await _wait(1.5)
+	await shot("circuit_heart")
+	# the three edge worlds from the ground
+	for leg in ["forge", "tempest", "abyss"]:
+		for st in Galaxy.stars:
+			if st.get("legendary", "") == leg:
+				var lp: Dictionary = st.planets.filter(func(p): return p.get("legendary", false))[0]
+				Game.land_dir = Vector3(0.3, 0.6, 0.7).normalized()
+				Game.go_to_planet(st.index, lp.index)
+				await _wait(6.5)
+				var w := _scene()
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+				for e in w.enemies:
+					e.set_physics_process(false)
+				w.player.cam_pitch = -0.08
+				w.player.spring.spring_length = 9.0
+				await _wait(1.5)
+				await shot("edge_" + leg)

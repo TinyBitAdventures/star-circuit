@@ -11,7 +11,8 @@ const POOL_3D := 20
 const SILENT_DB := -60.0
 
 ## music track per biome
-const BIOME_MUSIC := {"verdant": "verdant", "bloom": "verdant", "dune": "arid", "frost": "crystal", "prism": "crystal", "ember": "ember"}
+const BIOME_MUSIC := {"verdant": "verdant", "bloom": "verdant", "dune": "arid", "frost": "crystal", "prism": "crystal", "ember": "ember",
+	"abyss": "crystal", "tempest": "underground", "forge": "ember"}
 
 var volumes := {"Master": 0.8, "Music": 0.6, "SFX": 0.8, "UI": 0.7, "Ambience": 0.6}
 var gfx_quality := 1 # 0 low, 1 medium (default), 2 high

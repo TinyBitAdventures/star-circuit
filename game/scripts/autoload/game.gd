@@ -42,6 +42,11 @@ var weapon := "pulse"
 var digs := {} # cave key -> {"dug": base64 bitmap, "chambers": [ids]}
 var cave := {} # the cave we're currently in (not saved: caves always resume on the surface)
 var relics_found := 0
+var lit_relays: Array = [0]
+var heart_defeated := false
+var boarded: Array = [] # derelict keys already looted
+var space_spawn := Vector3.ZERO # override spawn when returning from a derelict
+var waypoint := {} # {"kind", "id"} chosen on the system map
 var inventory := {}
 var upgrades: Array = []
 var skills := {}
@@ -158,6 +163,11 @@ func _reset_state() -> void:
 	digs = {}
 	cave = {}
 	relics_found = 0
+	lit_relays = [0]
+	heart_defeated = false
+	boarded = []
+	space_spawn = Vector3.ZERO
+	waypoint = {}
 
 
 func new_game(robot: String, pname: String) -> void:
@@ -557,6 +567,13 @@ func record_landing(key: String) -> void:
 			gain_skill_xp("exploration", 60)
 			big_notify.emit("NEW WORLD", Galaxy.planet(star_index, planet_index).name, Color("5ff7ff"))
 	_quest_event("land_unique", key)
+	var pl: Dictionary = Galaxy.planet(star_index, planet_index)
+	if Db.BIOMES[pl.biome].get("legendary", false):
+		if not looted_pois.has("legend:" + key):
+			looted_pois.append("legend:" + key)
+			add_item("legend_shard", 1, true)
+			big_notify.emit("EDGE WORLD", "%s  ·  a Legendary Shard hums in the dust at your feet" % pl.name, Color("ffd23f"))
+		_quest_event("legendary", key)
 
 
 func record_warp(to_star: int) -> void:
@@ -613,6 +630,8 @@ func accept_quest() -> void:
 			quest_baseline = 0
 		"land_unique":
 			quest_progress = visited_planets.size()
+		"relay":
+			quest_progress = lit_relays.size() - 1
 		"visit_town":
 			quest_progress = visited_towns.size()
 		"skill":
@@ -641,7 +660,7 @@ func _quest_event(kind: String, what: String, amount := 1) -> void:
 			if o.item != what:
 				return
 			quest_progress = mini(o.count, quest_progress + amount)
-		"scan", "warp", "orbit", "kill", "kill_elite", "train", "space_kill", "space_elite", "chamber":
+		"scan", "warp", "orbit", "kill", "kill_elite", "train", "space_kill", "space_elite", "chamber", "heart":
 			quest_progress = mini(o.count, quest_progress + 1)
 		"land_unique":
 			quest_progress = mini(o.count, visited_planets.size())
@@ -649,6 +668,10 @@ func _quest_event(kind: String, what: String, amount := 1) -> void:
 			quest_progress = mini(o.count, visited_towns.size())
 		"dig":
 			quest_progress = mini(o.count, quest_progress + amount)
+		"relay":
+			quest_progress = mini(o.count, lit_relays.size() - 1)
+		"legendary":
+			quest_progress = mini(o.count, quest_progress + 1)
 		"sell", "station_sell":
 			quest_progress = mini(o.count, quest_progress + amount)
 		"skill":
@@ -755,7 +778,7 @@ func save_game() -> void:
 		"credits": credits, "skill_tiers": skill_tiers, "bounties": bounties, "visited_towns": visited_towns,
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
-		"digs": digs, "relics_found": relics_found,
+		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
 		"star_index": star_index, "planet_index": planet_index, "location": location,
 		"visited_planets": visited_planets, "visited_stars": visited_stars,
@@ -841,6 +864,13 @@ func load_game() -> bool:
 	weapon = d.get("weapon", "pulse")
 	digs = d.get("digs", {})
 	relics_found = int(d.get("relics_found", 0))
+	lit_relays = []
+	for x in d.get("lit_relays", [0]):
+		lit_relays.append(int(x))
+	if not lit_relays.has(0):
+		lit_relays.append(0)
+	heart_defeated = bool(d.get("heart_defeated", false))
+	boarded = d.get("boarded", [])
 	# quests are saved by id so new quests can be inserted without breaking saves
 	var qid: String = d.get("quest_id", "")
 	if qid == "done":
@@ -1434,6 +1464,12 @@ func enter_chamber(chamber: Dictionary, pod_pos: Vector2) -> void:
 
 
 func leave_chamber() -> void:
+	if cave.get("origin", "") == "space":
+		var r: Array = cave.get("return", [0, 0, 0])
+		space_spawn = Vector3(r[0], r[1], r[2])
+		cave = {}
+		go_to_space()
+		return
 	fade_to("res://scenes/dig.tscn")
 
 
@@ -1461,3 +1497,44 @@ func collect_relic(item: String) -> void:
 	add_item(item, 1, false, true)
 	relics_found += 1
 	gain_skill_xp("exploration", 60 if item == "fossil" else 120)
+
+
+
+# --------------------------------------------------------------------------
+# the Circuit: relays, derelicts, the Heart
+# --------------------------------------------------------------------------
+
+func relay_lit(star_i: int) -> bool:
+	return lit_relays.has(star_i)
+
+
+func light_relay(star_i: int) -> bool:
+	if relay_lit(star_i):
+		return false
+	if count("resonance_crystal") < 1 or count("relay_coupler") < 1:
+		notify.emit("Relighting needs 1 Resonance Crystal and 1 Relay Coupler.", Color("ff6b6b"))
+		return false
+	remove_item("resonance_crystal", 1)
+	remove_item("relay_coupler", 1)
+	lit_relays.append(star_i)
+	gain_xp(600)
+	gain_skill_xp("exploration", 200)
+	big_notify.emit("RELAY RELIT", "%s rejoins the Circuit  ·  %d relays lit" % [Galaxy.star(star_i).name, lit_relays.size()], Color("5ff7ff"))
+	_quest_event("relay", str(star_i))
+	save_game()
+	return true
+
+
+func enter_derelict(star_i: int, idx: int, return_pos: Vector3) -> void:
+	var key := "derelict:%d:%d" % [star_i, idx]
+	cave = {"key": key, "origin": "space", "seed": hash(key), "biome": "forge", "star": star_i, "planet": 0,
+		"chamber": {"id": idx, "theme": "derelict"}, "return": [return_pos.x, return_pos.y, return_pos.z]}
+	save_game()
+	Sound.play("atmo_entry", -8.0, 0.0)
+	fade_to("res://scenes/grotto.tscn")
+
+
+func defeat_heart() -> void:
+	heart_defeated = true
+	_quest_event("heart", "heart")
+	save_game()

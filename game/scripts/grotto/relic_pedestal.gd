@@ -13,7 +13,9 @@ func setup(w: Node3D, it: String, chamber_key: String) -> void:
 	world = w
 	item = it
 	key = chamber_key + ":relic"
-	var m := ModelUtil.instance("res://assets/models/cave_pedestal.glb" if item == "ancient_relic" else "res://assets/models/cave_fossil.glb")
+	var m := ModelUtil.instance("res://assets/models/cave_fossil.glb" if item == "fossil" else "res://assets/models/cave_pedestal.glb")
+	if item == "resonance_crystal":
+		ModelUtil.tint(m, "Glyph", Color("5ff7ff"))
 	if item == "fossil":
 		m.scale = Vector3.ONE * 1.4
 	add_child(m)
@@ -29,7 +31,7 @@ func setup(w: Node3D, it: String, chamber_key: String) -> void:
 
 
 func taken() -> bool:
-	return Game.looted_pois.has(key)
+	return Game.looted_pois.has(key) or (item == "resonance_crystal" and Game.boarded.has(key.trim_suffix(":relic")))
 
 
 func _process(delta: float) -> void:
@@ -49,6 +51,18 @@ func interact(_p: Node) -> void:
 	if taken():
 		return
 	Game.looted_pois.append(key)
+	if item == "resonance_crystal":
+		Game.boarded.append(key.trim_suffix(":relic"))
+		Game.add_item("resonance_crystal", 1, false, true)
+		Game.add_credits(randi_range(60, 140))
+		Sound.play("quest_complete", -4.0, 0.0, "UI")
+		if _relic:
+			_relic.visible = false
+		world.hud.big("RESONANCE CRYSTAL", "Still humming on the Circuit's frequency. A dark relay can use this.", Color("5ff7ff"))
+		return
+	if item == "ancient_relic":
+		Game.add_item("resonance_crystal", 1, false, true)
+		Game.notify.emit("A Resonance Crystal was sealed in with the relic.", Color("5ff7ff"))
 	Game.collect_relic(item)
 	Sound.play("quest_complete", -4.0, 0.0, "UI")
 	if _relic:

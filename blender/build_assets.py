@@ -1205,6 +1205,85 @@ def build_pedestal():
     export("cave_pedestal")
 
 
+# --------------------------------------------------------------------------
+# endgame: relay beacon, derelict, corruption heart, shield pylon
+# Nodes named "Core"/"Ring" get lit/dimmed from Godot.
+# --------------------------------------------------------------------------
+
+def build_relay():
+    reset_scene()
+    metal = mat("Metal", hexc("#8a93a3"), 0.85, 0.3)
+    dark = mat("Dark", hexc("#262a33"), 0.7, 0.4)
+    core = mat("Core", (1, 1, 1), emission=hexc("#5ff7ff"), strength=6)
+    root = empty("Relay")
+    part("Spine", "cyl", (2.2, 2.2, 30), dark, loc=(0, 0, 0), parent=root, seg=8, smooth=False)
+    for z in (-12, -4, 4, 12):
+        part(f"Band{z}", "cyl", (3.2, 3.2, 1.2), metal, loc=(0, 0, z), parent=root, seg=8, smooth=False)
+    for i in range(4):
+        a = i / 4 * math.tau
+        part(f"Vane{i}", "cube", (0.5, 6.0, 18.0), metal, loc=(math.cos(a) * 3.0, math.sin(a) * 3.0, 0), rot=(0, 0, a + math.pi / 2), parent=root, bevel=0.2)
+    part("Core", "ico", (5.5, 5.5, 7.0), core, loc=(0, 0, 19), parent=root, sub=1, smooth=False)
+    ring = part("Ring", "torus", (14, 14, 14), metal, loc=(0, 0, 19), rot=(math.pi / 2, 0, 0), parent=root, minor=0.05)
+    part("Ring2", "torus", (10, 10, 10), core, loc=(0, 0, 19), rot=(math.pi / 2, 0.6, 0), parent=root, minor=0.03)
+    part("Base", "cone", (7, 7, 6), dark, loc=(0, 0, -18), rot=(math.pi, 0, 0), parent=root, seg=8, r2=2.0, smooth=False)
+    export("relay_beacon")
+
+
+def build_derelict():
+    reset_scene()
+    rnd = random.Random(91)
+    hull = mat("Hull", hexc("#6b7280"), 0.7, 0.5)
+    rust = mat("Rust", hexc("#8a4b2a"), 0.3, 0.8)
+    dark = mat("Dark", hexc("#1e2128"), 0.6, 0.5)
+    glow = mat("Core", (1, 1, 1), emission=hexc("#ff9f43"), strength=3)
+    root = empty("Derelict")
+    body = part("Body", "cyl", (8, 8, 36), hull, rot=(math.pi / 2, 0, 0), parent=root, seg=10, smooth=False)
+    part("Nose", "cone", (8, 8, 10), hull, loc=(0, 23, 0), rot=(-math.pi / 2, 0, 0), parent=root, seg=10, r2=2.0, smooth=False)
+    part("Bridge", "cube", (6, 8, 4), dark, loc=(0, 10, 5), parent=root, bevel=0.5)
+    part("Window", "cube", (5, 0.3, 1.2), glow, loc=(0, 14.2, 5.5), parent=root)
+    for side in (-1, 1):
+        part(f"Wing{side}", "cube", (14, 10, 1), hull, loc=(9 * side, -8, 0), rot=(0, 0.2 * side, 0), parent=root, bevel=0.3)
+        part(f"Engine{side}", "cyl", (4, 4, 9), dark, loc=(6 * side, -20, 0), rot=(math.pi / 2, 0, 0), parent=root, seg=10)
+    for i in range(10):
+        part(f"Scar{i}", "cube", (rnd.uniform(2, 5), rnd.uniform(2, 6), 0.3), rust,
+             loc=(rnd.uniform(-4, 4), rnd.uniform(-15, 15), rnd.uniform(3.8, 4.1)), rot=(0, 0, rnd.uniform(0, 3)), parent=root)
+    # a torn-off section drifting beside it
+    chunk = part("Chunk", "cube", (6, 7, 5), hull, loc=(14, 18, 4), rot=(0.6, 0.4, 0.9), parent=root, bevel=0.4)
+    export("derelict_ship")
+
+
+def build_heart():
+    reset_scene()
+    rnd = random.Random(66)
+    flesh = mat("Shell", hexc("#3a1020"), 0.4, 0.4)
+    metal = mat("Metal", hexc("#2a2530"), 0.9, 0.3)
+    core = mat("Core", (1, 1, 1), emission=hexc("#ff2a55"), strength=8)
+    root = empty("Heart")
+    h = part("Body", "ico", (30, 30, 30), flesh, parent=root, sub=3)
+    jitter_mesh(h, 1.5, 12)
+    part("Core", "ico", (14, 14, 14), core, loc=(0, 13, 0), parent=root, sub=2)
+    for i in range(22):
+        d = Vector((rnd.uniform(-1, 1), rnd.uniform(-1, 1), rnd.uniform(-1, 1))).normalized()
+        L = rnd.uniform(10, 22)
+        part(f"Spike{i}", "cone", (3.0, 3.0, L), metal, loc=tuple(d * 13), offset=(0, 0, L / 2),
+             rot=(math.acos(max(-1, min(1, d.z))), 0, math.atan2(d.x, -d.y)), parent=root, seg=6, r2=0.2, smooth=False)
+    part("Ring", "torus", (48, 48, 48), metal, rot=(1.2, 0.3, 0), parent=root, minor=0.03)
+    export("corruption_heart")
+
+
+def build_pylon():
+    reset_scene()
+    metal = mat("Metal", hexc("#2a2530"), 0.9, 0.3)
+    core = mat("Core", (1, 1, 1), emission=hexc("#ff5d9a"), strength=6)
+    root = empty("Pylon")
+    part("Shaft", "cyl", (2, 2, 14), metal, parent=root, seg=6, smooth=False)
+    part("Core", "ico", (4, 4, 5), core, loc=(0, 0, 9), parent=root, sub=1, smooth=False)
+    for i in range(3):
+        a = i / 3 * math.tau
+        part(f"Fin{i}", "cube", (0.4, 4, 10), metal, loc=(math.cos(a) * 1.8, math.sin(a) * 1.8, 0), rot=(0, 0, a), parent=root, bevel=0.1)
+    export("heart_pylon")
+
+
 if __name__ == "__main__":
     build_scout()
     build_miner()
@@ -1257,4 +1336,8 @@ if __name__ == "__main__":
     build_cave_mouth()
     build_fossil()
     build_pedestal()
+    build_relay()
+    build_derelict()
+    build_heart()
+    build_pylon()
     print("[star-circuit] done")

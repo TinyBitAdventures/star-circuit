@@ -62,7 +62,7 @@ The generated models and audio are committed, so Blender and Python are only nee
 | Left mouse | pulse cannons; switches to the mining laser when the crosshair is on rock |
 | Right mouse | homing missiles (lock onto the pirate nearest the crosshair) |
 | Q | scan the belt for asteroid types and contents |
-| M | galaxy map: warp to another star (costs a Warp Cell) |
+| M | system map + waypoints; galaxy map to warp (Warp Cell) or relay-jump (free between lit relays) |
 
 Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual · Esc pause/save.
 
@@ -106,6 +106,18 @@ Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual 
     off-screen ones. Kills drop salvage shards (scrap, power cores, exotic matter) plus credits and Combat XP.
   - New upgrades are Twin Pulse Cannons and the Missile Rack, plus the "Pirate Problem" and "Hunt the Marauder" quests and "Pirate Hunt" bounties.
     If your ship is destroyed, an emergency beacon reboots you near the system's first world.
+- **Relight the Circuit (endgame)**:
+  - Every system has a dark relay beacon guarded by pirates. Relighting one takes a Resonance Crystal (from boardable derelicts or deep
+    Ancient Vaults) plus a fabricated Relay Coupler. Lit relays calm their systems, draw a glowing network on the galaxy map,
+    and allow free relay jumps between any two lit systems.
+  - Three legendary edge worlds sit at the galaxy's rim, each holding a Legendary Shard: Thalassa (ocean with floating islands),
+    Maelstrom (eternal lightning storm) and Anvil (a machine world veined with glowing circuitry).
+  - The final battle is with the Corruption Heart in Anvil's system: four shield pylons protect it while swarm drones pour out.
+    Destroy them all to relight the Circuit, with a victory summary at the end.
+- **Richer star systems**: planets and moons actually orbit, and about 50 small moons can be landed on. Banded gas giants can be skimmed
+  for plasma and ice (don't go too deep). Derelict wrecks can be boarded as small 3D interiors. Solar flares recharge energy
+  but burn your hull unless you shelter behind a planet or near the station. **M** opens a system map where you set waypoints
+  (a HUD marker points the way); the galaxy map is one click further.
 - **The Deep (underground)**:
   - Every planet has Cave Mouths (amber lamps; one is always near where you land). Descend into a **2D digging mode**: a side-on slice
     of the crust, lit only by your headlamp. Drill in whichever direction you push, thrust up with W, and manage energy.
@@ -158,7 +170,7 @@ Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual 
   plus a combat layer that crossfades in while drones are chasing you. Effects cover footsteps, jetpack, gathering loops,
   blaster, hits, explosions, the Brute's warning and slam, abilities, UI, quests, level-ups, takeoff and warp.
   Wind and creature calls are positional. Volume sliders (Master, Music, Effects, Interface, Ambience) are in the pause menu.
-- **Character levels (1-30)**, a **25-quest storyline** (combat, trade and training quests included), saved by quest ID so new quests never break old saves from the Archivist, an autosaving **save/load**.
+- **Character levels (1-30)**, a **30-quest storyline** with a real ending (combat, trade and training quests included), saved by quest ID so new quests never break old saves from the Archivist, an autosaving **save/load**.
 
 ## Audio pipeline
 
@@ -199,6 +211,8 @@ Dev checks:
     godot --path game res://scenes/dev_fps.tscn                     # frame rate per graphics quality
     godot --headless --path game res://scenes/dev_dig.tscn          # cave -> dig -> chamber -> grotto -> back to the surface
     SHOTS=deep godot --path game res://scenes/dev_shots.tscn        # cave mouth, dig layers, chambers, all four grotto themes
+    godot --headless --path game res://scenes/dev_endgame.tscn      # giants, flares, derelicts, relays, relay jumps, the Heart, edge worlds
+    SHOTS=circuit godot --path game res://scenes/dev_shots.tscn     # system map, relays, derelicts, the Heart, the three edge worlds
     godot --headless --path game res://scenes/dev_sprint.tscn       # walk vs sprint ground speed
     PIRATE=gunship godot --headless --path game res://scenes/dev_pirate.tscn  # one pirate's pursuit/fire behaviour
     godot --path game --write-movie /tmp/tour.avi --fixed-fps 30 res://scenes/dev_audio.tscn  # record a session with audio

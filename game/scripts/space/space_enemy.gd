@@ -33,6 +33,7 @@ var _evade_dir := Vector3.ZERO
 var _last_hit := -100.0
 var _flash := 0.0
 var _orbit_sign := 1.0
+var gate: Array = [] # while any of these live, this ship can't be hurt
 
 
 func setup(w: Node3D, t: String, lvl: int, pos: Vector3, home_pos: Vector3) -> void:
@@ -123,7 +124,9 @@ func _physics_process(delta: float) -> void:
 			if global_position.distance_to(_patrol_target) < 15.0:
 				_pick_patrol()
 			desired = (_patrol_target - global_position).normalized()
-			if alive_player and dist < (420.0 if elite else 320.0) and not (world.station and ppos.distance_to(world.station.global_position) < OrbitalStation.SAFE_RADIUS):
+			if def.style == "turret":
+				speed = 0.0
+			if alive_player and dist < (float(def.range) + 80.0 if def.style == "turret" else (420.0 if elite else 320.0)) and not (world.station and ppos.distance_to(world.station.global_position) < OrbitalStation.SAFE_RADIUS):
 				aggro()
 		"return":
 			desired = (home - global_position).normalized()
@@ -137,7 +140,7 @@ func _physics_process(delta: float) -> void:
 			if not alive_player or global_position.distance_to(home) > LEASH:
 				state = "return"
 				return
-			if world.station and global_position.distance_to(world.station.global_position) < OrbitalStation.SAFE_RADIUS:
+			if def.style != "turret" and world.station and global_position.distance_to(world.station.global_position) < OrbitalStation.SAFE_RADIUS:
 				state = "return" # the station's guns scare them off
 				return
 			var lead: Vector3 = ppos + player.velocity * clampf(dist / BOLT_SPEED, 0.0, 2.0)
@@ -164,6 +167,9 @@ func _physics_process(delta: float) -> void:
 						world.damage_player(_damage(), self)
 						_die(false)
 						return
+				"turret":
+					desired = (ppos - global_position).normalized()
+					speed = 0.0
 				"flagship":
 					var to2 := ppos - global_position
 					var tangent := to2.cross(Vector3.UP).normalized() * _orbit_sign
@@ -177,7 +183,7 @@ func _physics_process(delta: float) -> void:
 				var facing := -global_basis.z
 				var arc := 0.5 if def.style == "flagship" or def.style == "brawler" else 0.2
 				# brawlers and flagships carry turrets: they fire from any heading
-				if aim.dot(facing) > cos(arc) or def.style in ["brawler", "flagship"]:
+				if aim.dot(facing) > cos(arc) or def.style in ["brawler", "flagship", "turret"]:
 					_fire(aim)
 	# steering
 	if desired.length() > 0.01:
@@ -247,6 +253,12 @@ func aggro() -> void:
 func take_hit(amount: float, crit := false) -> bool:
 	if state == "dead":
 		return false
+	for g in gate:
+		if is_instance_valid(g) and g.is_alive():
+			CombatFx.floating_text(world, global_position + Vector3.UP * (def.size + 2.0), Vector3.UP, "SHIELDED", Color("ff5d9a"))
+			if state != "attack":
+				aggro()
+			return false
 	_last_hit = Time.get_ticks_msec() / 1000.0
 	_flash = 0.12
 	var absorbed := minf(shield, amount)
@@ -276,6 +288,8 @@ func _die(reward: bool) -> void:
 		for item in loot:
 			world.spawn_shards(global_position, item, loot[item], def.size)
 	world.on_space_enemy_killed(self)
+	if type == "heart" and reward:
+		world.on_heart_destroyed()
 	var t := create_tween()
 	t.tween_property(_model, "scale", Vector3.ONE * 0.01, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	t.tween_callback(queue_free)

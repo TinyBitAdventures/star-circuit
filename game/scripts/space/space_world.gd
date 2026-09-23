@@ -34,7 +34,8 @@ func _ready() -> void:
 	var sa: float = p0.angle + 0.22
 	station = OrbitalStation.new()
 	add_child(station)
-	station.build(self, star.station, Vector3(cos(sa) * p0.orbit, 25.0, sin(sa) * p0.orbit))
+	station.build(self, star.station, _station_pos())
+	_build_extras()
 	_spawn_patrols()
 	_ambush_t = randf_range(100.0, 200.0)
 
@@ -56,6 +57,13 @@ func _ready() -> void:
 
 
 func _place_player() -> void:
+	if Game.space_spawn != Vector3.ZERO:
+		# back from boarding a derelict
+		player.global_position = Game.space_spawn
+		Game.space_spawn = Vector3.ZERO
+		player.look_at(Vector3.ZERO, Vector3.UP)
+		player.snap_camera()
+		return
 	if Game.arrived_by_warp or Game.land_dir == Vector3.ZERO:
 		# fresh warp arrival: drop in near the first world, looking at it
 		Game.arrived_by_warp = false
@@ -141,7 +149,7 @@ func _build_planet(p: Dictionary) -> void:
 	add_child(root)
 	var a: float = p.angle
 	var orbit: float = p.orbit
-	root.position = Vector3(cos(a) * orbit, sin(a * 3.0) * 30.0, sin(a) * orbit)
+	root.position = Galaxy.orbit_pos(p, Game.play_time)
 	var r: float = p.radius * SPACE_SCALE
 	var mi := MeshInstance3D.new()
 	mi.mesh = gen.build_mesh(PLANET_RES, SPACE_SCALE)
@@ -338,6 +346,8 @@ func _spawn_patrols() -> void:
 	rng.seed = int(star.seed) + 404
 	var home := Game.star_index == 0
 	var groups := 1 if home else rng.randi_range(2, 3)
+	if Game.relay_lit(Game.star_index) and not home:
+		groups = 1 # a lit relay keeps most pirates away
 	var br: float = star.belt.radius
 	for g in groups:
 		var a := rng.randf() * TAU
@@ -395,6 +405,8 @@ func _ambush() -> void:
 	var home := Game.star_index == 0
 	if home and Game.quest_index < _quest_index("pirates"):
 		return # keep the home system calm until the story introduces pirates
+	if Game.relay_lit(Game.star_index) and randf() < 0.75:
+		return # lit systems see far fewer raids
 	var back: Vector3 = player.global_basis.z
 	var centre: Vector3 = player.global_position + back * 320.0 + Vector3(0, randf_range(-40, 40), 0)
 	var wave: Array = ["raider", "swarmer", "swarmer"] if home else [["raider", "raider", "swarmer", "swarmer"], ["gunship", "raider", "raider"], ["raider", "raider", "raider"]][randi() % 3]
@@ -442,4 +454,363 @@ func threat_markers(cam: Camera3D) -> Array:
 		if behind:
 			sp = vp - sp # mirror so the arrow points the right way
 		out.append({"pos": sp, "on": on, "elite": e.elite, "attacking": e.state == "attack", "dist": d})
+	var wp := waypoint_pos()
+	if wp != Vector3.INF:
+		var behind2 := cam.is_position_behind(wp)
+		var sp2 := cam.unproject_position(wp)
+		var on2 := not behind2 and Rect2(Vector2.ZERO, vp).has_point(sp2)
+		if behind2:
+			sp2 = vp - sp2
+		out.append({"pos": sp2, "on": on2, "waypoint": true, "dist": cam.global_position.distance_to(wp), "name": Game.waypoint.get("name", "Waypoint"), "elite": false, "attacking": false})
 	return out
+
+
+# --------------------------------------------------------------------------
+# system extras: gas giant, derelicts, relay, the Heart, flares, orbits
+# --------------------------------------------------------------------------
+
+var giant: Node3D
+var giant_r := 0.0
+var derelicts: Array = [] # {node, idx}
+var relay: Node3D
+var relay_guards: Array[SpaceEnemy] = []
+var heart: SpaceEnemy
+var pylons: Array[SpaceEnemy] = []
+var _relay_core: Node3D
+var _skim_t := 0.0
+var _flare_t := 0.0
+var _flare_state := ""
+var _flare_left := 0.0
+var _heart_wave := 0.0
+
+
+func _station_pos() -> Vector3:
+	var p0: Dictionary = star.planets[0]
+	var pp := Galaxy.orbit_pos(p0, Game.play_time)
+	var off := pp.normalized().cross(Vector3.UP).normalized() * 95.0
+	return pp + off + Vector3(0, 25, 0)
+
+
+func _build_extras() -> void:
+	_flare_t = randf_range(150.0, 260.0)
+	if star.has("giant"):
+		_build_giant(star.giant)
+	for i in star.derelicts.size():
+		_build_derelict(star.derelicts[i], i)
+	_build_relay(star.relay)
+	if star.get("legendary", "") == "forge" and not Game.heart_defeated:
+		_build_heart()
+
+
+func _build_giant(g: Dictionary) -> void:
+	giant = Node3D.new()
+	add_child(giant)
+	var a: float = g.angle
+	giant.position = Vector3(cos(a) * g.orbit, 40.0, sin(a) * g.orbit)
+	giant_r = g.radius
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = giant_r
+	sm.height = giant_r * 2.0
+	sm.radial_segments = 96
+	sm.rings = 48
+	mi.mesh = sm
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/gas_giant.gdshader")
+	var h: float = g.hue
+	m.set_shader_parameter("band_a", Color.from_hsv(h, 0.35, 0.95))
+	m.set_shader_parameter("band_b", Color.from_hsv(fposmod(h + 0.05, 1.0), 0.55, 0.6))
+	m.set_shader_parameter("storm", Color.from_hsv(fposmod(h - 0.05, 1.0), 0.7, 0.9))
+	m.set_shader_parameter("seed", h * 10.0)
+	mi.material_override = m
+	giant.add_child(mi)
+	var atmo := MeshInstance3D.new()
+	var am := SphereMesh.new()
+	am.radius = giant_r * 1.08
+	am.height = am.radius * 2.0
+	atmo.mesh = am
+	var amat := ShaderMaterial.new()
+	amat.shader = load("res://shaders/atmo_rim.gdshader")
+	amat.set_shader_parameter("color", Color.from_hsv(h, 0.4, 1.0))
+	atmo.material_override = amat
+	giant.add_child(atmo)
+	if g.rings:
+		var ring := _make_rings(giant_r, Color.from_hsv(h, 0.25, 0.85))
+		ring.scale = Vector3.ONE * 1.1
+		giant.add_child(ring)
+	giant.rotation = Vector3(0.3, 0, 0.15)
+	_label(giant, "%s\nGas giant  ·  skim the upper atmosphere for fuel" % g.name, giant_r * 1.3, Color("ffd9a8"))
+
+
+func _build_derelict(d: Dictionary, i: int) -> void:
+	var n := Node3D.new()
+	add_child(n)
+	var a: float = d.angle
+	n.position = Vector3(cos(a) * d.orbit, d.height, sin(a) * d.orbit)
+	var m := ModelUtil.instance("res://assets/models/derelict_ship.glb")
+	n.add_child(m)
+	n.rotation = Vector3(0.4, a, 0.9)
+	var looted: bool = Game.boarded.has("derelict:%d:%d" % [Game.star_index, i])
+	_label(n, "Derelict%s" % ("  (salvaged)" if looted else "\nPress E to board"), 30.0, Color("ff9f43"))
+	var l := OmniLight3D.new()
+	l.light_color = Color("ff9f43")
+	l.omni_range = 60.0
+	l.light_energy = 0.8
+	n.add_child(l)
+	derelicts.append({"node": n, "idx": i})
+
+
+func _build_relay(r: Dictionary) -> void:
+	relay = Node3D.new()
+	add_child(relay)
+	var a: float = r.angle
+	relay.position = Vector3(cos(a) * r.orbit, 60.0, sin(a) * r.orbit)
+	var m := ModelUtil.instance("res://assets/models/relay_beacon.glb")
+	relay.add_child(m)
+	_relay_core = m.find_child("Core", true, false)
+	_label(relay, "", 34.0, Color("5ff7ff"))
+	var lit := Game.relay_lit(Game.star_index)
+	_set_relay_look(lit)
+	if not lit:
+		for k in 3 + (1 if danger > 6 else 0):
+			var e := _spawn_pirate(["raider", "raider", "gunship", "raider"][k], danger + 1, relay.position + Vector3(randf_range(-60, 60), randf_range(-20, 20), randf_range(-60, 60)), relay.position)
+			relay_guards.append(e)
+
+
+func _set_relay_look(lit: bool) -> void:
+	var lbl: Label3D = relay.get_meta("label")
+	lbl.text = "Circuit Relay  ·  %s" % ("ONLINE" if lit else "DARK\nNeeds a Resonance Crystal + Relay Coupler")
+	lbl.modulate = CombatFx.hdr(Color("5ff7ff") if lit else Color("8a8f99"), 1.5)
+	for mi in ModelUtil._mesh_instances(relay):
+		var mesh: Mesh = mi.mesh
+		for i in mesh.get_surface_count():
+			var mat := mesh.surface_get_material(i) as StandardMaterial3D
+			if mat and mat.emission_enabled:
+				var d: StandardMaterial3D = mat.duplicate()
+				d.emission_energy_multiplier = 6.0 if lit else 0.15
+				d.albedo_color = Color("5ff7ff") if lit else Color("3a3f48")
+				mi.set_surface_override_material(i, d)
+	if lit and not relay.has_meta("light"):
+		var l := OmniLight3D.new()
+		l.light_color = Color("5ff7ff")
+		l.omni_range = 160.0
+		l.light_energy = 2.0
+		l.position = Vector3(0, 19, 0)
+		relay.add_child(l)
+		relay.set_meta("light", l)
+
+
+func _label(n: Node3D, text: String, y: float, col: Color) -> void:
+	var l := Label3D.new()
+	l.text = text
+	l.font = UiKit.body_font()
+	l.font_size = 26
+	l.outline_size = 8
+	l.fixed_size = true
+	l.pixel_size = 0.0011
+	l.no_depth_test = true
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.modulate = CombatFx.hdr(col, 1.5)
+	l.top_level = true
+	n.add_child(l)
+	l.global_position = n.global_position + Vector3.UP * y
+	n.set_meta("label", l)
+	n.set_meta("label_h", y)
+
+
+func _build_heart() -> void:
+	var c := Vector3(0, 80, -1100)
+	heart = _spawn_pirate("heart", danger + 4, c, c)
+	for k in 4:
+		var a := k * TAU / 4.0
+		var p := _spawn_pirate("pylon", danger + 3, c + Vector3(cos(a) * 85.0, sin(a * 2.0) * 20.0, sin(a) * 85.0), c)
+		pylons.append(p)
+	heart.gate = pylons
+
+
+func relay_guards_alive() -> int:
+	var n := 0
+	for e in relay_guards:
+		if is_instance_valid(e) and e.is_alive():
+			n += 1
+	return n
+
+
+## What the player can press E on right now (derelicts, relay).
+func space_interactable(pos: Vector3) -> Dictionary:
+	for d in derelicts:
+		var n: Node3D = d.node
+		if pos.distance_to(n.global_position) < 55.0:
+			var key := "derelict:%d:%d" % [Game.star_index, d.idx]
+			var idx: int = d.idx
+			return {"text": "[E] Board the derelict%s" % ("  (already salvaged)" if Game.boarded.has(key) else ""), "color": Color("ff9f43"),
+				"action": func(): Game.enter_derelict(Game.star_index, idx, pos + (pos - n.global_position).normalized() * 20.0)}
+	if relay and pos.distance_to(relay.global_position) < 70.0:
+		if Game.relay_lit(Game.star_index):
+			return {"text": "Circuit Relay online  ·  %d relays lit  ·  fast travel via the galaxy map" % Game.lit_relays.size(), "color": Color("5ff7ff"), "action": Callable()}
+		if relay_guards_alive() > 0:
+			return {"text": "Relay guard still active (%d)  ·  clear them first" % relay_guards_alive(), "color": Color("ff6b6b"), "action": Callable()}
+		var ok := Game.count("resonance_crystal") > 0 and Game.count("relay_coupler") > 0
+		return {"text": "[E] Relight the relay  (Resonance Crystal %d/1 · Relay Coupler %d/1)" % [Game.count("resonance_crystal"), Game.count("relay_coupler")],
+			"color": Color("5ff7ff") if ok else Color("ffb86b"), "action": _try_light_relay}
+	return {}
+
+
+func _try_light_relay() -> void:
+	if Game.light_relay(Game.star_index):
+		_set_relay_look(true)
+		CombatFx.shockwave(self, relay.global_position, Vector3.UP, 90.0, Color("5ff7ff"))
+		CombatFx.explosion(self, relay.global_position + Vector3.UP * 19.0, Color("5ff7ff"), 6.0)
+		Sound.play("quest_complete", 0.0, 0.0, "UI")
+		Sound.play("warp", -8.0, 0.0)
+		if player:
+			player.shake.add(0.5)
+
+
+func _process(delta: float) -> void:
+	# planets and moons follow their orbits
+	for p in planets:
+		p.node.position = Galaxy.orbit_pos(p.data, Game.play_time)
+	if station:
+		station.position = _station_pos()
+	for d in derelicts:
+		d.node.rotate_object_local(Vector3(0.3, 1, 0.2).normalized(), delta * 0.02)
+	# only nearby points of interest keep their labels up
+	if player:
+		for n in [relay, giant] + derelicts.map(func(x): return x.node):
+			if n and n.has_meta("label"):
+				var lb: Label3D = n.get_meta("label")
+				lb.global_position = n.global_position + Vector3.UP * _label_h(n)
+				lb.visible = player.global_position.distance_to(n.global_position) < (1600.0 if n == giant else 700.0)
+	if giant:
+		giant.rotate_y(delta * 0.01)
+		_skim(delta)
+	_flares(delta)
+	if heart and is_instance_valid(heart) and heart.is_alive() and heart.state == "attack":
+		_heart_wave -= delta
+		if _heart_wave <= 0.0:
+			_heart_wave = 18.0
+			for k in 3:
+				var e := _spawn_pirate("swarmer", danger + 2, heart.global_position + Vector3(randf_range(-40, 40), randf_range(-40, 40), randf_range(-40, 40)), heart.global_position)
+				e.aggro()
+
+
+func _skim(delta: float) -> void:
+	if player == null or player.dead:
+		return
+	var d := player.global_position.distance_to(giant.global_position)
+	if d < giant_r * 1.02:
+		player.global_position = giant.global_position + (player.global_position - giant.global_position).normalized() * giant_r * 1.02
+	if d < giant_r * 1.25:
+		player.shake.add(delta * 0.6)
+		_skim_t -= delta
+		if _skim_t <= 0.0:
+			_skim_t = 0.7
+			Game.add_item("plasma" if randf() < 0.7 else "cryo_ice", 1)
+			Game.gain_skill_xp("siphoning", 4.0)
+		if d < giant_r * 1.1:
+			Game.take_damage(4.0 * delta)
+			hud.set_speed_text("Skimming  ·  TOO DEEP: hull heating")
+		else:
+			hud.set_speed_text("Skimming the upper atmosphere  ·  collecting fuel")
+
+
+func _flares(delta: float) -> void:
+	if player == null:
+		return
+	_flare_t -= delta
+	if _flare_state == "" and _flare_t <= 0.0:
+		_flare_state = "warn"
+		_flare_left = 8.0
+		Game.big_notify.emit("SOLAR FLARE INCOMING", "Shelter behind a planet or near the station  ·  flares also recharge energy", Color("ffb347"))
+		Sound.play("klaxon", -6.0, 0.0, "UI")
+	elif _flare_state != "":
+		_flare_left -= delta
+		if _flare_state == "warn" and _flare_left <= 0.0:
+			_flare_state = "burn"
+			_flare_left = 10.0
+		elif _flare_state == "burn":
+			hud.damage_flash.color = Color(1.0, 0.6, 0.2, 0.18 + randf() * 0.05)
+			Game.add_energy(8.0 * delta)
+			if not _sheltered(player.global_position):
+				Game.take_damage(3.0 * delta)
+			if _flare_left <= 0.0:
+				_flare_state = ""
+				_flare_t = randf_range(240.0, 380.0)
+				hud.damage_flash.color = Color(1, 0.05, 0.05, 0.0)
+				Game.notify.emit("The flare passes.", Color("ffd98a"))
+
+
+## In a planet's shadow (relative to the star) or near the station.
+func _sheltered(pos: Vector3) -> bool:
+	if station and pos.distance_to(station.global_position) < 250.0:
+		return true
+	var to_star := -pos.normalized()
+	var bodies: Array = []
+	for p in planets:
+		bodies.append([p.node.global_position, float(p.radius) * 1.3])
+	if giant:
+		bodies.append([giant.global_position, giant_r * 1.1])
+	for b in bodies:
+		var c: Vector3 = b[0]
+		var oc := c - pos
+		var t := oc.dot(to_star)
+		if t > 0.0 and (pos + to_star * t).distance_to(c) < float(b[1]):
+			return true
+	return false
+
+
+func flare_active() -> bool:
+	return _flare_state == "burn"
+
+
+## Everything worth drawing on the system map / targeting as a waypoint.
+func system_objects() -> Array:
+	var out := []
+	for p in planets:
+		var d: Dictionary = p.data
+		out.append({"kind": "planet", "id": d.index, "name": d.name + (" (moon)" if Galaxy.is_moon(d) else ""), "pos": p.node.global_position,
+			"color": Db.BIOMES[d.biome].colors.low, "r": float(p.radius), "sub": Db.BIOMES[d.biome].name + (("  ·  ⌂ " + d.town.name) if not d.town.is_empty() else "")})
+	if station:
+		out.append({"kind": "station", "id": 0, "name": star.station.name, "pos": station.global_position, "color": Color("ffd98a"), "r": 8.0, "sub": "Trade · repair · contracts"})
+	if giant:
+		out.append({"kind": "giant", "id": 0, "name": star.giant.name, "pos": giant.global_position, "color": Color("ffd9a8"), "r": giant_r, "sub": "Skim for plasma"})
+	for d in derelicts:
+		out.append({"kind": "derelict", "id": d.idx, "name": "Derelict", "pos": d.node.global_position, "color": Color("ff9f43"), "r": 6.0,
+			"sub": "Salvaged" if Game.boarded.has("derelict:%d:%d" % [Game.star_index, d.idx]) else "Unexplored"})
+	if relay:
+		var lit := Game.relay_lit(Game.star_index)
+		out.append({"kind": "relay", "id": 0, "name": "Circuit Relay", "pos": relay.global_position, "color": Color("5ff7ff") if lit else Color("8a8f99"), "r": 7.0, "sub": "Online" if lit else "Dark"})
+	if heart and is_instance_valid(heart) and heart.is_alive():
+		out.append({"kind": "heart", "id": 0, "name": "Corruption Heart", "pos": heart.global_position, "color": Color("ff2a55"), "r": 30.0, "sub": "The source of the Quiet"})
+	return out
+
+
+func waypoint_pos() -> Vector3:
+	var w: Dictionary = Game.waypoint
+	if w.is_empty() or int(w.get("star", -1)) != Game.star_index:
+		return Vector3.INF
+	for o in system_objects():
+		if o.kind == w.kind and int(o.id) == int(w.id):
+			return o.pos
+	return Vector3.INF
+
+
+
+func on_heart_destroyed() -> void:
+	Game.defeat_heart()
+	CombatFx.explosion(self, heart.global_position, Color(1.0, 0.3, 0.4), 14.0)
+	if player:
+		player.shake.add(1.0)
+	for e in space_enemies.duplicate():
+		if is_instance_valid(e) and e.is_alive() and e.type == "swarmer":
+			e.take_hit(99999.0)
+	get_tree().create_timer(2.5).timeout.connect(func():
+		if is_inside_tree():
+			hud.show_victory()
+	)
+
+
+
+func _label_h(n: Node3D) -> float:
+	return float(n.get_meta("label_h", 20.0))

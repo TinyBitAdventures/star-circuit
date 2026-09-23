@@ -264,6 +264,9 @@ const CLOUDS := {
 	"prism": {"color": Color("efe2ff"), "shadow": Color("8a78b8"), "coverage": 0.6, "density": 0.75},
 	"frost": {"color": Color("ffffff"), "shadow": Color("9ab0c8"), "coverage": 0.46, "density": 0.95},
 	"dune": {"color": Color("fff1dc"), "shadow": Color("b89a78"), "coverage": 0.68, "density": 0.7},
+	"abyss": {"color": Color("ffffff"), "shadow": Color("7a8fb0"), "coverage": 0.44, "density": 0.95},
+	"tempest": {"color": Color("8a84a8"), "shadow": Color("2a2640"), "coverage": 0.3, "density": 0.97},
+	"forge": {"color": Color("5a4a44"), "shadow": Color("201814"), "coverage": 0.58, "density": 0.85},
 	"ember": {"color": Color("6a5a58"), "shadow": Color("2a2020"), "coverage": 0.5, "density": 0.9},
 }
 
