@@ -96,3 +96,25 @@ static func multimesh(parent: Node3D, path: String, xforms: Array, tint_name := 
 		mmi.multimesh = mm
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(mmi)
+
+
+
+## Soft rim light on every material of a model (the Spore-ish glow edge).
+static func add_rim(root: Node, amount := 0.35, tint := 0.4) -> void:
+	for mi in _mesh_instances(root):
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		for i in mesh.get_surface_count():
+			var m: Material = mi.get_surface_override_material(i)
+			var owned := m != null
+			if m == null:
+				m = mesh.surface_get_material(i)
+			if not (m is StandardMaterial3D):
+				continue
+			var sm: StandardMaterial3D = m if owned else m.duplicate()
+			sm.rim_enabled = true
+			sm.rim = amount
+			sm.rim_tint = tint
+			if not owned:
+				mi.set_surface_override_material(i, sm)

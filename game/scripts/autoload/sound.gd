@@ -14,6 +14,7 @@ const SILENT_DB := -60.0
 const BIOME_MUSIC := {"verdant": "verdant", "bloom": "verdant", "dune": "arid", "frost": "crystal", "prism": "crystal", "ember": "ember"}
 
 var volumes := {"Master": 0.8, "Music": 0.6, "SFX": 0.8, "UI": 0.7, "Ambience": 0.6}
+var gfx_quality := 1 # 0 low, 1 medium (default), 2 high
 
 var _cache := {}
 var _pool2d: Array[AudioStreamPlayer] = []
@@ -91,6 +92,7 @@ func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	for b in volumes:
 		cfg.set_value("audio", b, volumes[b])
+	cfg.set_value("graphics", "quality", gfx_quality)
 	cfg.save(SETTINGS_PATH)
 
 
@@ -99,6 +101,8 @@ func _load_settings() -> void:
 	if cfg.load(SETTINGS_PATH) == OK:
 		for b in volumes:
 			volumes[b] = float(cfg.get_value("audio", b, volumes[b]))
+		gfx_quality = int(cfg.get_value("graphics", "quality", gfx_quality))
+	apply_gfx()
 	for b in volumes:
 		set_volume(b, volumes[b])
 
@@ -310,3 +314,11 @@ func _fade(t: Tween, p: AudioStreamPlayer, from_db: float, to_db: float, dur: fl
 		var amp := lerpf(a, b, e)
 		p.volume_db = linear_to_db(maxf(amp, 0.00001))
 	, 0.0, 1.0, dur)
+
+
+
+func apply_gfx() -> void:
+	var vp := get_viewport()
+	if vp:
+		vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][clampi(gfx_quality, 0, 2)]
+		vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if gfx_quality == 0 else Viewport.SCREEN_SPACE_AA_DISABLED

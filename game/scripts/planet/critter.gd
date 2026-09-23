@@ -27,6 +27,7 @@ func setup(w: Node3D, start_dir: Vector3, color: Color, key: String, sname: Stri
 	_model = ModelUtil.instance("res://assets/models/fauna_critter.glb")
 	add_child(_model)
 	ModelUtil.tint(_model, "Foliage", color)
+	ModelUtil.add_rim(_model, 0.45, 0.6)
 	scale = Vector3.ONE * size
 	heading = PlanetGen.align_basis(dir, randf() * TAU).z
 	_t = randf() * 10.0

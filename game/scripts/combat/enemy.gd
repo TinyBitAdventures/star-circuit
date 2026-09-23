@@ -55,6 +55,7 @@ func setup(w: Node3D, t: String, lvl: int, start_dir: Vector3, camp: int) -> voi
 	add_child(_model)
 	var s: float = def.scale
 	_model.scale = Vector3.ONE * s
+	ModelUtil.add_rim(_model, 0.4, 0.2)
 	for n in ["Torso", "ArmL", "ArmR", "LegL", "LegR", "Head", "Ring", "Cannon", "SawL", "SawR"]:
 		var node := _model.find_child(n, true, false) as Node3D
 		if node:

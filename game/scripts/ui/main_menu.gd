@@ -44,7 +44,7 @@ func _build_world() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.55, 0.6, 0.8)
 	env.ambient_light_energy = 0.5
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	UiKit.polish_environment(env)
 	env.glow_enabled = true
 	env.glow_intensity = 0.8
 	env.glow_bloom = 0.1
@@ -66,7 +66,7 @@ func _build_world() -> void:
 	planet_node.position = Vector3(26, -8, -60)
 	var mi := MeshInstance3D.new()
 	mi.mesh = gen.build_mesh(48, 0.16)
-	mi.material_override = gen.terrain_material()
+	mi.material_override = gen.terrain_material(0.16)
 	planet_node.add_child(mi)
 	var water := MeshInstance3D.new()
 	var ws := SphereMesh.new()
@@ -89,6 +89,10 @@ func _build_world() -> void:
 	amat.set_shader_parameter("color", Db.BIOMES.verdant.atmo)
 	atmo.material_override = amat
 	planet_node.add_child(atmo)
+	var clouds := gen.cloud_shell(gen.radius * 0.16 * 1.05, 64)
+	(clouds.material_override as ShaderMaterial).set_shader_parameter("sun_dir", Vector3(0.6, 0.55, 0.6).normalized())
+	planet_node.add_child(clouds)
+	UiKit.add_vignette(self, 0.35)
 
 	# robot line-up
 	var pm := StandardMaterial3D.new()

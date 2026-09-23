@@ -29,6 +29,7 @@ func setup(id: String) -> void:
 	robot_id = id
 	_load_model(Db.ROBOTS[id].model)
 	_add_flames()
+	ModelUtil.add_rim(model, 0.35)
 
 
 ## Non-player robots (townsfolk): any model with the standard joint names.
@@ -37,6 +38,7 @@ func setup_model(path: String, tint := Color(-1, 0, 0)) -> void:
 	_load_model(path)
 	if tint.r >= 0.0:
 		ModelUtil.tint(model, "Accent", tint)
+	ModelUtil.add_rim(model, 0.3)
 
 
 func _load_model(path: String) -> void:
@@ -183,6 +185,7 @@ func apply_look(look: Dictionary) -> void:
 	_paint(shell, accent, glow, look.get("finish", "standard"))
 	if flame.r >= 0.0:
 		_tint_flames(flame)
+	ModelUtil.add_rim(model, 0.35)
 
 
 func _find_color(mat_name: String, fallback: Color) -> Color:

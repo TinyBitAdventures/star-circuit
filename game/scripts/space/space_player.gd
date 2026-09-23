@@ -25,6 +25,8 @@ var dead := false
 var _fire_cd := 0.0
 var _missile_cd := 0.0
 var _gun_side := 1.0
+var _dust: CPUParticles3D
+var _streaks: CPUParticles3D
 var _beam: MeshInstance3D
 var _beam_mat: StandardMaterial3D
 var _lasering := false
@@ -66,6 +68,7 @@ func _ready() -> void:
 	_beam.visible = false
 	add_child(_beam)
 	Game.player_died.connect(_on_died)
+	_build_space_fx()
 
 
 func snap_camera() -> void:
@@ -168,6 +171,7 @@ func _physics_process(delta: float) -> void:
 	if boost and not visual.boost:
 		Sound.play("boost", -4.0)
 	visual.boost = boost
+	_streaks.emitting = boost and velocity.length() > MAX_SPEED * 0.8
 	var sp := velocity.length() / (MAX_SPEED * speed_mult)
 	Sound.loop_set("engine", lerpf(-16.0, -4.0, clampf(sp, 0.0, 1.5) / 1.5), 0.8 + clampf(sp, 0.0, 2.0) * 0.25)
 	visual.rotation.z = lerpf(visual.rotation.z, roll * 0.35, delta * 4.0)
@@ -426,3 +430,61 @@ func _stop_laser() -> void:
 	if _lasering:
 		_lasering = false
 		Sound.loop_stop("laser", 0.12)
+
+
+
+## Parallax dust that hangs still in space (so you feel your speed), plus
+## streaks that rush past while boosting.
+func _build_space_fx() -> void:
+	var dq := QuadMesh.new()
+	dq.size = Vector2(0.18, 0.18)
+	var dm := StandardMaterial3D.new()
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	dm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	dm.albedo_texture = ModelUtil.soft_dot()
+	dm.albedo_color = Color(0.75, 0.85, 1.0, 0.55)
+	dq.material = dm
+	_dust = CPUParticles3D.new()
+	_dust.mesh = dq
+	_dust.amount = [120, 260, 420][Sound.gfx_quality]
+	_dust.lifetime = 9.0
+	_dust.preprocess = 9.0
+	_dust.local_coords = false
+	_dust.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_dust.emission_box_extents = Vector3(70, 45, 70)
+	_dust.gravity = Vector3.ZERO
+	_dust.initial_velocity_min = 0.0
+	_dust.initial_velocity_max = 0.4
+	_dust.scale_amount_min = 0.5
+	_dust.scale_amount_max = 1.6
+	add_child(_dust)
+	var sm := CylinderMesh.new()
+	sm.top_radius = 0.025
+	sm.bottom_radius = 0.025
+	sm.height = 6.0
+	sm.radial_segments = 4
+	sm.rings = 1
+	var smat := StandardMaterial3D.new()
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	smat.albedo_color = Color(0.7, 0.9, 1.0, 0.5)
+	sm.material = smat
+	_streaks = CPUParticles3D.new()
+	_streaks.mesh = sm
+	_streaks.amount = 90
+	_streaks.lifetime = 0.45
+	_streaks.local_coords = true
+	_streaks.emitting = false
+	_streaks.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_streaks.emission_box_extents = Vector3(22, 14, 4)
+	_streaks.position = Vector3(0, 0, -40)
+	_streaks.direction = Vector3(0, 0, 1)
+	_streaks.spread = 2.0
+	_streaks.initial_velocity_min = 160.0
+	_streaks.initial_velocity_max = 220.0
+	_streaks.gravity = Vector3.ZERO
+	_streaks.particle_flag_align_y = true
+	add_child(_streaks)

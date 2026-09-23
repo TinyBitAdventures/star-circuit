@@ -90,16 +90,14 @@ func _build_environment() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.5, 0.55, 0.7)
 	env.ambient_light_energy = 0.25
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_white = 6.0
 	env.glow_enabled = true
 	env.glow_intensity = 0.9
 	env.glow_bloom = 0.15
 	env.glow_hdr_threshold = 1.0
-	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.15
+	UiKit.polish_environment(env, false)
 	we.environment = env
 	add_child(we)
+	UiKit.add_vignette(self, 0.4)
 
 
 func _build_star() -> void:
@@ -147,7 +145,7 @@ func _build_planet(p: Dictionary) -> void:
 	var r: float = p.radius * SPACE_SCALE
 	var mi := MeshInstance3D.new()
 	mi.mesh = gen.build_mesh(PLANET_RES, SPACE_SCALE)
-	mi.material_override = gen.terrain_material()
+	mi.material_override = gen.terrain_material(SPACE_SCALE)
 	root.add_child(mi)
 	var biome: Dictionary = Db.BIOMES[p.biome]
 	if gen.has_liquid():
@@ -178,6 +176,9 @@ func _build_planet(p: Dictionary) -> void:
 	atmo.material_override = amat
 	atmo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(atmo)
+	var clouds := gen.cloud_shell(gen.radius * SPACE_SCALE * 1.06, 48)
+	(clouds.material_override as ShaderMaterial).set_shader_parameter("sun_dir", (-root.position).normalized())
+	root.add_child(clouds)
 	if p.rings:
 		root.add_child(_make_rings(r, biome.colors.beach))
 	root.rotation = Vector3(p.tilt, 0, p.tilt * 0.5)

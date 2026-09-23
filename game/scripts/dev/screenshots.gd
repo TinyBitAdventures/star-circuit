@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "gfx":
+		await _gfx_tour()
+		get_tree().quit()
+		return
 	if which == "outfit":
 		await _outfit_tour()
 		get_tree().quit()
@@ -741,3 +745,54 @@ func _outfit_tour() -> void:
 	p.spring.spring_length = 5.0
 	await _wait(1.0)
 	await shot("outfit_in_world")
+
+
+## Fixed views used to compare graphics changes before/after.
+func _gfx_view(w, dir: Vector3, yaw: float, pitch: float, arm: float, t: float, label: String) -> void:
+	Game.play_time = t
+	w.player.place_at(w._find_land(dir.normalized()), w.gen)
+	w.player.cam_yaw = yaw
+	w.player.cam_pitch = pitch
+	w.player.spring.spring_length = arm
+	await _wait(1.8)
+	await shot(label)
+
+
+func _gfx_tour() -> void:
+	var tag: String = OS.get_environment("TAG") if OS.get_environment("TAG") != "" else "x"
+	Game.new_game("scout", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	for e in w.enemies:
+		e.set_physics_process(false)
+	w.hud.visible = false
+	w.hud.root.visible = false
+	await _gfx_view(w, Vector3(0.5, 0.35, 0.8), 0.6, -0.12, 7.0, 40.0, tag + "_verdant_meadow")
+	await _gfx_view(w, Vector3(0.1, 0.25, 1.0), 2.2, -0.3, 10.0, 40.0, tag + "_verdant_shore")
+	await _gfx_view(w, Vector3(0.5, 0.35, 0.8), 3.4, 0.25, 6.0, 180.0, tag + "_verdant_sky")
+	for pi in [2, 3, 1]:
+		Game.land_dir = Vector3(0.3, 0.5, 0.8).normalized()
+		Game.go_to_planet(0, pi)
+		await _wait(6.0)
+		w = _scene()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		for e in w.enemies:
+			e.set_physics_process(false)
+		w.hud.visible = false
+		w.hud.root.visible = false
+		await _gfx_view(w, Vector3(0.3, 0.5, 0.8), 1.0, -0.15, 8.0, 60.0, "%s_%s" % [tag, w.planet.biome])
+	Game.last_hit_time = -100.0
+	w.player._start_launch()
+	await _wait(6.0)
+	var s := _scene()
+	s.hud.visible = false
+	s.hud.root.visible = false
+	var pl = s.planets[0]
+	s.player.set_physics_process(false)
+	s.player.global_position = pl.node.global_position + Vector3(0.4, 0.3, 1.0).normalized() * pl.radius * 2.4
+	s.player.look_at(pl.node.global_position, Vector3.UP)
+	s.player.snap_camera()
+	await _wait(1.0)
+	await shot(tag + "_orbit")

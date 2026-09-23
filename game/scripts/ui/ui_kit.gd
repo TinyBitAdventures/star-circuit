@@ -138,3 +138,44 @@ static func swatch(color: Color, size := 14) -> Control:
 
 static func hex(c: Color) -> String:
 	return c.to_html(false)
+
+
+
+## Gentle screen vignette on its own canvas layer (under the HUD).
+static func add_vignette(parent: Node, strength := 0.32) -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 1
+	parent.add_child(layer)
+	var r := ColorRect.new()
+	r.set_anchors_preset(Control.PRESET_FULL_RECT)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = """
+shader_type canvas_item;
+uniform float strength = 0.32;
+void fragment() {
+	vec2 uv = UV - 0.5;
+	float v = smoothstep(0.35, 0.95, length(uv * vec2(1.25, 1.0)));
+	COLOR = vec4(0.0, 0.0, 0.02, v * strength);
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	m.set_shader_parameter("strength", strength)
+	r.material = m
+	layer.add_child(r)
+
+
+## Shared look for every 3D scene: AgX tone mapping, SSAO by quality.
+static func polish_environment(env: Environment, allow_ssao := true) -> void:
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.tonemap_white = 8.0
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.22
+	env.adjustment_contrast = 1.06
+	var q: int = Sound.gfx_quality
+	env.ssao_enabled = allow_ssao and q >= 1
+	env.ssao_radius = 1.6
+	env.ssao_intensity = 1.4
+	env.ssao_light_affect = 0.15
+	env.ssil_enabled = false # measured: too costly for the look it adds

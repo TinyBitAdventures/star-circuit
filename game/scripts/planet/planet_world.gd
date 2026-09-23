@@ -29,6 +29,8 @@ var _sky_pivot: Node3D
 var sky_bodies: Array[Node3D] = []
 var ring_node: MeshInstance3D
 var _sky_offset := 0.0
+var _cloud_mat: ShaderMaterial
+var ground_cover: GroundCover
 
 var _nodes: Array[ResourceNode] = []
 var _interactables: Array[Node3D] = []
@@ -54,6 +56,9 @@ func _ready() -> void:
 	_build_terrain()
 	_build_liquid()
 	_build_atmosphere()
+	var clouds := gen.cloud_shell(gen.radius * 1.3)
+	add_child(clouds)
+	_cloud_mat = clouds.material_override
 
 	spawn_dir = _find_land(Game.land_dir if Game.land_dir != Vector3.ZERO else HOME_DIR)
 	if is_home and (Game.visited_planets.is_empty() or Game.land_dir.distance_to(HOME_DIR.normalized()) < 0.02):
@@ -90,6 +95,10 @@ func _ready() -> void:
 		# face the Archivist on first boot
 		player.ref_fwd = (_surface_basis(outpost_dir, 0.0) * Vector3(0, 0, -1))
 
+	ground_cover = GroundCover.new()
+	add_child(ground_cover)
+	ground_cover.setup(self, planet.biome, Sound.gfx_quality)
+	UiKit.add_vignette(self)
 	weather = Weather.new()
 	add_child(weather)
 	weather.setup(self, planet.biome, planet.seed)
@@ -119,6 +128,8 @@ func _process(delta: float) -> void:
 	sun_dir = Vector3(cos(a) * 0.93, 0.28, sin(a) * 0.93).normalized()
 	sun.global_basis = Basis.looking_at(-sun_dir, Vector3.UP if absf(sun_dir.y) < 0.95 else Vector3.RIGHT)
 	_atmo_mat.set_shader_parameter("sun_dir", sun_dir)
+	if _cloud_mat:
+		_cloud_mat.set_shader_parameter("sun_dir", sun_dir)
 	if _sky_pivot:
 		_sky_pivot.rotation.y = -(a - PI * 0.5) + _sky_offset
 	if player:
@@ -149,18 +160,15 @@ func _build_environment() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = biome.ambient
 	env.ambient_light_energy = 0.55
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_white = 6.0
 	env.glow_enabled = true
-	env.glow_intensity = 0.55
-	env.glow_bloom = 0.05
-	env.glow_hdr_threshold = 1.1
+	env.glow_intensity = 0.6
+	env.glow_bloom = 0.06
+	env.glow_hdr_threshold = 1.0
 	env.fog_enabled = true
 	env.fog_light_color = biome.horizon
 	env.fog_density = 0.0022
 	env.fog_sky_affect = 0.0
-	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.15
+	UiKit.polish_environment(env)
 	we.environment = env
 	add_child(we)
 
@@ -168,8 +176,10 @@ func _build_environment() -> void:
 	sun.light_color = (star.color as Color).lerp(Color.WHITE, 0.5)
 	sun.light_energy = 1.2
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 120.0
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_max_distance = [60.0, 100.0, 140.0][Sound.gfx_quality]
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if Sound.gfx_quality == 0 else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.light_angular_distance = 0.6 if Sound.gfx_quality == 2 else 0.0
+	sun.shadow_blur = 1.5
 	add_child(sun)
 
 

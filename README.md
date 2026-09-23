@@ -106,6 +106,14 @@ Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual 
     off-screen ones. Kills drop salvage shards (scrap, power cores, exotic matter) plus credits and Combat XP.
   - New upgrades are Twin Pulse Cannons and the Missile Rack, plus the "Pirate Problem" and "Hunt the Marauder" quests and "Pirate Hunt" bounties.
     If your ship is destroyed, an emergency beacon reboots you near the system's first world.
+- **Graphics**:
+  - Terrain has procedural micro-bump detail, rock strata on slopes, wet shorelines and snow glints.
+  - Wind-swept grass, flowers, glowing mushrooms, crystal shards and frost tufts fill in around you on a background thread and fade out at the edges.
+  - Animated, sun-lit cloud layers are visible from the ground and from orbit.
+  - Water has depth-based shallows, shoreline foam and ripple normals.
+  - Lighting uses AgX tone mapping, SSAO, softer sun shadows, rim light on robots and creatures, and a vignette.
+  - In space, parallax dust gives a sense of speed, and streaks rush past when you boost.
+  - A Low/Medium/High graphics setting is in the pause menu. Medium is the default: 60 fps on an M2 at 1600x900, High about 54.
 - **Customisation**:
   - The **Outfitter** (a stall in every town, and a tab at every orbital station) has a live 3D preview you can drag to spin,
     in standing or flight pose.
@@ -174,6 +182,8 @@ Dev checks:
     SHOTS=spacefight godot --path game res://scenes/dev_shots.tscn  # pirates, cannons, missiles, threat markers, Marauder
     SHOTS=station godot --path game res://scenes/dev_shots.tscn     # sprint, orbital station, market tabs
     SHOTS=outfit godot --path game res://scenes/dev_shots.tscn      # outfitter preview, paint/parts/loadout, 4 styled robots
+    TAG=before SHOTS=gfx godot --path game res://scenes/dev_shots.tscn  # fixed views for graphics before/after comparisons
+    godot --path game res://scenes/dev_fps.tscn                     # frame rate per graphics quality
     godot --headless --path game res://scenes/dev_sprint.tscn       # walk vs sprint ground speed
     PIRATE=gunship godot --headless --path game res://scenes/dev_pirate.tscn  # one pirate's pursuit/fire behaviour
     godot --path game --write-movie /tmp/tour.avi --fixed-fps 30 res://scenes/dev_audio.tscn  # record a session with audio

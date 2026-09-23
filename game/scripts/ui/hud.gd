@@ -855,7 +855,7 @@ Harvested nodes regrow after ten minutes."""
 
 
 func _panel_pause() -> void:
-	var v := _frame("PAUSED", Vector2(460, 640))
+	var v := _frame("PAUSED", Vector2(480, 700))
 	var played := int(Game.play_time)
 	v.add_child(UiKit.label("Play time %d:%02d:%02d" % [played / 3600, (played / 60) % 60, played % 60], 14, UiKit.MUTED))
 	for pair in [["Resume", close_panel], ["Save Game", func():
@@ -872,6 +872,24 @@ func _panel_pause() -> void:
 	v.add_child(UiKit.label("AUDIO", 13, UiKit.MUTED, true))
 	for row in [["Master", "Master"], ["Music", "Music"], ["Effects", "SFX"], ["Interface", "UI"], ["Ambience", "Ambience"]]:
 		_volume_row(v, row[0], row[1])
+	v.add_child(HSeparator.new())
+	var gr := HBoxContainer.new()
+	gr.add_theme_constant_override("separation", 8)
+	v.add_child(gr)
+	var gl := UiKit.label("Graphics", 15)
+	gl.custom_minimum_size = Vector2(110, 0)
+	gr.add_child(gl)
+	for qi in 3:
+		var qb := UiKit.button(["Low", "Medium", "High"][qi], func():
+			Sound.gfx_quality = qi
+			Sound.save_settings()
+			Sound.apply_gfx()
+			toast("Graphics set to %s. Grass and shadows update on your next landing." % ["Low", "Medium", "High"][qi], UiKit.ACCENT)
+			_rebuild_town_panel()
+		)
+		if Sound.gfx_quality == qi:
+			qb.add_theme_stylebox_override("normal", UiKit.box(Color(0.1, 0.22, 0.34, 1), UiKit.ACCENT, 8, 2, 8))
+		gr.add_child(qb)
 
 
 func open_dialog() -> void:

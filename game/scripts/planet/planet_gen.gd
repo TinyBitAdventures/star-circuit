@@ -201,9 +201,13 @@ static func _cube_to_sphere(p: Vector3) -> Vector3:
 	).normalized()
 
 
-func terrain_material() -> Material:
+func terrain_material(scale := 1.0) -> Material:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/terrain.gdshader")
+	m.set_shader_parameter("detail_scale", 0.35 / scale)
+	m.set_shader_parameter("sea_radius", sea_radius() * scale if has_liquid() else 0.0)
+	m.set_shader_parameter("bump_strength", 0.55 if scale >= 1.0 else 0.25)
+	m.set_shader_parameter("snow_sparkle", 1.0 if scale >= 1.0 else 0.0)
 	return m
 
 
@@ -251,3 +255,38 @@ func town_dir() -> Vector3:
 	var a := rng.randf() * TAU
 	var r := sqrt(1.0 - z * z)
 	return find_land(Vector3(r * cos(a), z, r * sin(a)))
+
+
+
+const CLOUDS := {
+	"verdant": {"color": Color("ffffff"), "shadow": Color("8a9ab8"), "coverage": 0.52, "density": 0.92},
+	"bloom": {"color": Color("ffe6f6"), "shadow": Color("a0789e"), "coverage": 0.55, "density": 0.85},
+	"prism": {"color": Color("efe2ff"), "shadow": Color("8a78b8"), "coverage": 0.6, "density": 0.75},
+	"frost": {"color": Color("ffffff"), "shadow": Color("9ab0c8"), "coverage": 0.46, "density": 0.95},
+	"dune": {"color": Color("fff1dc"), "shadow": Color("b89a78"), "coverage": 0.68, "density": 0.7},
+	"ember": {"color": Color("6a5a58"), "shadow": Color("2a2020"), "coverage": 0.5, "density": 0.9},
+}
+
+
+## A cloud layer at `shell_radius` (in the mesh's own units).
+func cloud_shell(shell_radius: float, segments := 96) -> MeshInstance3D:
+	var c: Dictionary = CLOUDS.get(data.biome, CLOUDS.verdant)
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = shell_radius
+	sm.height = shell_radius * 2.0
+	sm.radial_segments = segments
+	sm.rings = segments / 2
+	mi.mesh = sm
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/clouds.gdshader")
+	m.set_shader_parameter("cloud_color", c.color)
+	m.set_shader_parameter("shadow_color", c.shadow)
+	m.set_shader_parameter("coverage", c.coverage)
+	m.set_shader_parameter("density", c.density)
+	m.set_shader_parameter("seed", float(int(data.seed) % 97))
+	m.render_priority = -120
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = 16384.0
+	return mi
