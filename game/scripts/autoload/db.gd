@@ -93,6 +93,18 @@ const ITEMS := {
 	"resonance_crystal": {"name": "Resonance Crystal", "kind": "key", "color": Color("5ff7ff"), "desc": "Still tuned to the Circuit's frequency. Relay beacons need one to relight. Found in derelict ships and deep Ancient Vaults."},
 	"relay_coupler": {"name": "Relay Coupler", "kind": "component", "color": Color("9bd1ff"), "desc": "Fabricated power coupling that lets a dead relay accept a Resonance Crystal."},
 	"legend_shard": {"name": "Legendary Shard", "kind": "relic", "color": Color("ff7ae6"), "desc": "A fragment from one of the edge worlds. Nothing else in the galaxy looks like it."},
+	"deep_probe": {"name": "Deep Probe", "kind": "fuel", "color": Color("9bd1ff"), "desc": "A tethered core probe. Launch it from orbit (O near a world) to pull gems out of the deep. Lost if it's crushed or melted."},
+	# world gems: 1-3 per world, only reachable by probe from orbit
+	"gem_verdant": {"name": "Verdant Emerald", "kind": "gem", "color": Color("3ddc84"), "desc": "Grown slowly in the roots of green worlds. Found only on Verdant planets."},
+	"gem_dune": {"name": "Sunstone", "kind": "gem", "color": Color("ffb347"), "desc": "Holds a desert's heat for centuries. Found only on Arid planets."},
+	"gem_frost": {"name": "Rime Sapphire", "kind": "gem", "color": Color("5fb4ff"), "desc": "Cold enough to frost your fingers through plating. Found only on Glacial planets."},
+	"gem_ember": {"name": "Magma Ruby", "kind": "gem", "color": Color("ff3b3b"), "desc": "Forged where the mantle boils. Found only on Volcanic planets."},
+	"gem_prism": {"name": "Prism Diamond", "kind": "gem", "color": Color("e6f2ff"), "desc": "Splits starlight into colours nobody has named. Found only on Crystalline planets."},
+	"gem_bloom": {"name": "Spore Opal", "kind": "gem", "color": Color("ff8fd8"), "desc": "Grown, not formed, by fungus older than the Circuit. Found only on Fungal planets."},
+	"gem_giant": {"name": "Storm Amber", "kind": "gem", "color": Color("ffd96b"), "desc": "Pressure-fused in a gas giant's core, with lightning trapped inside. Probe a gas giant to find one."},
+	"gem_abyss": {"name": "Abyss Pearl", "kind": "gem", "color": Color("6ff3ff"), "desc": "From the floor of the ocean world at the galaxy's edge."},
+	"gem_tempest": {"name": "Thunder Quartz", "kind": "gem", "color": Color("b6a4ff"), "desc": "Crackles when held. Only the storm world at the edge grows them."},
+	"gem_forge": {"name": "Forgeheart Garnet", "kind": "gem", "color": Color("ff6a2a"), "desc": "A garnet the Machine world made on purpose. Nobody knows why."},
 	"scrap": {"name": "Drone Scrap", "kind": "resource", "color": Color("b0a9a0"), "desc": "Twisted plating salvaged from destroyed rogue drones."},
 	"power_core": {"name": "Rogue Power Core", "kind": "resource", "color": Color("ff4d6d"), "desc": "A still-humming drone core. Elites always carry one."},
 	# intermediates
@@ -126,6 +138,7 @@ const ITEMS := {
 	"cargo_pods_mk2": {"name": "Cargo Pods Mk II", "kind": "upgrade", "color": Color("e8c890"), "desc": "+200 cargo capacity."},
 	"scatter_mod": {"name": "Scatter Emitter", "kind": "upgrade", "color": Color("ffb347"), "desc": "Unlocks the Scatter weapon loadout (Outfitter or X to swap)."},
 	"rail_mod": {"name": "Rail Coil", "kind": "upgrade", "color": Color("9bd1ff"), "desc": "Unlocks the Rail weapon loadout (Outfitter or X to swap)."},
+	"crown_of_worlds": {"name": "Crown of Worlds", "kind": "upgrade", "color": Color("ffe9a8"), "desc": "Ten world gems set in one circlet. +50 energy, +50 hull, +20% harvest speed, +10% sell prices, and the galaxy knows your name."},
 	"lava_plating": {"name": "Heat Plating", "kind": "upgrade", "color": Color("ff7a3d"), "desc": "Immune to lava and heat drain."},
 }
 
@@ -179,6 +192,8 @@ const RECIPES := [
 	{"id": "thrusters_mk2", "out": "thrusters_mk2", "qty": 1, "in": {"alloy": 6, "circuit": 2}, "req": 30, "xp": 110, "cat": "Upgrades"},
 	{"id": "lava_plating", "out": "lava_plating", "qty": 1, "in": {"alloy": 8, "cobalt": 6}, "req": 35, "xp": 120, "cat": "Upgrades"},
 	{"id": "drill_mk3", "out": "drill_mk3", "qty": 1, "in": {"alloy": 6, "circuit": 3, "voidshard": 2}, "req": 55, "xp": 180, "cat": "Upgrades"},
+	{"id": "deep_probe", "out": "deep_probe", "qty": 2, "in": {"alloy": 2, "nickel": 3, "plasma": 3}, "req": 10, "xp": 50, "cat": "Consumables"},
+	{"id": "crown_of_worlds", "out": "crown_of_worlds", "qty": 1, "in": {"gem_verdant": 1, "gem_dune": 1, "gem_frost": 1, "gem_ember": 1, "gem_prism": 1, "gem_bloom": 1, "gem_giant": 1, "gem_abyss": 1, "gem_tempest": 1, "gem_forge": 1}, "req": 40, "xp": 1500, "cat": "Upgrades"},
 	{"id": "warp_drive_mk2", "out": "warp_drive_mk2", "qty": 1, "in": {"void_core": 2, "circuit": 3}, "req": 60, "xp": 220, "cat": "Upgrades"},
 ]
 
@@ -279,6 +294,7 @@ const MILESTONES := [
 	{"id": "archivist", "name": "Keeper of Records", "desc": "Recover 8 Codex entries", "metric": "codex", "n": 8, "bonus": {"sell": 0.05}},
 	{"id": "spelunker", "name": "Spelunker", "desc": "Recover 3 relics from the Deep", "metric": "relics", "n": 3, "bonus": {"cargo": 30}},
 	{"id": "lamplighter", "name": "Lamplighter", "desc": "Light 4 Circuit relays", "metric": "relays", "n": 4, "bonus": {"energy": 20, "hull": 20}},
+	{"id": "gem_hunter", "name": "Gem Hunter", "desc": "Hold 5 different world gems", "metric": "gem_types", "n": 5, "bonus": {"cargo": 30, "sell": 0.05}},
 	{"id": "master", "name": "Master of a Craft", "desc": "Reach level 50 in any profession", "metric": "best_skill", "n": 50, "bonus": {"harvest": 0.1}},
 ]
 
@@ -331,6 +347,9 @@ const QUESTS := [
 	{"id": "belt", "title": "Belt Prospector", "giver": "Archivist",
 		"text": "Every star keeps a belt of rock. Fly out to it, hold the left mouse button to cut with your mining laser, and fly through the shards to scoop them up. Bring in Nickel-Iron.",
 		"obj": {"type": "collect", "item": "nickel", "count": 12}, "xp": 380, "reward": {"energy_cell": 2}, "credits": 80},
+	{"id": "probe", "title": "Deeper Than Drills", "giver": "Archivist",
+		"text": "Drills scratch the crust. The treasures are deeper. Fly close to a world and press O to hold orbit, then drop a Deep Probe down into its core and bring back a gem. I've loaded two probes into your hold; the Fabricator can press more.",
+		"obj": {"type": "gem", "count": 1}, "xp": 900, "reward": {"deep_probe": 3}, "credits": 250},
 	{"id": "pirates", "title": "Pirate Problem", "giver": "Archivist",
 		"text": "Miners in the belt report corrupted pirate craft. Your frame can fight in the void too: left mouse fires pulse cannons at ships, right mouse launches homing missiles. Destroy five of them.",
 		"obj": {"type": "space_kill", "count": 5}, "xp": 480, "reward": {"repair_kit": 2}, "credits": 120},
@@ -370,6 +389,12 @@ const QUESTS := [
 	{"id": "heart", "title": "Heart of the Quiet", "giver": "Archivist",
 		"text": "The Machine world's star hides the thing that put the Circuit out: a Corruption Heart. It is shielded by pylons; break them, then break it. This is what I kept the names for, Unit.",
 		"obj": {"type": "heart", "count": 1}, "xp": 8000, "reward": {"legend_shard": 1}, "credits": 5000},
+	{"id": "gems", "title": "Ten Worlds, Ten Stones", "giver": "Archivist",
+		"text": "Every kind of world keeps one kind of gem, and the edge worlds keep the strangest. Bring me five different ones and I'll tell you what the old crowns were for.",
+		"obj": {"type": "gem_types", "count": 5}, "xp": 2500, "reward": {"deep_probe": 4}, "credits": 1000},
+	{"id": "crown", "title": "The Crown of Worlds", "giver": "Archivist",
+		"text": "Before the Quiet, one unit wore a stone from every kind of world. It was called the Crown of Worlds, and it made every world a little kinder to its wearer. Find all ten gems and fabricate it.",
+		"obj": {"type": "craft", "item": "crown_of_worlds", "count": 1}, "xp": 6000, "reward": {"legend_shard": 1}, "credits": 4000},
 ]
 
 # --------------------------------------------------------------------------
@@ -381,6 +406,8 @@ const VALUES := {
 	"scrap": 5, "power_core": 60, "alloy": 16, "circuit": 60, "polymer": 24, "void_core": 150,
 	"energy_cell": 18, "repair_kit": 20, "warp_cell": 120,
 	"nickel": 7, "cryo_ice": 9, "stardust": 30, "exotic": 120,
+	"gem_verdant": 400, "gem_dune": 400, "gem_frost": 400, "gem_ember": 450, "gem_prism": 500, "gem_bloom": 450,
+	"gem_giant": 550, "gem_abyss": 900, "gem_tempest": 900, "gem_forge": 900, "deep_probe": 60,
 	"glowcap": 14, "fossil": 90, "ancient_relic": 260, "relay_coupler": 90, "legend_shard": 600,
 }
 

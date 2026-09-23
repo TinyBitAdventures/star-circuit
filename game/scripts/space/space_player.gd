@@ -210,6 +210,15 @@ func _update_prompt(ui: bool) -> void:
 			hud.open_station_panel(Game.star_index)
 		return
 	hud.set_speed_text("Speed %d  ·  %s" % [int(velocity.length()), ("Nearest: %s  %d u" % [near.planet.data.name, int(near.dist)]) if not near.is_empty() else ""])
+	# the gas giant can't be landed on, but it can be probed
+	if world.giant and global_position.distance_to(world.giant.global_position) < world.giant_r * 1.9:
+		var gi := Game.orbit_info("giant", Game.star_index, -1)
+		hud.set_prompt("[%s] Hold orbit over %s and probe its core  (%s)" % [Sound.key_name("orbit"), gi.name, _gem_text(gi)], Color("ffd96b"), 0.0)
+		if not ui and Input.is_action_just_pressed("orbit"):
+			velocity = Vector3.ZERO
+			hud.set_prompt("", Color.WHITE, 0.0)
+			Game.enter_orbit(gi, global_position)
+		return
 	if near.is_empty():
 		hud.set_prompt("", Color.WHITE, 0.0)
 		return
@@ -220,6 +229,14 @@ func _update_prompt(ui: bool) -> void:
 		var txt := "[E] Land on %s  (%s%s)" % [p.data.name, b.name, ", visited" if visited else ", uncharted"]
 		if not p.data.town.is_empty():
 			txt += "\n[F] Dock at %s" % p.data.town.name
+		var oi := Game.orbit_info("planet", Game.star_index, p.data.index)
+		txt += "\n[%s] Hold orbit and probe for gems  (%s)" % [Sound.key_name("orbit"), _gem_text(oi)]
+		if not ui and Input.is_action_just_pressed("orbit"):
+			_landing = true
+			velocity = Vector3.ZERO
+			hud.set_prompt("", Color.WHITE, 0.0)
+			Game.enter_orbit(oi, global_position)
+			return
 		hud.set_prompt(txt, b.atmo.lightened(0.3), 0.0)
 		if not ui and not p.data.town.is_empty() and Input.is_action_just_pressed("ability"):
 			_landing = true
@@ -500,3 +517,12 @@ func _build_space_fx() -> void:
 	_streaks.gravity = Vector3.ZERO
 	_streaks.particle_flag_align_y = true
 	add_child(_streaks)
+
+
+
+func _gem_text(info: Dictionary) -> String:
+	var total: int = Game.world_gems(info).size()
+	var left := Game.gems_left(info)
+	if not Game.gems_taken.has(info.key):
+		return "uncharted core"
+	return "%d / %d gems left" % [left, total] if left > 0 else "core picked clean"

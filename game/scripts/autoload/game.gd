@@ -49,6 +49,8 @@ var lit_relays: Array = [0]
 var heart_defeated := false
 var boarded: Array = [] # derelict keys already looted
 var milestones: Array = [] # unlocked milestone ids
+var gems_taken := {} # orbit target key -> [gem indices already extracted]
+var orbit := {} # the world we're orbiting (not saved: orbit always resumes in space)
 var species_names := {} # species key -> display name (species log)
 var world_species := {} # planet key -> species on that world (for the log)
 var space_kills := 0
@@ -117,7 +119,7 @@ func _register_input() -> void:
 		"interact": [KEY_E], "scan": [KEY_Q], "use_cell": [KEY_R],
 		"inventory": [KEY_I, KEY_TAB], "crafting": [KEY_C], "skills": [KEY_K],
 		"quests": [KEY_J], "map": [KEY_M], "takeoff": [KEY_T], "help": [KEY_H, KEY_F1],
-		"pause": [KEY_ESCAPE], "ability": [KEY_F], "repair": [KEY_G], "weapon_cycle": [KEY_X],
+		"pause": [KEY_ESCAPE], "ability": [KEY_F], "repair": [KEY_G], "weapon_cycle": [KEY_X], "orbit": [KEY_O],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
@@ -180,6 +182,8 @@ func _reset_state() -> void:
 	cave = {}
 	relics_found = 0
 	milestones = []
+	gems_taken = {}
+	orbit = {}
 	species_names = {}
 	world_species = {}
 	space_kills = 0
@@ -664,6 +668,11 @@ func accept_quest() -> void:
 			quest_progress = skill_level(o.skill)
 		"scan":
 			quest_progress = 0
+		"gem":
+			add_item("deep_probe", 2, true)
+			notify.emit("+2 Deep Probes loaded", Color("9bd1ff"))
+		"gem_types":
+			quest_progress = gem_types()
 	big_notify.emit("QUEST ACCEPTED", q.title, Color("ffd23f"))
 	quest_changed.emit()
 	_check_quest_complete()
@@ -703,6 +712,10 @@ func _quest_event(kind: String, what: String, amount := 1) -> void:
 		"skill":
 			if o.skill == what:
 				quest_progress = mini(o.count, skill_level(what))
+		"gem":
+			quest_progress = mini(o.count, quest_progress + 1)
+		"gem_types":
+			quest_progress = mini(o.count, gem_types())
 	quest_changed.emit()
 	_check_quest_complete()
 
@@ -832,7 +845,7 @@ func save_game() -> void:
 		"credits": credits, "skill_tiers": skill_tiers, "bounties": bounties, "visited_towns": visited_towns,
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
-		"milestones": milestones, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
+		"milestones": milestones, "gems_taken": gems_taken, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
 		"star_index": star_index, "planet_index": planet_index, "location": location,
@@ -890,6 +903,7 @@ func load_game(n := -1) -> bool:
 		visited_stars.append(int(s))
 	scanned = d.get("scanned", [])
 	milestones = d.get("milestones", [])
+	gems_taken = d.get("gems_taken", {})
 	species_names = d.get("species_names", {})
 	world_species = d.get("world_species", {})
 	space_kills = int(d.get("space_kills", 0))
@@ -1635,6 +1649,7 @@ func metric(m: String) -> int:
 		"towns": return visited_towns.size()
 		"codex": return codex.size()
 		"relics": return relics_found
+		"gem_types": return gem_types()
 		"relays": return lit_relays.size() - 1 # Solace's relay starts lit
 		"best_skill":
 			var b := 0
@@ -1646,6 +1661,8 @@ func metric(m: String) -> int:
 
 func milestone_bonus(kind: String) -> float:
 	var t := 0.0
+	if has_upgrade("crown_of_worlds"):
+		t += {"energy": 50.0, "hull": 50.0, "harvest": 0.2, "sell": 0.1}.get(kind, 0.0)
 	for m in Db.MILESTONES:
 		if milestones.has(m.id):
 			t += float(m.bonus.get(kind, 0.0))
@@ -1680,3 +1697,85 @@ func check_milestones(announce := true) -> void:
 ## Remember how many species live on a world, for the species log.
 func note_world_species(planet_key: String, planet_name: String, biome: String, total: int) -> void:
 	world_species[planet_key] = {"name": planet_name, "biome": biome, "total": total}
+
+
+
+# --------------------------------------------------------------------------
+# orbit + world gems
+# --------------------------------------------------------------------------
+
+const GEM_KINDS := ["gem_verdant", "gem_dune", "gem_frost", "gem_ember", "gem_prism", "gem_bloom", "gem_giant", "gem_abyss", "gem_tempest", "gem_forge"]
+
+
+## How many different world gems you hold (the Crown consumes them).
+func gem_types() -> int:
+	var n := 0
+	for g in GEM_KINDS:
+		if count(g) > 0:
+			n += 1
+	return n
+
+
+## Everything the orbit view needs to know about a world.
+## kind "planet" uses star/index; kind "giant" is the system's gas giant.
+func orbit_info(kind: String, star_i: int, index: int) -> Dictionary:
+	if kind == "giant":
+		var st: Dictionary = Galaxy.star(star_i)
+		var g: Dictionary = st.giant
+		return {"kind": "giant", "key": "giant:%d" % star_i, "name": g.name, "biome": "giant", "gem": "gem_giant",
+			"seed": hash("giant:%d" % star_i), "hue": g.hue, "rings": g.rings, "star": star_i, "index": -1}
+	var p: Dictionary = Galaxy.planet(star_i, index)
+	return {"kind": "planet", "key": p.key, "name": p.name, "biome": p.biome, "gem": "gem_" + p.biome,
+		"seed": int(p.seed), "rings": p.get("rings", false), "star": star_i, "index": index}
+
+
+## Gems buried in a world: deterministic, 1-3 of them (3 on edge worlds).
+func world_gems(info: Dictionary) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(str(info.key) + ":gems")
+	var n := 1 + (1 if rng.randf() < 0.55 else 0) + (1 if rng.randf() < 0.25 else 0)
+	if info.biome in ["abyss", "tempest", "forge"]:
+		n = 3
+	elif info.kind == "giant":
+		n = maxi(n, 2)
+	var out := []
+	for i in n:
+		# deeper gems sit nearer the core, where the heat is
+		out.append({"idx": i, "angle": rng.randf() * TAU + i * TAU / n, "depth": rng.randf_range(0.35, 0.78)})
+	return out
+
+
+func gems_left(info: Dictionary) -> int:
+	var taken: Array = gems_taken.get(info.key, [])
+	return world_gems(info).size() - taken.size()
+
+
+func take_gem(info: Dictionary, idx: int) -> void:
+	if not gems_taken.has(info.key):
+		gems_taken[info.key] = []
+	if (gems_taken[info.key] as Array).has(idx):
+		return
+	gems_taken[info.key].append(idx)
+	add_item(info.gem, 1, true)
+	big_notify.emit("GEM EXTRACTED", "%s from %s  ·  %d different gems held" % [Db.item_name(info.gem), info.name, gem_types()], Db.item_color(info.gem))
+	gain_skill_xp("exploration", 120)
+	gain_skill_xp("mining", 60)
+	gain_xp(250)
+	_quest_event("gem", info.gem)
+	_quest_event("gem_types", info.gem)
+	save_game()
+
+
+func enter_orbit(info: Dictionary, return_pos: Vector3) -> void:
+	orbit = info.duplicate()
+	orbit["return"] = [return_pos.x, return_pos.y, return_pos.z]
+	save_game()
+	Sound.play("boost", -6.0, 0.0)
+	fade_to("res://scenes/orbit.tscn")
+
+
+func leave_orbit() -> void:
+	var r: Array = orbit.get("return", [0, 0, 0])
+	space_spawn = Vector3(r[0], r[1], r[2])
+	orbit = {}
+	go_to_space()

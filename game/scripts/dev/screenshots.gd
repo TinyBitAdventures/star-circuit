@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "orbit":
+		await _orbit_tour()
+		get_tree().quit()
+		return
 	if which == "polish":
 		await _polish_tour()
 		get_tree().quit()
@@ -1043,3 +1047,48 @@ func _polish_tour() -> void:
 		pod.velocity = Vector2.ZERO
 		await _wait(2.0)
 		await shot("pol_dig_lava")
+
+
+
+func _orbit_tour() -> void:
+	Sound.show_tips = true
+	Sound.seen_tips = []
+	Game.new_game("scout", "Tester")
+	await _wait(4.0)
+	Game.add_item("deep_probe", 4, true)
+	# space: the orbit prompt next to Cradle
+	Game.planet_index = 0
+	Game.go_to_space()
+	await _wait(4.0)
+	var sw := _scene()
+	var p0: Dictionary = sw.planets[0]
+	sw.player.global_position = p0.node.global_position + Vector3(0, 0, p0.radius * 1.6)
+	sw.player.look_at(p0.node.global_position)
+	await _wait(1.5)
+	await shot("orb_space_prompt")
+	for spec in [["planet", 0, 0], ["planet", 0, 3], ["giant", 0, -1]]:
+		var info := Game.orbit_info(spec[0], spec[1], spec[2])
+		Game.enter_orbit(info, Vector3(0, 0, 900))
+		await _wait(3.2)
+		var w := _scene()
+		await shot("orb_%s_arrive" % info.biome)
+		w._scan()
+		await _wait(0.8)
+		await shot("orb_%s_scanned" % info.biome)
+		# drop toward the first gem
+		var g: Dictionary = w.gems[0]
+		var dist: float = w.R * 1.24 + 18.0 - (g.pos as Vector2).length()
+		w.ship_angle = (g.pos as Vector2).angle() + w.rot + w.SPIN * dist / w.PROBE_SPEED
+		w._launch()
+		await _wait(dist / w.PROBE_SPEED * 0.6)
+		await shot("orb_%s_probe" % info.biome)
+		while w.probe_state == "down":
+			await get_tree().process_frame
+		await _wait(0.25)
+		await shot("orb_%s_reel" % info.biome)
+		while w.probe_state != "":
+			await get_tree().process_frame
+		await _wait(0.4)
+		await shot("orb_%s_got" % info.biome)
+		w._leave()
+		await _wait(3.0)

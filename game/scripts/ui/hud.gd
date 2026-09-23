@@ -188,6 +188,8 @@ func _refresh_location() -> void:
 		location_label.text = "Beneath %s  ·  %s\n%s system" % [p0.name, "The Deep" if mode == "dig" else "Sealed chamber", star.name]
 		if Game.cave.get("origin", "") == "space":
 			location_label.text = "Aboard a derelict\n%s system" % star.name
+	elif mode == "orbit":
+		location_label.text = "Holding orbit  ·  %s\n%s system" % [Game.orbit.get("name", "?"), star.name]
 	elif mode == "planet":
 		var p: Dictionary = Galaxy.planet(Game.star_index, Game.planet_index)
 		location_label.text = "%s  ·  %s\n%s system (class %s)" % [p.name, Db.BIOMES[p.biome].name, star.name, star.cls]
@@ -258,6 +260,10 @@ static func objective_text(q: Dictionary) -> String:
 			return "Destroy the Corruption Heart"
 		"dig":
 			return "Dig out tiles in a cave: %d / %d" % [p, o.count]
+		"gem":
+			return "Probe a world from orbit (O) and extract a gem: %d / %d" % [p, o.count]
+		"gem_types":
+			return "Different world gems held: %d / %d" % [p, o.count]
 		"chamber":
 			return "Discover a sealed chamber: %d / %d" % [p, o.count]
 		"sell":
@@ -421,10 +427,12 @@ func _build_hints() -> void:
 		l.text = "WASD move · Space jump/jetpack · Shift sprint · E interact · LMB fire · F ability · G repair · Q scan · R energy · T take off · I C K J panels · H help"
 	elif mode == "dig":
 		l.text = "A/D move + drill sideways · S drill down · W/Space thrust (drills up at a ceiling) · E lift / enter chamber · T emergency lift · R energy · G repair · I C K J panels"
+	elif mode == "orbit":
+		l.text = "A/D orbit / steer probe · Space launch / reel in · S dive · W brake · Q deep scan · R energy · T leave orbit · I C K J panels"
 	elif mode == "grotto":
 		l.text = "WASD move · Space jump · Shift sprint · E interact · Q scan cave species · R energy cell · I C K J panels"
 	else:
-		l.text = "Mouse steer · W/S thrust · A/D strafe · Shift boost · LMB cannons (laser on rock) · RMB missiles · Q scan · E land · F dock · M map · H help"
+		l.text = "Mouse steer · W/S thrust · A/D strafe · Shift boost · LMB cannons (laser on rock) · RMB missiles · Q scan · E land · F dock · O orbit · M map · H help"
 	root.add_child(l)
 
 
@@ -594,7 +602,7 @@ func _panel_inventory() -> void:
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	var kinds := {"resource": "Raw Resources", "component": "Components", "consumable": "Consumables", "fuel": "Fuel", "key": "Relay Keys", "relic": "Relics & Fossils"}
+	var kinds := {"resource": "Raw Resources", "component": "Components", "consumable": "Consumables", "fuel": "Fuel & Probes", "key": "Relay Keys", "gem": "World Gems", "relic": "Relics & Fossils"}
 	var any := false
 	for kind in kinds:
 		var items := []
@@ -865,11 +873,12 @@ func _panel_quests() -> void:
 	v.add_child(UiKit.label("Worlds surveyed: %d  ·  Sites discovered: %d" % [Game.surveyed.size(), Game.discovered_pois.size()], 13, UiKit.MUTED))
 	tabs.add_child(_species_tab())
 	tabs.add_child(_milestone_tab())
+	tabs.add_child(_gems_tab())
 	for ti in tabs.get_tab_count():
 		var tc := tabs.get_tab_control(ti)
 		if tc.has_meta("title"):
 			tabs.set_tab_title(ti, tc.get_meta("title"))
-	tabs.current_tab = clampi(_codex_tab, 0, 2)
+	tabs.current_tab = clampi(_codex_tab, 0, 3)
 	tabs.tab_changed.connect(func(t): _codex_tab = t)
 
 
@@ -962,6 +971,45 @@ func _species_display(k: String) -> String:
 	return nm.substr(0, cut) if cut > 0 else nm
 
 
+func _gems_tab() -> Control:
+	var v := VBoxContainer.new()
+	v.name = "Gems"
+	v.set_meta("title", "World Gems  %d/10" % Game.gem_types())
+	v.add_theme_constant_override("separation", 8)
+	var intro := UiKit.label("Each kind of world hides one kind of gem, 1 to 3 per world. Hold orbit near a world (%s) and drop a Deep Probe to extract them. Set all ten into the Crown of Worlds at the Fabricator." % Game.key("orbit"), 14, UiKit.MUTED)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD
+	v.add_child(intro)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 8)
+	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(grid)
+	var where := {"gem_verdant": "Verdant worlds", "gem_dune": "Arid worlds", "gem_frost": "Glacial worlds", "gem_ember": "Volcanic worlds",
+		"gem_prism": "Crystalline worlds", "gem_bloom": "Fungal worlds", "gem_giant": "Gas giants", "gem_abyss": "The ocean edge world",
+		"gem_tempest": "The storm edge world", "gem_forge": "The machine edge world"}
+	for g in Game.GEM_KINDS:
+		var n := Game.count(g)
+		var col := Db.item_color(g)
+		var row := PanelContainer.new()
+		row.custom_minimum_size = Vector2(440, 0)
+		row.add_theme_stylebox_override("panel", UiKit.box(Color(col.darkened(0.8), 0.9) if n > 0 else Color(0.07, 0.09, 0.12, 0.85), col if n > 0 else Color(1, 1, 1, 0.1), 8, 1, 8))
+		grid.add_child(row)
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 12)
+		row.add_child(h)
+		h.add_child(UiKit.label("◆", 26, col if n > 0 else Color(1, 1, 1, 0.15)))
+		var tv := VBoxContainer.new()
+		tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(tv)
+		tv.add_child(UiKit.label(Db.item_name(g) if n > 0 else "Unknown gem", 16, Color.WHITE if n > 0 else UiKit.MUTED, true))
+		tv.add_child(UiKit.label(where[g], 12, UiKit.MUTED))
+		h.add_child(UiKit.label("x%d" % n if n > 0 else "", 16, col))
+	if Game.has_upgrade("crown_of_worlds"):
+		v.add_child(UiKit.label("✦ You wear the Crown of Worlds.", 16, Color("ffe9a8"), true))
+	return v
+
+
 func _milestone_tab() -> Control:
 	var v := VBoxContainer.new()
 	v.name = "Milestones"
@@ -1019,7 +1067,7 @@ Brutes telegraph their slam with a red ring. Get out of it!
 
 [b][color=#5ff7ff]In space[/color][/b]
 Mouse steer  ·  W/S thrust  ·  A/D strafe  ·  Space/Ctrl rise/sink  ·  Shift boost
-Fly close to a planet and press [b]E[/b] to land ([b]F[/b] to dock at its trade hub)  ·  [b]M[/b] galaxy map to warp (costs a Warp Cell)
+Fly close to a planet and press [b]E[/b] to land ([b]F[/b] to dock at its trade hub, [b]O[/b] to hold orbit and probe for gems)  ·  [b]M[/b] galaxy map to warp (costs a Warp Cell)
 [b]Left mouse[/b] pulse cannons, which switch to the mining laser when the crosshair is on rock  ·  [b]Right mouse[/b] homing missiles
 Cut asteroids in the belt and fly through the shards  ·  [b]Q[/b] scan the belt  ·  Red arrows at the screen edge point to pirates
 

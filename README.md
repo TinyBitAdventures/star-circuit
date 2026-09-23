@@ -59,6 +59,7 @@ The generated models and audio are committed, so Blender and Python are only nee
 | W/S, A/D, Space/Ctrl | thrust, strafe, rise/sink |
 | Shift | boost (uses energy) |
 | E | land on a nearby planet (F docks at its trade hub) |
+| O | hold orbit over a planet, moon or gas giant and probe its core for gems |
 | Left mouse | pulse cannons; switches to the mining laser when the crosshair is on rock |
 | Right mouse | homing missiles (lock onto the pirate nearest the crosshair) |
 | Q | scan the belt for asteroid types and contents |
@@ -121,6 +122,17 @@ fullscreen, graphics quality and volume.
   for plasma and ice (don't go too deep). Derelict wrecks can be boarded as small 3D interiors. Solar flares recharge energy
   but burn your hull unless you shelter behind a planet or near the station. **M** opens a system map where you set waypoints
   (a HUD marker points the way); the galaxy map is one click further.
+- **Orbit & Deep Probes**:
+  - Near any planet, moon or gas giant, press O to hold orbit. The view cuts the world open: surface, clouds and atmosphere on the rim,
+    then crust strata, a convecting mantle, a molten outer core and a white-hot inner core, all turning slowly under your ship.
+  - Drop a tethered **Deep Probe** (Space), steer it with A/D, dive with S and brake with W. Q runs a deep scan to reveal the gems.
+    Faultstone crushes probes, the outer core cooks them if they stay too long, and the inner core melts them outright. Grab something and it reels back up.
+  - Every kind of world hides one kind of **world gem**, 1-3 per world, and once they're taken they're gone:
+    Verdant Emerald, Sunstone, Rime Sapphire, Magma Ruby, Prism Diamond, Spore Opal, Storm Amber (gas giants), plus
+    Abyss Pearl, Thunder Quartz and Forgeheart Garnet from the three edge worlds. Ore pockets refill on every visit.
+  - Probes are fabricated (Alloy, Nickel-Iron, Solar Plasma). The quest log's **World Gems** tab tracks the collection.
+  - Endgame: after the Heart, the Archivist asks for five gem types, then all ten, set into the **Crown of Worlds**
+    (+50 energy, +50 hull, +20% harvest speed, +10% sell prices). The quest "Deeper Than Drills" introduces probes mid-game.
 - **The Deep (underground)**:
   - Every planet has Cave Mouths (amber lamps; one is always near where you land). Descend into a **2D digging mode**: a side-on slice
     of the crust, lit only by your headlamp. Drill in whichever direction you push, thrust up with W, and manage energy.
@@ -218,6 +230,8 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     SHOTS=town godot --path game res://scenes/dev_shots.tscn   # towns, merchant/trainer/board panels, docking
     SHOTS=belt godot --path game res://scenes/dev_shots.tscn   # asteroid belt, scanner, mining laser, shards, comet
     SHOTS=spacefight godot --path game res://scenes/dev_shots.tscn  # pirates, cannons, missiles, threat markers, Marauder
+    SHOTS=orbit godot --path game res://scenes/dev_shots.tscn  # orbit prompt, three worlds probed (verdant, crystalline, gas giant)
+    godot --headless --path game res://scenes/dev_orbit.tscn   # probe to a gem, lose one in the core, craft the Crown
     SHOTS=polish godot --path game res://scenes/dev_shots.tscn # menus, settings, tips, quest star, species log, milestones, lava
     SHOTS=station godot --path game res://scenes/dev_shots.tscn     # sprint, orbital station, market tabs
     SHOTS=outfit godot --path game res://scenes/dev_shots.tscn      # outfitter preview, paint/parts/loadout, 4 styled robots
