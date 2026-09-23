@@ -268,8 +268,10 @@ func stop_all_loops() -> void:
 # music
 # --------------------------------------------------------------------------
 
+var _music_tween: Tween
+
 func play_music(track: String, fade := 2.5) -> void:
-	if track == _music_current:
+	if track == _music_current and _music_active and _music_active.playing:
 		return
 	_music_current = track
 	var s := _stream(MUSIC_DIR + track + ".ogg", true)
@@ -280,11 +282,18 @@ func play_music(track: String, fade := 2.5) -> void:
 	new.volume_db = SILENT_DB
 	new.play()
 	var target := _music_level()
+	# a quick switch back and forth must not let an old fade stop the new track
+	if _music_tween and _music_tween.is_valid():
+		_music_tween.kill()
 	var t := create_tween().set_parallel()
+	_music_tween = t
 	_fade(t, new, SILENT_DB, target, fade)
 	if old.playing:
 		_fade(t, old, old.volume_db, SILENT_DB, fade)
-		t.chain().tween_callback(old.stop)
+		t.chain().tween_callback(func():
+			if old != _music_active:
+				old.stop()
+		)
 
 
 func music_for_biome(biome: String) -> String:
@@ -444,7 +453,7 @@ func set_underwater(on: bool) -> void:
 	if on == _underwater:
 		return
 	_underwater = on
-	for b in ["SFX", "Ambience", "Music"]:
+	for b in ["SFX", "Ambience"]:
 		var idx := AudioServer.get_bus_index(b)
 		if idx < 0:
 			continue

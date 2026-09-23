@@ -823,9 +823,11 @@ func _update_water(delta: float, up: Vector3, is_lava: bool, liquid_r: float, di
 	if _uw > 0.5 and not _uw_amb:
 		_uw_amb = true
 		Sound.loop_start("uw_amb", "ocean_loop", -10.0, "Ambience", 0.6)
+		world.refresh_music(2.0)
 	elif _uw < 0.3 and _uw_amb:
 		_uw_amb = false
 		Sound.loop_stop("uw_amb", 0.6)
+		world.refresh_music(2.5)
 	if swimming and swim_depth > 2.0:
 		Game.tip("first_swim", "You're swimming. Hold %s to rise and %s to dive. Keep going down and you can drop into the Deep Sea to explore, mine and scan what lives there." % [Game.key("jump"), Game.key("descend")])
 

@@ -39,6 +39,7 @@ func _run() -> void:
 	var p = pw.player
 	p.global_position = best * (gen.sea_radius() - 3.0)
 	await _wait(1.5)
+	print("[sea] 3D underwater music=", Sound._music_current)
 	print("[sea] in_liquid=", p.in_liquid, " swim_depth=", snappedf(p.swim_depth, 0.1), " uw=", snappedf(p._uw, 0.01), " fog=", snappedf(pw.env.fog_density, 0.001))
 	Input.action_press("descend")
 	await _wait(1.5)
@@ -47,6 +48,7 @@ func _run() -> void:
 	Game.enter_sea(p.global_position.normalized(), pw.planet)
 	await _wait(3.0)
 	var w := get_tree().current_scene
+	print("[sea] music=", Sound._music_current, " stream=", Sound._music_active.stream, " playing=", Sound._music_active.playing)
 	print("[sea] scene=", w.name, " objects=", w.objects.size(), " fauna=", w.fauna.size(), " kinds=", _kinds(w.objects))
 	var d: SeaDiver = w.diver
 	# swim straight down the trench

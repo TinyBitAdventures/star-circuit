@@ -928,7 +928,7 @@ func _update_town(pos: Vector3) -> void:
 	var d := pos.distance_to(town.centre)
 	if not _in_town and d < 38.0:
 		_in_town = true
-		Sound.play_music("town", 2.0)
+		refresh_music(2.0)
 		if not Game.visited_towns.has(planet.key):
 			hud.show_location_banner(planet.town.name, "Trade hub  ·  Merchant, Trainer, Bounty Board")
 		else:
@@ -936,7 +936,7 @@ func _update_town(pos: Vector3) -> void:
 		Game.record_town_visit(planet.key)
 	elif _in_town and d > 55.0:
 		_in_town = false
-		Sound.play_music(Sound.music_for_biome(planet.biome), 3.0)
+		refresh_music(3.0)
 
 
 
@@ -1070,3 +1070,15 @@ func _update_post(up: Vector3, day: float) -> void:
 	_post_mat.set_shader_parameter("frost", fr)
 	_post_mat.set_shader_parameter("grade", cfg.grade)
 	_post_mat.set_shader_parameter("grade_amt", cfg.grade_amt)
+
+
+
+## One place decides the planet's music: the sea when the camera is under,
+## the town theme inside a trade hub, otherwise the world's own theme.
+func refresh_music(fade := 2.5) -> void:
+	if underwater > 0.5 and not biome.get("lava", false):
+		Sound.play_music("ocean", fade)
+	elif _in_town:
+		Sound.play_music("town", fade)
+	else:
+		Sound.play_music(Sound.music_for_biome(planet.biome), fade)
