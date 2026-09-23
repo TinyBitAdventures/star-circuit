@@ -39,6 +39,9 @@ var _cap_warned := {}
 var appearance := {} # shell/accent/glow/flame colours (html) + head/top/pack/finish ids
 var owned_cosmetics: Array = []
 var weapon := "pulse"
+var digs := {} # cave key -> {"dug": base64 bitmap, "chambers": [ids]}
+var cave := {} # the cave we're currently in (not saved: caves always resume on the surface)
+var relics_found := 0
 var inventory := {}
 var upgrades: Array = []
 var skills := {}
@@ -62,6 +65,7 @@ var _autosave_timer := 0.0
 var in_game := false
 var ui_open := false
 var arrived_by_warp := false
+var arriving_from_space := false
 
 
 func _ready() -> void:
@@ -151,6 +155,9 @@ func _reset_state() -> void:
 	appearance = {}
 	owned_cosmetics = []
 	weapon = "pulse"
+	digs = {}
+	cave = {}
+	relics_found = 0
 
 
 func new_game(robot: String, pname: String) -> void:
@@ -634,12 +641,14 @@ func _quest_event(kind: String, what: String, amount := 1) -> void:
 			if o.item != what:
 				return
 			quest_progress = mini(o.count, quest_progress + amount)
-		"scan", "warp", "orbit", "kill", "kill_elite", "train", "space_kill", "space_elite":
+		"scan", "warp", "orbit", "kill", "kill_elite", "train", "space_kill", "space_elite", "chamber":
 			quest_progress = mini(o.count, quest_progress + 1)
 		"land_unique":
 			quest_progress = mini(o.count, visited_planets.size())
 		"visit_town":
 			quest_progress = mini(o.count, visited_towns.size())
+		"dig":
+			quest_progress = mini(o.count, quest_progress + amount)
 		"sell", "station_sell":
 			quest_progress = mini(o.count, quest_progress + amount)
 		"skill":
@@ -746,6 +755,7 @@ func save_game() -> void:
 		"credits": credits, "skill_tiers": skill_tiers, "bounties": bounties, "visited_towns": visited_towns,
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
+		"digs": digs, "relics_found": relics_found,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
 		"star_index": star_index, "planet_index": planet_index, "location": location,
 		"visited_planets": visited_planets, "visited_stars": visited_stars,
@@ -829,6 +839,8 @@ func load_game() -> bool:
 	appearance = d.get("appearance", {})
 	owned_cosmetics = d.get("owned_cosmetics", [])
 	weapon = d.get("weapon", "pulse")
+	digs = d.get("digs", {})
+	relics_found = int(d.get("relics_found", 0))
 	# quests are saved by id so new quests can be inserted without breaking saves
 	var qid: String = d.get("quest_id", "")
 	if qid == "done":
@@ -1392,3 +1404,60 @@ func cycle_weapon() -> void:
 			else:
 				notify.emit("Craft a Scatter Emitter or Rail Coil to unlock more loadouts.", Color("9aa0a6"))
 			return
+
+
+
+# --------------------------------------------------------------------------
+# the Deep: caves, digging, chambers
+# --------------------------------------------------------------------------
+
+func enter_cave(poi_key: String, dir: Vector3, planet_seed: int, biome: String) -> void:
+	cave = {"key": poi_key, "dir": [dir.x, dir.y, dir.z], "seed": hash(poi_key) ^ planet_seed, "biome": biome,
+		"star": star_index, "planet": planet_index, "pod": []}
+	land_dir = dir
+	save_game()
+	Sound.play("atmo_entry", -8.0, 0.0)
+	fade_to("res://scenes/dig.tscn")
+
+
+func leave_cave() -> void:
+	var d: Array = cave.get("dir", [0, 1, 0])
+	land_dir = Vector3(d[0], d[1], d[2])
+	cave = {}
+	go_to_planet(star_index, planet_index)
+
+
+func enter_chamber(chamber: Dictionary, pod_pos: Vector2) -> void:
+	cave["pod"] = [pod_pos.x, pod_pos.y]
+	cave["chamber"] = chamber
+	fade_to("res://scenes/grotto.tscn")
+
+
+func leave_chamber() -> void:
+	fade_to("res://scenes/dig.tscn")
+
+
+func dig_state(key: String) -> Dictionary:
+	if not digs.has(key):
+		digs[key] = {"dug": "", "chambers": []}
+	return digs[key]
+
+
+func record_dig(n: int) -> void:
+	_quest_event("dig", "tile", n)
+
+
+func record_chamber(key: String, chamber_id: int, theme: String) -> void:
+	var st := dig_state(key)
+	if st.chambers.has(chamber_id):
+		return
+	st.chambers.append(chamber_id)
+	gain_skill_xp("exploration", 90)
+	gain_xp(150)
+	_quest_event("chamber", theme)
+
+
+func collect_relic(item: String) -> void:
+	add_item(item, 1, false, true)
+	relics_found += 1
+	gain_skill_xp("exploration", 60 if item == "fossil" else 120)

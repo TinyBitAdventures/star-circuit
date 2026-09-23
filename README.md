@@ -106,6 +106,19 @@ Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual 
     off-screen ones. Kills drop salvage shards (scrap, power cores, exotic matter) plus credits and Combat XP.
   - New upgrades are Twin Pulse Cannons and the Missile Rack, plus the "Pirate Problem" and "Hunt the Marauder" quests and "Pirate Hunt" bounties.
     If your ship is destroyed, an emergency beacon reboots you near the system's first world.
+- **The Deep (underground)**:
+  - Every planet has Cave Mouths (amber lamps; one is always near where you land). Descend into a **2D digging mode**: a side-on slice
+    of the crust, lit only by your headlamp. Drill in whichever direction you push, thrust up with W, and manage energy.
+  - Five layers get harder and richer with depth: Topsoil, Bedrock Shelf, Deep Stone, Crystal Veins and the Magma Belt. Ore veins glint in the dark
+    (ferrite and nickel up top, lumen and stardust mid-depth, void shards and exotic matter at the bottom). Natural caverns and worm
+    tunnels break up the rock. Hazards are gas pockets, molten rock, hardened rock and void rock (gated by Mining skill) and hard falls.
+  - **Sealed chambers** glow behind rune walls. Step inside to drop into a small **walkable 3D grotto**: Fungal Grotto, Fossil Bed,
+    Crystal Cavern or Ancient Vault. Each has rare nodes (including the cave-only Glowcap), glowing cave species to scan, and
+    fossils or ancient relics (with Codex lore) to recover.
+  - Your tunnels persist between visits. T is an emergency lift (costs energy, or ore if you're flat). Hull loss drops half the ore from that dive.
+  - Two story quests, "Under the Surface" and "Hidden Chambers", plus an underground music track.
+- **Feel**: trauma-based camera shake (explosions, slams, hits, boosts), drop-pod landings from orbit with retro-thrusters and a touchdown
+  dust burst, and trees, cacti and mushrooms swaying in the wind.
 - **Graphics**:
   - Terrain has procedural micro-bump detail, rock strata on slopes, wet shorelines and snow glints.
   - Wind-swept grass, flowers, glowing mushrooms, crystal shards and frost tufts fill in around you on a background thread and fade out at the edges.
@@ -145,7 +158,7 @@ Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual 
   plus a combat layer that crossfades in while drones are chasing you. Effects cover footsteps, jetpack, gathering loops,
   blaster, hits, explosions, the Brute's warning and slam, abilities, UI, quests, level-ups, takeoff and warp.
   Wind and creature calls are positional. Volume sliders (Master, Music, Effects, Interface, Ambience) are in the pause menu.
-- **Character levels (1-30)**, a **23-quest storyline** (combat, trade and training quests included), saved by quest ID so new quests never break old saves from the Archivist, an autosaving **save/load**.
+- **Character levels (1-30)**, a **25-quest storyline** (combat, trade and training quests included), saved by quest ID so new quests never break old saves from the Archivist, an autosaving **save/load**.
 
 ## Audio pipeline
 
@@ -184,6 +197,8 @@ Dev checks:
     SHOTS=outfit godot --path game res://scenes/dev_shots.tscn      # outfitter preview, paint/parts/loadout, 4 styled robots
     TAG=before SHOTS=gfx godot --path game res://scenes/dev_shots.tscn  # fixed views for graphics before/after comparisons
     godot --path game res://scenes/dev_fps.tscn                     # frame rate per graphics quality
+    godot --headless --path game res://scenes/dev_dig.tscn          # cave -> dig -> chamber -> grotto -> back to the surface
+    SHOTS=deep godot --path game res://scenes/dev_shots.tscn        # cave mouth, dig layers, chambers, all four grotto themes
     godot --headless --path game res://scenes/dev_sprint.tscn       # walk vs sprint ground speed
     PIRATE=gunship godot --headless --path game res://scenes/dev_pirate.tscn  # one pirate's pursuit/fire behaviour
     godot --path game --write-movie /tmp/tour.avi --fixed-fps 30 res://scenes/dev_audio.tscn  # record a session with audio

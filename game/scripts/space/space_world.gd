@@ -249,6 +249,7 @@ func nearest_planet(pos: Vector3) -> Dictionary:
 func land_at_town(p: Dictionary) -> void:
 	var td: Vector3 = p.gen.town_dir()
 	Game.land_dir = td
+	Game.arriving_from_space = true
 	Game.space_return_pos = p.node.global_position + p.node.global_basis * td * p.radius * 2.6
 	Sound.play("atmo_entry", -2.0, 0.0)
 	Sound.loop_stop("engine", 1.0)
@@ -261,6 +262,7 @@ func land(p: Dictionary, from_pos: Vector3) -> void:
 	# undo the planet's display tilt so the landing point matches the surface
 	dir = p.node.global_basis.inverse() * dir
 	Game.land_dir = dir.normalized()
+	Game.arriving_from_space = true
 	Game.space_return_pos = from_pos
 	Sound.play("atmo_entry", -2.0, 0.0)
 	Sound.loop_stop("engine", 1.0)

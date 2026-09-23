@@ -82,10 +82,12 @@ static func flatten(path: String, tint_name := "", tint_color := Color.WHITE) ->
 
 
 ## Build MultiMeshInstance3Ds that draw `path` at every transform in `xforms`.
-static func multimesh(parent: Node3D, path: String, xforms: Array, tint_name := "", tint_color := Color.WHITE, shadows := true) -> void:
+static func multimesh(parent: Node3D, path: String, xforms: Array, tint_name := "", tint_color := Color.WHITE, shadows := true, sway := 0.0) -> void:
 	if xforms.is_empty():
 		return
 	for p in flatten(path, tint_name, tint_color):
+		if sway > 0.0:
+			p.mesh = _sway_mesh(p.mesh, p.xform.origin.y, sway)
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.mesh = p.mesh
@@ -118,3 +120,24 @@ static func add_rim(root: Node, amount := 0.35, tint := 0.4) -> void:
 			sm.rim_tint = tint
 			if not owned:
 				mi.set_surface_override_material(i, sm)
+
+
+
+static func _sway_mesh(mesh: Mesh, base_h: float, strength: float) -> Mesh:
+	var m2: Mesh = mesh.duplicate()
+	for i in m2.get_surface_count():
+		var src := m2.surface_get_material(i) as StandardMaterial3D
+		if src == null:
+			continue
+		var sm := ShaderMaterial.new()
+		sm.shader = load("res://shaders/sway.gdshader")
+		sm.set_shader_parameter("albedo", src.albedo_color)
+		sm.set_shader_parameter("roughness", src.roughness)
+		sm.set_shader_parameter("metallic", src.metallic)
+		if src.emission_enabled:
+			sm.set_shader_parameter("emission", src.emission)
+			sm.set_shader_parameter("emission_energy", src.emission_energy_multiplier)
+		sm.set_shader_parameter("base_height", base_h)
+		sm.set_shader_parameter("strength", strength)
+		m2.surface_set_material(i, sm)
+	return m2

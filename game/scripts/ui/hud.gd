@@ -74,7 +74,7 @@ func _ready() -> void:
 	_build_combat()
 	if mode == "planet":
 		_build_compass()
-	else:
+	elif mode == "space":
 		threat_layer = Control.new()
 		threat_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 		threat_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -180,7 +180,10 @@ func _bar_header(parent: Control, title: String, color: Color) -> Label:
 
 func _refresh_location() -> void:
 	var star: Dictionary = Galaxy.star(Game.star_index)
-	if mode == "planet":
+	if mode in ["dig", "grotto"]:
+		var p0: Dictionary = Galaxy.planet(Game.star_index, Game.planet_index)
+		location_label.text = "Beneath %s  ·  %s\n%s system" % [p0.name, "The Deep" if mode == "dig" else "Sealed chamber", star.name]
+	elif mode == "planet":
 		var p: Dictionary = Galaxy.planet(Game.star_index, Game.planet_index)
 		location_label.text = "%s  ·  %s\n%s system (class %s)" % [p.name, Db.BIOMES[p.biome].name, star.name, star.cls]
 	else:
@@ -242,6 +245,10 @@ static func objective_text(q: Dictionary) -> String:
 			return "Warp to another star (M in space)"
 		"land_unique":
 			return "Worlds visited: %d / %d" % [p, o.count]
+		"dig":
+			return "Dig out tiles in a cave: %d / %d" % [p, o.count]
+		"chamber":
+			return "Discover a sealed chamber: %d / %d" % [p, o.count]
 		"sell":
 			return "Sell goods to a merchant: %d / %d" % [p, o.count]
 		"train":
@@ -401,6 +408,10 @@ func _build_hints() -> void:
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	if mode == "planet":
 		l.text = "WASD move · Space jump/jetpack · Shift sprint · E interact · LMB fire · F ability · G repair · Q scan · R energy · T take off · I C K J panels · H help"
+	elif mode == "dig":
+		l.text = "A/D move + drill sideways · S drill down · W/Space thrust (drills up at a ceiling) · E lift / enter chamber · T emergency lift · R energy · G repair · I C K J panels"
+	elif mode == "grotto":
+		l.text = "WASD move · Space jump · Shift sprint · E interact · Q scan cave species · R energy cell · I C K J panels"
 	else:
 		l.text = "Mouse steer · W/S thrust · A/D strafe · Shift boost · LMB cannons (laser on rock) · RMB missiles · Q scan · E land · F dock · M map · H help"
 	root.add_child(l)
@@ -558,7 +569,7 @@ func _panel_inventory() -> void:
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	var kinds := {"resource": "Raw Resources", "component": "Components", "consumable": "Consumables", "fuel": "Fuel"}
+	var kinds := {"resource": "Raw Resources", "component": "Components", "consumable": "Consumables", "fuel": "Fuel", "relic": "Relics & Fossils"}
 	var any := false
 	for kind in kinds:
 		var items := []
@@ -959,7 +970,7 @@ func _build_combat() -> void:
 	crosshair.position = Vector2(-9, -24)
 	crosshair.add_theme_constant_override("outline_size", 6)
 	crosshair.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
-	crosshair.visible = true
+	crosshair.visible = mode in ["planet", "space"]
 	root.add_child(crosshair)
 
 	target_box = PanelContainer.new()

@@ -354,6 +354,10 @@ TRACKS = {
                             arp_inst=inst_marimba, arp_step=0.5, arp_pattern=(0, 2, 4, 2, 1, 3, 5, 3),
                             mel_inst=lambda m, v: inst_pluck(m, v, 0.5, 1.4, 1.0), verb_sec=2.2, mel_density=0.7,
                             mel_gain=1.3, bars_per_chord=1, perc=True),
+    "underground": lambda: ambient("underground", 71, 60, 45, "phrygian", [0, 5, 1, 4], 24, pad_cut=650, pad_voice="saw",
+                                   arp_inst=lambda m, v: inst_bell(m, v * 0.55, 2.2), arp_step=1.0,
+                                   arp_pattern=(0, 4, 2, 6, 3, 1), mel_inst=lambda m, v: inst_bell(m, v * 0.8, 3.0), mel_oct=1,
+                                   verb_sec=7.0, texture=(120, 700, 0.03), drone=True, bass=False, mel_density=0.3, arp_gain=0.6),
     "space": track_space,
     "combat": track_combat,
 }

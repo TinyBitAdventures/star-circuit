@@ -1146,6 +1146,65 @@ def build_packs():
     export("pack_ring")
 
 
+# --------------------------------------------------------------------------
+# the Deep: cave mouth, fossil, relic pedestal
+# --------------------------------------------------------------------------
+
+def build_cave_mouth():
+    reset_scene()
+    rnd = random.Random(81)
+    rock = mat("Rock", hexc("#6b625a"), 0.05, 0.9)
+    dark = mat("Hole", hexc("#050407"), 0.0, 1.0)
+    glow = mat("Glyph", (1, 1, 1), emission=hexc("#ffb347"), strength=3)
+    moss = mat("Foliage", hexc("#5f8f45"), 0.0, 0.9)
+    root = empty("Cave")
+    # ring of jumbled boulders forming a mouth that opens downward
+    for i in range(11):
+        a = i / 11 * math.tau
+        r = part(f"Rock{i}", "ico", (rnd.uniform(2.2, 3.4), rnd.uniform(2.0, 3.0), rnd.uniform(1.6, 3.2)), rock,
+                 loc=(math.cos(a) * 4.2, math.sin(a) * 4.2, rnd.uniform(0.4, 1.4)), parent=root, sub=1)
+        jitter_mesh(r, 0.2, 100 + i)
+    arch = part("Arch", "torus", (7.5, 7.5, 9.0), rock, loc=(0, 1.2, 2.6), rot=(math.pi / 2 + 0.35, 0, 0), parent=root, minor=0.16)
+    part("Hole", "cyl", (7.2, 7.2, 0.4), dark, loc=(0, 0, 0.12), parent=root, seg=20)
+    part("Shaft", "cyl", (6.6, 6.6, 3.0), dark, loc=(0, 0, -1.4), parent=root, seg=20)
+    for i in range(5):
+        a = rnd.uniform(0, math.tau)
+        part(f"Moss{i}", "sphere", (1.4, 1.0, 0.5), moss, loc=(math.cos(a) * 4.6, math.sin(a) * 4.6, 2.3), parent=root)
+    for i in range(4):
+        a = i / 4 * math.tau + 0.4
+        part(f"Lamp{i}", "cyl", (0.12, 0.12, 1.6), mat("Pole", hexc("#3b3f4a"), 0.7, 0.4), loc=(math.cos(a) * 6.8, math.sin(a) * 6.8, 0), offset=(0, 0, 0.8), parent=root)
+        part(f"Bulb{i}", "sphere", (0.35, 0.35, 0.35), glow, loc=(math.cos(a) * 6.8, math.sin(a) * 6.8, 1.75), parent=root)
+    export("poi_cave")
+
+
+def build_fossil():
+    reset_scene()
+    bone = mat("Bone", hexc("#e8dcc4"), 0.0, 0.7)
+    stone = mat("Rock", hexc("#8a7a66"), 0.0, 0.9)
+    root = empty("Fossil")
+    slab = part("Slab", "cube", (2.6, 1.6, 0.4), stone, loc=(0, 0, 0.2), rot=(0.3, 0, 0), parent=root, bevel=0.15)
+    part("Skull", "sphere", (0.5, 0.4, 0.2), bone, loc=(-0.9, 0, 0.25), parent=slab)
+    for i in range(7):
+        part(f"Vert{i}", "sphere", (0.18, 0.14, 0.12), bone, loc=(-0.5 + i * 0.22, 0.05 * math.sin(i), 0.25), parent=slab)
+    for i in range(4):
+        part(f"Rib{i}", "torus", (0.45, 0.45, 0.45), bone, loc=(-0.2 + i * 0.25, 0, 0.26), rot=(0, 0, math.pi / 2), parent=slab, minor=0.05)
+    export("cave_fossil")
+
+
+def build_pedestal():
+    reset_scene()
+    stone = mat("Stone", hexc("#3a3444"), 0.2, 0.5)
+    gold = mat("Gold", hexc("#f2c14e"), 1.0, 0.25)
+    glow = mat("Glyph", (1, 1, 1), emission=hexc("#ffd98a"), strength=5)
+    root = empty("Pedestal")
+    part("Base", "cyl", (1.6, 1.6, 0.3), stone, loc=(0, 0, 0.15), parent=root, seg=8, smooth=False)
+    part("Column", "cyl", (0.9, 0.9, 1.0), stone, loc=(0, 0, 0.8), parent=root, seg=8, smooth=False)
+    part("Top", "cyl", (1.3, 1.3, 0.2), gold, loc=(0, 0, 1.4), parent=root, seg=8)
+    part("Relic", "ico", (0.55, 0.55, 0.75), glow, loc=(0, 0, 1.95), parent=root, sub=0)
+    part("Halo", "torus", (1.1, 1.1, 1.1), gold, loc=(0, 0, 1.95), rot=(math.pi / 2, 0, 0), parent=root, minor=0.04)
+    export("cave_pedestal")
+
+
 if __name__ == "__main__":
     build_scout()
     build_miner()
@@ -1195,4 +1254,7 @@ if __name__ == "__main__":
     build_heads()
     build_toppers()
     build_packs()
+    build_cave_mouth()
+    build_fossil()
+    build_pedestal()
     print("[star-circuit] done")

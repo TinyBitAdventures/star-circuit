@@ -33,7 +33,7 @@ func setup(w: Node3D, t: String, idx: int, d: Vector3) -> void:
 	revealed = is_discovered()
 	_add_collision()
 	_add_beacon()
-	if def.loot.size() > 0 or def.lore:
+	if def.loot.size() > 0 or def.lore or t == "cave":
 		_add_cache()
 
 
@@ -61,6 +61,8 @@ func _add_collision() -> void:
 			sp.radius = 2.2
 			cs.shape = sp
 			cs.position.y = 1.0
+		"cave":
+			return # walk right onto the shaft
 		"geode":
 			var sp2 := SphereShape3D.new()
 			sp2.radius = 3.0
@@ -122,8 +124,10 @@ func _add_cache() -> void:
 			offset = Vector3(3.6, 0.0, 0.8)
 		"monolith":
 			offset = Vector3(0, 0.9, 2.3)
+		"cave":
+			offset = Vector3(0, 0.3, 0)
 	c.position = offset
-	if type != "monolith":
+	if type != "monolith" and type != "cave":
 		c.add_child(ModelUtil.instance("res://assets/models/poi_cache.glb"))
 	_cache = c
 	world.register_interactable(c)
@@ -146,6 +150,10 @@ func _process(delta: float) -> void:
 
 
 func cache_info() -> Dictionary:
+	if type == "cave":
+		var st: Dictionary = Game.digs.get(key, {})
+		var n: int = st.get("chambers", []).size()
+		return {"text": "[E] Descend into the cave%s" % ("  ·  %d chamber%s found" % [n, "s" if n != 1 else ""] if n > 0 else ""), "color": def.color, "instant": true}
 	if type == "monolith":
 		if is_looted():
 			return {"text": "Circuit Monolith  -  glyphs recorded", "color": UiKit.MUTED, "instant": true}
@@ -156,6 +164,11 @@ func cache_info() -> Dictionary:
 
 
 func open_cache() -> void:
+	if type == "cave":
+		if not is_discovered():
+			Game.discover_poi(key, def.name)
+		Game.enter_cave(key, dir, int(world.planet.seed), world.planet.biome)
+		return
 	if is_looted():
 		return
 	if not is_discovered():

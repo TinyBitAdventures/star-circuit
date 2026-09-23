@@ -104,6 +104,9 @@ func _ready() -> void:
 	weather.setup(self, planet.biome, planet.seed)
 	Sound.play_music(Sound.music_for_biome(planet.biome))
 	Sound.loop_start("ambience", "wind_loop", {"dune": -6.0, "frost": -5.0, "ember": -10.0}.get(planet.biome, -12.0), "Ambience", 2.0)
+	if Game.arriving_from_space:
+		Game.arriving_from_space = false
+		player.start_drop()
 	Game.record_landing(planet.key)
 	hud.refresh_survey(survey_status())
 	Game.land_dir = spawn_dir
@@ -302,7 +305,8 @@ func _scatter_flora(outpost_dir: Vector3) -> void:
 			cs.transform = Transform3D(PlanetGen.align_basis(d), p + d * 2.0 * s)
 			colliders.add_child(cs)
 		var tint := flora_tint.lerp(Color.from_hsv(rng.randf(), 0.55, 0.9), 0.25)
-		ModelUtil.multimesh(self, "res://assets/models/%s.glb" % type, xforms, "Foliage", tint)
+		var sway: float = {"flora_tree_round": 0.07, "flora_tree_disc": 0.06, "flora_mushroom": 0.035, "flora_cactus": 0.02}.get(type, 0.0)
+		ModelUtil.multimesh(self, "res://assets/models/%s.glb" % type, xforms, "Foliage", tint, true, sway)
 		_flora_points[type] = pts
 
 	# small non-colliding pebbles for ground detail
@@ -597,10 +601,19 @@ func tracer(from: Vector3, to: Vector3, color: Color) -> void:
 
 func explosion(pos: Vector3, color: Color, size: float) -> void:
 	CombatFx.explosion(self, pos, color, size)
+	shake_near(pos, size * 0.25)
+
+
+## Shake the camera if something big happens near the player.
+func shake_near(pos: Vector3, amount: float) -> void:
+	if player:
+		var d := pos.distance_to(player.global_position)
+		player.shake.add(amount * clampf(1.0 - d / 45.0, 0.0, 1.0))
 
 
 func shockwave(center: Vector3, radius: float, color: Color) -> void:
 	CombatFx.shockwave(self, center, center.normalized(), radius, color)
+	shake_near(center, radius * 0.07)
 
 
 func floating_text(pos: Vector3, text: String, color: Color, big := false) -> void:
@@ -629,6 +642,11 @@ func _spawn_pois(outpost_dir: Vector3) -> void:
 	var types := ["monolith", "ruin", "ruin", "crash", "crash", "geode"]
 	if not is_home:
 		types.append(["ruin", "crash", "geode"][rng.randi() % 3])
+	# caves go last so older saves keep their site indices
+	types.append("cave")
+	if not is_home:
+		types.append("cave")
+	var first_cave := true
 	var placed: Array[Vector3] = []
 	var safe := outpost_dir if is_home else spawn_dir
 	var idx := 0
@@ -636,11 +654,12 @@ func _spawn_pois(outpost_dir: Vector3) -> void:
 		var d := Vector3.ZERO
 		for attempt in 200:
 			var cand: Vector3
-			if idx == 0:
-				# the first site is always within walking distance of the landing
+			var near_cave: bool = t == "cave" and first_cave
+			if idx == 0 or near_cave:
+				# the first site (and first cave) is always within walking distance of the landing
 				var b := PlanetGen.align_basis(safe)
 				var ang := rng.randf() * TAU
-				cand = (safe + (b.x * cos(ang) + b.z * sin(ang)) * rng.randf_range(70.0, 120.0) / gen.radius).normalized()
+				cand = (safe + (b.x * cos(ang) + b.z * sin(ang)) * (rng.randf_range(45.0, 80.0) if near_cave else rng.randf_range(70.0, 120.0)) / gen.radius).normalized()
 			else:
 				cand = _random_dir(rng)
 			if not _is_placeable(cand, 0.12, safe, 45.0):
@@ -656,6 +675,8 @@ func _spawn_pois(outpost_dir: Vector3) -> void:
 		if d == Vector3.ZERO:
 			continue
 		placed.append(d)
+		if t == "cave":
+			first_cave = false
 		var p := Poi.new()
 		add_child(p)
 		p.setup(self, t, idx, d)

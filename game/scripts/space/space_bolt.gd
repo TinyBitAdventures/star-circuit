@@ -91,6 +91,8 @@ func _physics_process(delta: float) -> void:
 			if e.is_alive() and global_position.distance_to(e.global_position) < e.def.size + 2.5:
 				e.take_hit(damage, true)
 				CombatFx.explosion(world, global_position, Color(1.0, 0.7, 0.3), 1.6)
+				if world.player and global_position.distance_to(world.player.global_position) < 90.0:
+					world.player.shake.add(0.15)
 				Sound.play_3d("slam", global_position, -6.0, 0.1, 40.0)
 				queue_free()
 				return

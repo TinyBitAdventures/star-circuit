@@ -27,6 +27,7 @@ var _missile_cd := 0.0
 var _gun_side := 1.0
 var _dust: CPUParticles3D
 var _streaks: CPUParticles3D
+var shake := CamShake.new()
 var _beam: MeshInstance3D
 var _beam_mat: StandardMaterial3D
 var _lasering := false
@@ -68,6 +69,7 @@ func _ready() -> void:
 	_beam.visible = false
 	add_child(_beam)
 	Game.player_died.connect(_on_died)
+	Game.player_damaged.connect(func(a): shake.add(clampf(a / 40.0, 0.12, 0.5)))
 	_build_space_fx()
 
 
@@ -170,6 +172,7 @@ func _physics_process(delta: float) -> void:
 
 	if boost and not visual.boost:
 		Sound.play("boost", -4.0)
+		shake.add(0.2)
 	visual.boost = boost
 	_streaks.emitting = boost and velocity.length() > MAX_SPEED * 0.8
 	var sp := velocity.length() / (MAX_SPEED * speed_mult)
@@ -181,6 +184,9 @@ func _physics_process(delta: float) -> void:
 
 func _follow_camera(delta: float) -> void:
 	camera.global_transform = camera.global_transform.interpolate_with(_camera_target(), clampf(delta * 7.0, 0.0, 1.0))
+	var sh := shake.update(delta, 0.6)
+	camera.h_offset = sh.x
+	camera.v_offset = sh.y
 
 
 func _update_prompt(ui: bool) -> void:

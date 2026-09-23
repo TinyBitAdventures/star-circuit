@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "deep":
+		await _deep_tour()
+		get_tree().quit()
+		return
 	if which == "gfx":
 		await _gfx_tour()
 		get_tree().quit()
@@ -796,3 +800,69 @@ func _gfx_tour() -> void:
 	s.player.snap_camera()
 	await _wait(1.0)
 	await shot(tag + "_orbit")
+
+
+func _deep_tour() -> void:
+	Game.new_game("engineer", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	for e in w.enemies:
+		e.set_physics_process(false)
+	var cave: Poi = null
+	for p in w.pois:
+		if p.type == "cave":
+			cave = p
+	await _look_at_from(w, w.player, cave.global_position, 22.0, -0.45, 12.0)
+	await _wait(1.0)
+	await shot("deep_cave_mouth")
+	Game.skills.mining.level = 60
+	Game.skill_tiers["mining"] = 3
+	cave.open_cache()
+	await _wait(3.5)
+	var d := _scene()
+	await shot("deep_lift")
+	var pod: DigPod = d.pod
+	Input.action_press("move_back")
+	await _wait(5.0)
+	Input.action_release("move_back")
+	Input.action_press("move_left")
+	await _wait(1.5)
+	Input.action_release("move_left")
+	await shot("deep_topsoil_tunnel")
+	for band in [[45, "stone"], [80, "deepstone"], [110, "crystal"], [135, "magma"]]:
+		var y: int = band[0]
+		# carve a little pocket so the pod has somewhere to sit
+		var cx := 12
+		for yy in range(y - 2, y + 2):
+			for xx in range(cx - 3, cx + 4):
+				if d.get_cell(xx, yy) != d.BEDROCK:
+					d.cells[d.idx(xx, yy)] = d.AIR
+					d.redraw_cell(Vector2i(xx, yy))
+		pod.position = d.cell_centre(Vector2i(cx, y))
+		pod.velocity = Vector2.ZERO
+		Input.action_press("move_back")
+		await _wait(1.2)
+		Input.action_release("move_back")
+		await shot("deep_" + band[1])
+	# a chamber from the outside
+	var ch: Dictionary = d.chambers[2]
+	pod.position = ch.centre + Vector2(-80, -10)
+	await _wait(1.0)
+	await shot("deep_chamber_outside")
+	# every grotto theme
+	var seen := {}
+	for c in d.chambers:
+		if seen.has(c.theme):
+			continue
+		seen[c.theme] = true
+		Game.cave["chamber"] = c
+		Game.cave["pod"] = [c.centre.x, c.centre.y]
+		get_tree().change_scene_to_file("res://scenes/grotto.tscn")
+		await _wait(3.0)
+		var g := _scene()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		g.player.cam_pitch = -0.18
+		await _wait(1.5)
+		await shot("grotto_" + c.theme)

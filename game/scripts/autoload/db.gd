@@ -87,6 +87,9 @@ const ITEMS := {
 	"cryo_ice": {"name": "Cryo Ice", "kind": "resource", "color": Color("a8e6ff"), "desc": "Ancient ice from icy asteroids and comets. Packed with volatile fuel."},
 	"stardust": {"name": "Stardust", "kind": "resource", "color": Color("fff2b0"), "desc": "Glittering grains that settle in asteroid seams. Rare, and loved by warp engineers."},
 	"exotic": {"name": "Exotic Matter", "kind": "resource", "color": Color("ff7ae6"), "desc": "Found in comet cores. It weighs less than nothing, which is very useful."},
+	"glowcap": {"name": "Glowcap", "kind": "resource", "color": Color("7ef0d8"), "desc": "Bioluminescent fungus that only grows in deep grottos."},
+	"fossil": {"name": "Fossil", "kind": "relic", "color": Color("e8dcc4"), "desc": "The bones of something that lived here long before the Circuit. Collectors pay well."},
+	"ancient_relic": {"name": "Ancient Relic", "kind": "relic", "color": Color("ffd98a"), "desc": "A humming artefact from a sealed vault. Priceless to archivists, and to merchants."},
 	"scrap": {"name": "Drone Scrap", "kind": "resource", "color": Color("b0a9a0"), "desc": "Twisted plating salvaged from destroyed rogue drones."},
 	"power_core": {"name": "Rogue Power Core", "kind": "resource", "color": Color("ff4d6d"), "desc": "A still-humming drone core. Elites always carry one."},
 	# intermediates
@@ -133,6 +136,7 @@ const NODES := {
 	"void": {"name": "Void Spire", "model": "res://assets/models/res_void.glb", "item": "voidshard", "skill": "mining", "req": 55, "yield": [1, 2], "xp": 55, "time": 4.0, "scale": 1.0},
 	"fiber": {"name": "Fiberstalk", "model": "res://assets/models/res_fiber.glb", "item": "biofiber", "skill": "botany", "req": 1, "yield": [2, 4], "xp": 12, "time": 1.8, "scale": 1.0},
 	"spore": {"name": "Spore Pod", "model": "res://assets/models/res_spore.glb", "item": "sporegel", "skill": "botany", "req": 20, "yield": [1, 3], "xp": 26, "time": 2.4, "scale": 1.0},
+	"glowcap": {"name": "Glowcap Cluster", "model": "res://assets/models/res_spore.glb", "item": "glowcap", "skill": "botany", "req": 10, "yield": [2, 4], "xp": 24, "time": 2.0, "scale": 0.8},
 	"energy": {"name": "Energy Well", "model": "res://assets/models/res_energy.glb", "item": "plasma", "skill": "siphoning", "req": 1, "yield": [1, 3], "xp": 16, "time": 2.6, "scale": 1.0, "restore": 25},
 }
 
@@ -246,6 +250,12 @@ const QUESTS := [
 	{"id": "tools", "title": "Better Tools", "giver": "Archivist",
 		"text": "That standard-issue harvester is an insult. Fabricate a Harvester Mk II and feel the difference.",
 		"obj": {"type": "craft", "item": "drill_mk2", "count": 1}, "xp": 260, "reward": {"energy_cell": 2}},
+	{"id": "undersurface", "title": "Under the Surface", "giver": "Archivist",
+		"text": "The crust of every world is riddled with old tunnels. Find a Cave Mouth (the amber lamps give it away), press E to descend, and dig. Your drill cuts through anything in the direction you push; hold W to thrust upward. Dig out 30 tiles.",
+		"obj": {"type": "dig", "count": 30}, "xp": 240, "reward": {"energy_cell": 2}, "credits": 50},
+	{"id": "chambers", "title": "Hidden Chambers", "giver": "Archivist",
+		"text": "Deep down, some hollows glow. Those are sealed chambers from before the Quiet. Dig to one, step inside, and see what the planet has been keeping.",
+		"obj": {"type": "chamber", "count": 1}, "xp": 320, "reward": {"repair_kit": 2}, "credits": 80},
 	{"id": "rogues", "title": "Rogue Signals", "giver": "Archivist",
 		"text": "Something has corrupted the old maintenance drones. They roam in packs now and attack anything with a spark. Aim with the mouse, fire with the left button, and use your frame's ability (F). Destroy five of them.",
 		"obj": {"type": "kill", "count": 5}, "xp": 300, "reward": {"repair_kit": 3}},
@@ -311,6 +321,7 @@ const VALUES := {
 	"scrap": 5, "power_core": 60, "alloy": 16, "circuit": 60, "polymer": 24, "void_core": 150,
 	"energy_cell": 18, "repair_kit": 20, "warp_cell": 120,
 	"nickel": 7, "cryo_ice": 9, "stardust": 30, "exotic": 120,
+	"glowcap": 14, "fossil": 90, "ancient_relic": 260,
 }
 
 ## WoW-style profession ranks. Skill can't exceed the cap until trained.
@@ -458,6 +469,8 @@ const POIS := {
 		"xp": 60, "lore": true, "guards": true, "loot": {"circuit": [0, 1], "alloy": [2, 4], "plasma": [2, 4]}, "verb": "Open the data cache", "time": 2.0},
 	"crash": {"name": "Crashed Pod", "model": "res://assets/models/poi_crash.glb", "color": Color("ff7a3d"),
 		"xp": 50, "lore": false, "loot": {"energy_cell": [1, 2], "repair_kit": [1, 2], "scrap": [2, 5], "alloy": [1, 3]}, "verb": "Salvage the pod", "time": 2.0},
+	"cave": {"name": "Cave Mouth", "model": "res://assets/models/poi_cave.glb", "color": Color("ffb347"),
+		"xp": 40, "lore": false, "loot": {}, "verb": "Descend into the cave", "time": 0.0},
 	"geode": {"name": "Crystal Geode", "model": "res://assets/models/poi_geode.glb", "color": Color("7ff0ff"),
 		"xp": 40, "lore": false, "hotspot": true, "loot": {}, "verb": "", "time": 0.0},
 }

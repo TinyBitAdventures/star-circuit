@@ -46,6 +46,8 @@ var _was_on_floor := true
 var _loop_harvest := ""
 var _low_energy_warned := false
 var _dust: CPUParticles3D
+var shake := CamShake.new()
+var _dropping := false
 
 
 func _ready() -> void:
@@ -117,6 +119,7 @@ func _ready() -> void:
 	_dust.position = Vector3(0, 0.2, 0.3)
 	add_child(_dust)
 	Game.player_died.connect(_on_died)
+	Game.player_damaged.connect(func(a): shake.add(clampf(a / 40.0, 0.12, 0.5)))
 
 
 func place_at(dir: Vector3, gen: PlanetGen) -> void:
@@ -190,9 +193,18 @@ func _physics_process(delta: float) -> void:
 			_finish_launch(up)
 			return
 	elif in_liquid and not is_lava:
+		if _dropping:
+			_touchdown(up)
 		vv = lerpf(vv, -2.0, delta * 2.0)
 		if Input.is_action_pressed("jump") and not ui_block:
 			vv = lerpf(vv, 6.0, delta * 4.0)
+	elif _dropping:
+		# retro-thrusters cap the descent; flames all the way down
+		vv = maxf(vv - GRAVITY * delta, -15.0)
+		jetting = true
+		if is_on_floor() and air_time > 0.3:
+			_touchdown(up)
+		air_time += delta
 	else:
 		vv -= GRAVITY * delta
 		if is_on_floor():
@@ -406,6 +418,7 @@ func _use_ability(up: Vector3) -> void:
 			Game.invulnerable = true
 			world.shockwave(global_position, 2.0, col)
 		"slam":
+			shake.add(0.55)
 			world.shockwave(global_position, 7.0, Color(1.0, 0.65, 0.25))
 			world.explosion(global_position + up * 0.3, Color(0.8, 0.6, 0.4), 1.0)
 			for e in world.enemies_near(global_position, 7.5):
@@ -473,6 +486,10 @@ func _update_camera(up: Vector3, delta: float) -> void:
 	var b := Basis(right, up, back).orthonormalized() * Basis(Vector3.RIGHT, cam_pitch)
 	cam_rig.global_position = cam_rig.global_position.lerp(global_position + up * 1.8, clampf(delta * 18.0, 0.0, 1.0))
 	cam_rig.global_basis = b
+	var sh := shake.update(delta)
+	camera.h_offset = sh.x
+	camera.v_offset = sh.y
+	camera.rotation.z = sh.z * 0.08
 
 
 func _harvest_sound(skill: String) -> void:
@@ -563,6 +580,7 @@ func _scan() -> void:
 
 
 func _start_launch() -> void:
+	shake.add(0.35)
 	Sound.loop_stop("jet", 0.1)
 	_harvest_sound("")
 	Sound.play("takeoff", -2.0, 0.0)
@@ -599,3 +617,59 @@ func _clear_spot(up: Vector3, gen: PlanetGen) -> Vector3:
 		var b := PlanetGen.align_basis(up, i * 2.4)
 		d = (up + b.x * (2.5 + i * 0.8) / gen.radius).normalized()
 	return up
+
+
+
+## Arriving from orbit: start high above the landing site and descend.
+func start_drop() -> void:
+	var up := global_position.normalized()
+	global_position += up * 42.0
+	velocity = -up * 15.0
+	_dropping = true
+	air_time = 0.0
+	spring.spring_length = 15.0
+	cam_pitch = -0.55
+	Sound.play("atmo_entry", -6.0, 0.0)
+
+
+func _touchdown(up: Vector3) -> void:
+	_dropping = false
+	shake.add(0.45)
+	Sound.play("land", 0.0, 0.05)
+	CombatFx.shockwave(world, global_position, up, 5.0, Color(0.85, 0.78, 0.65))
+	var dust := CPUParticles3D.new()
+	dust.one_shot = true
+	dust.amount = 40
+	dust.lifetime = 1.4
+	dust.explosiveness = 0.9
+	dust.local_coords = false
+	dust.direction = up
+	dust.spread = 80.0
+	dust.initial_velocity_min = 2.0
+	dust.initial_velocity_max = 6.0
+	dust.gravity = -up * 2.0
+	dust.damping_min = 2.0
+	dust.damping_max = 4.0
+	dust.scale_amount_min = 1.5
+	dust.scale_amount_max = 3.5
+	var q := QuadMesh.new()
+	q.size = Vector2(1, 1)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	m.vertex_color_use_as_albedo = true
+	m.albedo_texture = ModelUtil.soft_dot()
+	q.material = m
+	dust.mesh = q
+	var g := Gradient.new()
+	g.set_color(0, Color(0.85, 0.8, 0.7, 0.6))
+	g.set_color(1, Color(0.85, 0.8, 0.7, 0.0))
+	dust.color_ramp = g
+	world.add_child(dust)
+	dust.global_position = global_position
+	dust.emitting = true
+	dust.finished.connect(dust.queue_free)
+	var t := create_tween()
+	t.tween_property(spring, "spring_length", 7.0, 1.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(self, "cam_pitch", -0.3, 1.6)
