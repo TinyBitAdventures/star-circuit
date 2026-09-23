@@ -50,6 +50,9 @@ var heart_defeated := false
 var boarded: Array = [] # derelict keys already looted
 var milestones: Array = [] # unlocked milestone ids
 var gems_taken := {} # orbit target key -> [gem indices already extracted]
+var seas := {} # ocean key -> {"dug": base64, "opened": [clam ids], "wreck": bool}
+var sea := {} # the ocean we're diving (not saved: dives always resume on the surface)
+var max_sea_depth := 0
 var orbit := {} # the world we're orbiting (not saved: orbit always resumes in space)
 var species_names := {} # species key -> display name (species log)
 var world_species := {} # planet key -> species on that world (for the log)
@@ -184,6 +187,9 @@ func _reset_state() -> void:
 	milestones = []
 	gems_taken = {}
 	orbit = {}
+	seas = {}
+	sea = {}
+	max_sea_depth = 0
 	species_names = {}
 	world_species = {}
 	space_kills = 0
@@ -713,7 +719,7 @@ func _quest_event(kind: String, what: String, amount := 1) -> void:
 		"skill":
 			if o.skill == what:
 				quest_progress = mini(o.count, skill_level(what))
-		"gem":
+		"gem", "sea_scan":
 			quest_progress = mini(o.count, quest_progress + 1)
 		"gem_types":
 			quest_progress = mini(o.count, gem_types())
@@ -863,7 +869,7 @@ func save_game() -> void:
 		"credits": credits, "skill_tiers": skill_tiers, "bounties": bounties, "visited_towns": visited_towns,
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
-		"milestones": milestones, "gems_taken": gems_taken, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
+		"milestones": milestones, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
 		"star_index": star_index, "planet_index": planet_index, "location": location,
@@ -922,6 +928,8 @@ func load_game(n := -1) -> bool:
 	scanned = d.get("scanned", [])
 	milestones = d.get("milestones", [])
 	gems_taken = d.get("gems_taken", {})
+	seas = d.get("seas", {})
+	max_sea_depth = int(d.get("max_sea_depth", 0))
 	species_names = d.get("species_names", {})
 	world_species = d.get("world_species", {})
 	space_kills = int(d.get("space_kills", 0))
@@ -1669,6 +1677,7 @@ func metric(m: String) -> int:
 		"codex": return codex.size()
 		"relics": return relics_found
 		"gem_types": return gem_types()
+		"sea_depth": return max_sea_depth
 		"relays": return lit_relays.size() - 1 # Solace's relay starts lit
 		"best_skill":
 			var b := 0
@@ -1798,3 +1807,50 @@ func leave_orbit() -> void:
 	space_spawn = Vector3(r[0], r[1], r[2])
 	orbit = {}
 	go_to_space()
+
+
+
+# --------------------------------------------------------------------------
+# the Deep Sea
+# --------------------------------------------------------------------------
+
+## Oceans are split into a few regions per world, so different coasts
+## lead down into different deeps.
+func sea_key(dir: Vector3, planet: Dictionary) -> String:
+	var r := Vector3i((dir * 1.5).round())
+	return "%s:sea:%d,%d,%d" % [planet.key, r.x, r.y, r.z]
+
+
+func sea_state(key: String) -> Dictionary:
+	if not seas.has(key):
+		seas[key] = {"dug": "", "opened": [], "wreck": false}
+	return seas[key]
+
+
+func enter_sea(dir: Vector3, planet: Dictionary) -> void:
+	var key := sea_key(dir, planet)
+	sea = {"key": key, "dir": [dir.x, dir.y, dir.z], "seed": hash(key) ^ int(planet.seed), "biome": planet.biome,
+		"star": star_index, "planet": planet_index, "pos": []}
+	land_dir = dir
+	save_game()
+	Sound.play("atmo_entry", -10.0, 0.0)
+	fade_to("res://scenes/sea.tscn")
+
+
+func leave_sea() -> void:
+	var d: Array = sea.get("dir", [0, 1, 0])
+	land_dir = Vector3(d[0], d[1], d[2])
+	sea = {}
+	go_to_planet(star_index, planet_index)
+
+
+func record_sea_scan(key: String, display: String) -> bool:
+	if record_scan(key, display):
+		_quest_event("sea_scan", key)
+		return true
+	return false
+
+
+func record_sea_depth(m: int) -> void:
+	if m > max_sea_depth:
+		max_sea_depth = m

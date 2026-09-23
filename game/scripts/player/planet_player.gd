@@ -9,6 +9,7 @@ const JET_ACCEL := 36.0
 const JET_DRAIN := 13.0
 const INTERACT_RANGE := 4.2
 const SCAN_COST := 5.0
+const DIVE_DEPTH := 6.0
 
 var world: Node3D
 var center := Vector3.ZERO
@@ -29,6 +30,13 @@ var launching := false
 var launch_time := 0.0
 var air_time := 0.0
 var in_liquid := false
+var swim_depth := 0.0 # metres below the sea surface (robot)
+var _uw_layer: CanvasLayer
+var _uw_rect: ColorRect
+var _uw_mat: ShaderMaterial
+var _uw := 0.0 # 0..1 how submerged the camera is
+var _bubbles: CPUParticles3D
+var _was_in_liquid := false
 var _lava_warned := false
 
 # combat
@@ -208,9 +216,12 @@ func _physics_process(delta: float) -> void:
 	elif in_liquid and not is_lava:
 		if _dropping:
 			_touchdown(up)
-		vv = lerpf(vv, -2.0, delta * 2.0)
+		# near-neutral buoyancy: drift down slowly, Space swims up, Ctrl dives
+		vv = lerpf(vv, -1.2, delta * 2.0)
 		if Input.is_action_pressed("jump") and not ui_block:
-			vv = lerpf(vv, 6.0, delta * 4.0)
+			vv = lerpf(vv, 6.5, delta * 4.0)
+		if Input.is_action_pressed("descend") and not ui_block:
+			vv = lerpf(vv, -7.0, delta * 4.0)
 	elif _dropping:
 		# retro-thrusters cap the descent; flames all the way down
 		vv = maxf(vv - GRAVITY * delta, -15.0)
@@ -284,6 +295,7 @@ func _physics_process(delta: float) -> void:
 	visual.boost = launching
 
 	_update_energy(delta, up, is_lava)
+	_update_water(delta, up, is_lava, liquid_r, dist)
 	_update_interaction(delta, ui_block)
 	scan_cooldown = maxf(0.0, scan_cooldown - delta)
 
@@ -551,6 +563,15 @@ func _update_interaction(delta: float, ui_block: bool) -> void:
 		harvest_progress = 0.0
 		_harvest_sound("")
 	var hud = world.hud
+	# deep enough in an ocean: the Deep Sea opens up below
+	if target == null and not ui_block and not launching and in_liquid and swim_depth >= DIVE_DEPTH and not world.biome.get("lava", false):
+		visual.working = false
+		harvest_fx.update(false, "", Vector3.ZERO, Vector3.ZERO, 0.0, Color.WHITE, delta)
+		hud.set_prompt("[E] Dive into the Deep Sea  (%d m down)" % int(swim_depth), Color("7fd8ff"), 0.0)
+		if Input.is_action_just_pressed("interact"):
+			hud.set_prompt("", Color.WHITE, 0.0)
+			Game.enter_sea(global_position.normalized(), world.planet)
+		return
 	if target == null or ui_block or launching:
 		visual.working = false
 		harvest_fx.update(false, "", Vector3.ZERO, Vector3.ZERO, 0.0, Color.WHITE, delta)
@@ -729,3 +750,77 @@ func _unstick(up: Vector3, wish: Vector3, delta: float) -> void:
 	else:
 		_stuck_t = 0.0
 	_last_pos = global_position
+
+
+
+# --------------------------------------------------------------------------
+# water: swimming, the underwater look, bubbles, muffled sound
+# --------------------------------------------------------------------------
+
+func _update_water(delta: float, up: Vector3, is_lava: bool, liquid_r: float, dist: float) -> void:
+	if liquid_r <= 0.0 or is_lava:
+		return
+	swim_depth = maxf(0.0, liquid_r - dist - 0.9)
+	var swimming := in_liquid and not is_on_floor()
+	visual.swimming = in_liquid
+	if in_liquid != _was_in_liquid:
+		_was_in_liquid = in_liquid
+		if absf(velocity.dot(up)) > 2.0:
+			Sound.play("land", -8.0, 0.2)
+	if _bubbles == null:
+		_bubbles = CPUParticles3D.new()
+		_bubbles.amount = 16
+		_bubbles.lifetime = 2.0
+		_bubbles.local_coords = false
+		_bubbles.emitting = false
+		_bubbles.spread = 25.0
+		_bubbles.initial_velocity_min = 0.6
+		_bubbles.initial_velocity_max = 1.4
+		_bubbles.scale_amount_min = 0.6
+		_bubbles.scale_amount_max = 1.4
+		var sm := SphereMesh.new()
+		sm.radius = 0.06
+		sm.height = 0.12
+		sm.radial_segments = 6
+		sm.rings = 3
+		var bm := StandardMaterial3D.new()
+		bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		bm.albedo_color = Color(0.85, 0.97, 1.0, 0.6)
+		sm.material = bm
+		_bubbles.mesh = sm
+		add_child(_bubbles)
+		_bubbles.position = Vector3(0, 1.7, 0)
+	_bubbles.emitting = in_liquid
+	_bubbles.direction = Vector3.UP
+	_bubbles.gravity = up * 1.5
+	# the camera decides the look: half in, half out of the water
+	var cam_depth := liquid_r - camera.global_position.distance_to(center)
+	var want := clampf(cam_depth * 2.0 + 0.5, 0.0, 1.0)
+	_uw = move_toward(_uw, want, delta * 4.0)
+	if _uw > 0.0 and _uw_layer == null:
+		_uw_layer = CanvasLayer.new()
+		_uw_layer.layer = 1
+		add_child(_uw_layer)
+		_uw_rect = ColorRect.new()
+		_uw_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_uw_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_uw_mat = ShaderMaterial.new()
+		_uw_mat.shader = preload("res://shaders/underwater.gdshader")
+		_uw_rect.material = _uw_mat
+		_uw_layer.add_child(_uw_rect)
+	if _uw_layer:
+		_uw_layer.visible = _uw > 0.01
+		var wc: Color = world.biome.water
+		_uw_mat.set_shader_parameter("water", Color(wc.r, wc.g, wc.b))
+		_uw_mat.set_shader_parameter("depth", maxf(cam_depth, 0.0))
+		_uw_mat.set_shader_parameter("strength", _uw)
+	world.underwater = _uw
+	world.underwater_depth = maxf(cam_depth, 0.0)
+	Sound.set_underwater(_uw > 0.5)
+	if swimming and swim_depth > 2.0:
+		Game.tip("first_swim", "You're swimming. Hold %s to rise and %s to dive. Keep going down and you can drop into the Deep Sea to explore, mine and scan what lives there." % [Game.key("jump"), Game.key("descend")])
+
+
+func _exit_tree() -> void:
+	Sound.set_underwater(false)

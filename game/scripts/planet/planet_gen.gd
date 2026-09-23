@@ -85,9 +85,10 @@ func height(dir: Vector3) -> float:
 	h += _detail.get_noise_3dv(dir) * amp * 0.08
 	if not craters.is_empty():
 		h += _crater_height(dir)
-	# flatten ocean floors a bit, create beaches
+	# gentle beaches, then the floor falls away into real depths
 	if sea > -0.5 and h < sea:
-		h = sea + (h - sea) * 0.6
+		var d := sea - h
+		h = sea - (d * 0.6 + d * d * 55.0)
 	return h
 
 

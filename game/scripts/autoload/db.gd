@@ -93,6 +93,8 @@ const ITEMS := {
 	"resonance_crystal": {"name": "Resonance Crystal", "kind": "key", "color": Color("5ff7ff"), "desc": "Still tuned to the Circuit's frequency. Relay beacons need one to relight. Found in derelict ships and deep Ancient Vaults."},
 	"relay_coupler": {"name": "Relay Coupler", "kind": "component", "color": Color("9bd1ff"), "desc": "Fabricated power coupling that lets a dead relay accept a Resonance Crystal."},
 	"legend_shard": {"name": "Legendary Shard", "kind": "relic", "color": Color("ff7ae6"), "desc": "A fragment from one of the edge worlds. Nothing else in the galaxy looks like it."},
+	"kelp": {"name": "Sea Kelp", "kind": "resource", "color": Color("4fbf6a"), "desc": "Long ribbons of kelp from sunlit shallows. Presses into Bio-Polymer."},
+	"sea_pearl": {"name": "Sea Pearl", "kind": "relic", "color": Color("f3eef8"), "desc": "Grown in deep-sea clams over lifetimes. Merchants love them."},
 	"deep_probe": {"name": "Deep Probe", "kind": "fuel", "color": Color("9bd1ff"), "desc": "A tethered core probe. Launch it from orbit (O near a world) to pull gems out of the deep. Lost if it's crushed or melted."},
 	# world gems: 1-3 per world, only reachable by probe from orbit
 	"gem_verdant": {"name": "Verdant Emerald", "kind": "gem", "color": Color("3ddc84"), "desc": "Grown slowly in the roots of green worlds. Found only on Verdant planets."},
@@ -138,6 +140,7 @@ const ITEMS := {
 	"cargo_pods_mk2": {"name": "Cargo Pods Mk II", "kind": "upgrade", "color": Color("e8c890"), "desc": "+200 cargo capacity."},
 	"scatter_mod": {"name": "Scatter Emitter", "kind": "upgrade", "color": Color("ffb347"), "desc": "Unlocks the Scatter weapon loadout (Outfitter or X to swap)."},
 	"rail_mod": {"name": "Rail Coil", "kind": "upgrade", "color": Color("9bd1ff"), "desc": "Unlocks the Rail weapon loadout (Outfitter or X to swap)."},
+	"pressure_hull": {"name": "Pressure Hull", "kind": "upgrade", "color": Color("5fa8ff"), "desc": "Lets you dive into the Abyss without the sea crushing your plating."},
 	"crown_of_worlds": {"name": "Crown of Worlds", "kind": "upgrade", "color": Color("ffe9a8"), "desc": "Ten world gems set in one circlet. +50 energy, +50 hull, +20% harvest speed, +10% sell prices, and the galaxy knows your name."},
 	"lava_plating": {"name": "Heat Plating", "kind": "upgrade", "color": Color("ff7a3d"), "desc": "Immune to lava and heat drain."},
 }
@@ -192,6 +195,8 @@ const RECIPES := [
 	{"id": "thrusters_mk2", "out": "thrusters_mk2", "qty": 1, "in": {"alloy": 6, "circuit": 2}, "req": 30, "xp": 110, "cat": "Upgrades"},
 	{"id": "lava_plating", "out": "lava_plating", "qty": 1, "in": {"alloy": 8, "cobalt": 6}, "req": 35, "xp": 120, "cat": "Upgrades"},
 	{"id": "drill_mk3", "out": "drill_mk3", "qty": 1, "in": {"alloy": 6, "circuit": 3, "voidshard": 2}, "req": 55, "xp": 180, "cat": "Upgrades"},
+	{"id": "polymer_kelp", "out": "polymer", "qty": 1, "in": {"kelp": 4}, "req": 8, "xp": 20, "cat": "Components"},
+	{"id": "pressure_hull", "out": "pressure_hull", "qty": 1, "in": {"alloy": 6, "polymer": 2, "cobalt": 6}, "req": 18, "xp": 110, "cat": "Upgrades"},
 	{"id": "deep_probe", "out": "deep_probe", "qty": 2, "in": {"alloy": 2, "nickel": 3, "plasma": 3}, "req": 10, "xp": 50, "cat": "Consumables"},
 	{"id": "crown_of_worlds", "out": "crown_of_worlds", "qty": 1, "in": {"gem_verdant": 1, "gem_dune": 1, "gem_frost": 1, "gem_ember": 1, "gem_prism": 1, "gem_bloom": 1, "gem_giant": 1, "gem_abyss": 1, "gem_tempest": 1, "gem_forge": 1}, "req": 40, "xp": 1500, "cat": "Upgrades"},
 	{"id": "warp_drive_mk2", "out": "warp_drive_mk2", "qty": 1, "in": {"void_core": 2, "circuit": 3}, "req": 60, "xp": 220, "cat": "Upgrades"},
@@ -294,6 +299,7 @@ const MILESTONES := [
 	{"id": "archivist", "name": "Keeper of Records", "desc": "Recover 8 Codex entries", "metric": "codex", "n": 8, "bonus": {"sell": 0.05}},
 	{"id": "spelunker", "name": "Spelunker", "desc": "Recover 3 relics from the Deep", "metric": "relics", "n": 3, "bonus": {"cargo": 30}},
 	{"id": "lamplighter", "name": "Lamplighter", "desc": "Light 4 Circuit relays", "metric": "relays", "n": 4, "bonus": {"energy": 20, "hull": 20}},
+	{"id": "deep_diver", "name": "Deep Diver", "desc": "Reach 250 m in the Deep Sea", "metric": "sea_depth", "n": 250, "bonus": {"hull": 20}},
 	{"id": "gem_hunter", "name": "Gem Hunter", "desc": "Hold 5 different world gems", "metric": "gem_types", "n": 5, "bonus": {"cargo": 30, "sell": 0.05}},
 	{"id": "master", "name": "Master of a Craft", "desc": "Reach level 50 in any profession", "metric": "best_skill", "n": 50, "bonus": {"harvest": 0.1}},
 ]
@@ -320,6 +326,9 @@ const QUESTS := [
 	{"id": "chambers", "title": "Hidden Chambers", "giver": "Archivist",
 		"text": "Deep down, some hollows glow. Those are sealed chambers from before the Quiet. Dig to one, step inside, and see what the planet has been keeping.",
 		"obj": {"type": "chamber", "count": 1}, "xp": 320, "reward": {"repair_kit": 2}, "credits": 80},
+	{"id": "blue", "title": "Into the Blue", "giver": "Archivist",
+		"text": "Our oceans were never mapped. Swim out, dive until the light starts to fail, then keep going: the Deep Sea opens below. Log three species that live down there.",
+		"obj": {"type": "sea_scan", "count": 3}, "xp": 700, "reward": {"energy_cell": 3}, "credits": 200},
 	{"id": "rogues", "title": "Rogue Signals", "giver": "Archivist",
 		"text": "Something has corrupted the old maintenance drones. They roam in packs now and attack anything with a spark. Aim with the mouse, fire with the left button, and use your frame's ability (F). Destroy five of them.",
 		"obj": {"type": "kill", "count": 5}, "xp": 300, "reward": {"repair_kit": 3}},
@@ -407,6 +416,7 @@ const VALUES := {
 	"energy_cell": 18, "repair_kit": 20, "warp_cell": 120,
 	"nickel": 7, "cryo_ice": 9, "stardust": 30, "exotic": 120,
 	"gem_verdant": 400, "gem_dune": 400, "gem_frost": 400, "gem_ember": 450, "gem_prism": 500, "gem_bloom": 450,
+	"kelp": 6, "sea_pearl": 180,
 	"gem_giant": 550, "gem_abyss": 900, "gem_tempest": 900, "gem_forge": 900, "deep_probe": 60,
 	"glowcap": 14, "fossil": 90, "ancient_relic": 260, "relay_coupler": 90, "legend_shard": 600,
 }

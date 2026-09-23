@@ -122,6 +122,16 @@ fullscreen, graphics quality and volume.
   for plasma and ice (don't go too deep). Derelict wrecks can be boarded as small 3D interiors. Solar flares recharge energy
   but burn your hull unless you shelter behind a planet or near the station. **M** opens a system map where you set waypoints
   (a HUD marker points the way); the galaxy map is one click further.
+- **Oceans & the Deep Sea**:
+  - Oceans are properly deep now. Swim in 3D: Space rises, Ctrl dives. Once the camera goes under, the view turns to murky
+    water with drifting caustics and light shafts, fog thickens with depth, bubbles trail from the robot and sound goes muffled.
+  - About 6 m down, press E to **dive into the Deep Sea**: a 2D side-on slice of that ocean through the Sunlit, Twilight
+    and Midnight zones into the Abyss. Swim freely (Shift boosts) and cut rock and ore veins by pushing into them.
+    Harvest kelp, pry open clams for Sea Pearls, siphon hydrothermal vents, and salvage a sunken wreck.
+  - Scan (Q) fish schools, glowing jellies (they sting), anglerfish (they hunt you by their lures) and the leviathan that
+    cruises the Abyss. All of them go into your Species Log.
+  - Below about 200 m the Abyss crushes an unprotected hull, so fabricate a **Pressure Hull** first. Kelp presses into Bio-Polymer.
+    Quest "Into the Blue", milestone "Deep Diver" (250 m).
 - **Orbit & Deep Probes**:
   - Near any planet, moon or gas giant, press O to hold orbit. The view cuts the world open: surface, clouds and atmosphere on the rim,
     then crust strata, a convecting mantle, a molten outer core and a white-hot inner core, all turning slowly under your ship.
@@ -231,6 +241,9 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     SHOTS=belt godot --path game res://scenes/dev_shots.tscn   # asteroid belt, scanner, mining laser, shards, comet
     SHOTS=spacefight godot --path game res://scenes/dev_shots.tscn  # pirates, cannons, missiles, threat markers, Marauder
     SHOTS=orbit godot --path game res://scenes/dev_shots.tscn  # orbit prompt, three worlds probed (verdant, crystalline, gas giant)
+    SHOTS=sea godot --path game res://scenes/dev_shots.tscn    # 3D underwater, then each Deep Sea zone
+    SHOTS=mine godot --path game res://scenes/dev_shots.tscn   # mining / botany / siphon animation
+    godot --headless --path game res://scenes/dev_sea.tscn     # swim, dive, scan, cut, clam, abyss pressure, surface
     godot --headless --path game res://scenes/dev_orbit.tscn   # probe to a gem, lose one in the core, craft the Crown
     SHOTS=polish godot --path game res://scenes/dev_shots.tscn # menus, settings, tips, quest star, species log, milestones, lava
     SHOTS=station godot --path game res://scenes/dev_shots.tscn     # sprint, orbital station, market tabs

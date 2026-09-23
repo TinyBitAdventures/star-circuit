@@ -96,7 +96,8 @@ func _process(delta: float) -> void:
 	_heavy.emitting = is_storm
 	if kind == "verdant":
 		_light.emitting = storm > 0.1
-	world.env.fog_density = _base_fog * (1.0 + storm * 3.0)
+	if world.underwater <= 0.0:
+		world.env.fog_density = _base_fog * (1.0 + storm * 3.0)
 	Sound.loop_set("ambience", lerpf(-12.0, -2.0, storm) if kind != "verdant" else lerpf(-14.0, -6.0, storm), 1.0 + storm * 0.15)
 	if is_storm != _was_storm:
 		_was_storm = is_storm

@@ -14,6 +14,9 @@ var hud: CanvasLayer
 var sun: DirectionalLight3D
 var sun_dir := Vector3.UP
 var env: Environment
+var underwater := 0.0 # 0..1, set by the player when the camera is below the sea
+var underwater_depth := 0.0
+var _uw_fog := false
 var spawn_dir := Vector3.UP
 var flora_tint := Color.WHITE
 var is_home := false
@@ -145,6 +148,15 @@ func _process(delta: float) -> void:
 		env.fog_light_color = (biome.horizon as Color).darkened(0.2) * day + Color(0.02, 0.03, 0.07) * (1.0 - day)
 		env.ambient_light_energy = lerpf(0.25, 0.6, day)
 		sun.light_energy = 1.25 * smoothstep(-0.12, 0.12, up.dot(sun_dir))
+		if underwater > 0.0:
+			var wc: Color = biome.water
+			var murk := Color(wc.r, wc.g, wc.b).darkened(0.35 + clampf(underwater_depth * 0.03, 0.0, 0.5))
+			env.fog_light_color = env.fog_light_color.lerp(murk * (0.4 + 0.6 * day), underwater)
+			env.fog_density = lerpf(0.0022, 0.045 + underwater_depth * 0.004, underwater)
+			_uw_fog = true
+		elif _uw_fog:
+			_uw_fog = false
+			env.fog_density = 0.0022 # the weather takes it from here
 		if day < 0.1 and _combat_check >= 0.49:
 			Game.tip("night", "Night falls. Your energy only recharges in sunlight, so go easy on the jetpack until dawn. Energy Cells %s top you up." % Game.key("use_cell"))
 

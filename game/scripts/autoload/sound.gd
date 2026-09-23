@@ -415,3 +415,26 @@ func tip_once(id: String) -> bool:
 	seen_tips.append(id)
 	save_settings()
 	return true
+
+
+
+## Muffle everything but the interface while the camera is underwater.
+var _underwater := false
+func set_underwater(on: bool) -> void:
+	if on == _underwater:
+		return
+	_underwater = on
+	for b in ["SFX", "Ambience", "Music"]:
+		var idx := AudioServer.get_bus_index(b)
+		if idx < 0:
+			continue
+		var fx_i := -1
+		for i in AudioServer.get_bus_effect_count(idx):
+			if AudioServer.get_bus_effect(idx, i) is AudioEffectLowPassFilter:
+				fx_i = i
+		if fx_i < 0:
+			var lp := AudioEffectLowPassFilter.new()
+			lp.cutoff_hz = 900.0
+			AudioServer.add_bus_effect(idx, lp)
+			fx_i = AudioServer.get_bus_effect_count(idx) - 1
+		AudioServer.set_bus_effect_enabled(idx, fx_i, on)

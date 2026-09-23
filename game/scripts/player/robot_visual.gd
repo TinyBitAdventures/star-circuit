@@ -9,6 +9,7 @@ var move_amount := 0.0 # 0..1 walk blend
 var airborne := false
 var jetting := false
 var working := false # harvesting / crafting
+var swimming := false
 var work_skill := "" # mining / botany / siphoning: picks the working pose
 var work_progress := 0.0
 var flying := false # space flight pose
@@ -125,6 +126,14 @@ func _process(delta: float) -> void:
 		_pose("ArmR", Vector3.ZERO, Vector3(-1.5, 0, 0.1))
 		_pose("LegL", Vector3.ZERO, Vector3(-swing * 0.8, 0, 0))
 		_pose("LegR", Vector3.ZERO, Vector3(swing * 0.8, 0, 0))
+	elif swimming and not working:
+		# a lazy breaststroke with a flutter kick
+		var st := _t * 3.2
+		_pose("Torso", Vector3(0, idle, 0), Vector3(0.35 * move_amount + 0.1, 0, sin(st) * 0.05))
+		_pose("ArmL", Vector3.ZERO, Vector3(-1.2 + sin(st) * 0.9, 0, -0.4 - cos(st) * 0.5))
+		_pose("ArmR", Vector3.ZERO, Vector3(-1.2 + sin(st) * 0.9, 0, 0.4 + cos(st) * 0.5))
+		_pose("LegL", Vector3.ZERO, Vector3(sin(_t * 7.0) * 0.4, 0, 0))
+		_pose("LegR", Vector3.ZERO, Vector3(-sin(_t * 7.0) * 0.4, 0, 0))
 	elif working:
 		match work_skill:
 			"mining":

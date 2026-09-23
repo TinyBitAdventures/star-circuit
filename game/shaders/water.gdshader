@@ -1,7 +1,7 @@
 // Planet oceans (and lava): depth-based shallows + shoreline foam, animated
 // ripple normals, fresnel.
 shader_type spatial;
-render_mode blend_mix, depth_draw_always, cull_back;
+render_mode blend_mix, depth_draw_always, cull_disabled;
 
 uniform vec4 water_color : source_color = vec4(0.2, 0.55, 0.85, 0.75);
 uniform float emissive = 0.0;

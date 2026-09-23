@@ -188,6 +188,9 @@ func _refresh_location() -> void:
 		location_label.text = "Beneath %s  ·  %s\n%s system" % [p0.name, "The Deep" if mode == "dig" else "Sealed chamber", star.name]
 		if Game.cave.get("origin", "") == "space":
 			location_label.text = "Aboard a derelict\n%s system" % star.name
+	elif mode == "sea":
+		var ps: Dictionary = Galaxy.planet(Game.star_index, Game.planet_index)
+		location_label.text = "The Deep Sea  ·  %s\n%s system" % [ps.name, star.name]
 	elif mode == "orbit":
 		location_label.text = "Holding orbit  ·  %s\n%s system" % [Game.orbit.get("name", "?"), star.name]
 	elif mode == "planet":
@@ -260,6 +263,8 @@ static func objective_text(q: Dictionary) -> String:
 			return "Destroy the Corruption Heart"
 		"dig":
 			return "Dig out tiles in a cave: %d / %d" % [p, o.count]
+		"sea_scan":
+			return "Log Deep Sea species (swim deep in an ocean, dive, then Q): %d / %d" % [p, o.count]
 		"gem":
 			return "Probe a world from orbit (O) and extract a gem: %d / %d" % [p, o.count]
 		"gem_types":
@@ -427,6 +432,8 @@ func _build_hints() -> void:
 		l.text = "WASD move · Space jump/jetpack · Shift sprint · E interact · LMB fire · F ability · G repair · Q scan · R energy · T take off · I C K J panels · H help"
 	elif mode == "dig":
 		l.text = "A/D move + drill sideways · S drill down · W/Space thrust (drills up at a ceiling) · E lift / enter chamber · T emergency lift · R energy · G repair · I C K J panels"
+	elif mode == "sea":
+		l.text = "WASD swim · Space up · Ctrl down · Shift boost · push into rock to cut · E harvest / open / surface · Q scan · T emergency ascent · R energy · G repair · I C K J panels"
 	elif mode == "orbit":
 		l.text = "A/D orbit / steer probe · Space launch / reel in · S dive · W brake · Q deep scan · R energy · T leave orbit · I C K J panels"
 	elif mode == "grotto":

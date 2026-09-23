@@ -41,6 +41,10 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "sea":
+		await _sea_tour()
+		get_tree().quit()
+		return
 	if which == "mine":
 		await _mine_tour()
 		get_tree().quit()
@@ -1133,3 +1137,65 @@ func _mine_tour() -> void:
 		await shot("mine_%s_burst" % skill)
 		Input.action_release("interact")
 		await _wait(0.6)
+
+
+
+func _sea_tour() -> void:
+	Sound.show_tips = false
+	Game.new_game("scout", "Tester")
+	await _wait(5.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	for e in w.enemies:
+		e.set_physics_process(false)
+	var gen: PlanetGen = w.gen
+	var best := Vector3.ZERO
+	var best_d := 0.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2
+	for i in 4000:
+		var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+		var depth := gen.sea_radius() - gen.surface_radius(d)
+		if depth > best_d:
+			best_d = depth
+			best = d
+	var p = w.player
+	# at the shore looking out, then just under the surface, then deep
+	p.global_position = best * (gen.sea_radius() - 1.2)
+	p.cam_pitch = -0.1
+	await _wait(1.5)
+	await shot("sea3d_surface")
+	p.global_position = best * (gen.sea_radius() - 4.0)
+	p.cam_pitch = 0.05
+	await _wait(1.5)
+	await shot("sea3d_under")
+	p.global_position = best * (gen.sea_radius() - best_d + 2.0)
+	p.cam_pitch = -0.35
+	Input.action_press("descend")
+	await _wait(1.5)
+	Input.action_release("descend")
+	await shot("sea3d_deep_prompt")
+	Game.enter_sea(p.global_position.normalized(), w.planet)
+	await _wait(3.5)
+	var s := _scene()
+	var d: SeaDiver = s.diver
+	await shot("sea2d_surface")
+	for band in [[18, "sunlit"], [60, "twilight"], [110, "midnight"], [160, "abyss"]]:
+		var y: int = band[0]
+		d.position = Vector2(s.trench_x(y) * s.CS, y * s.CS)
+		Game.upgrades.append("pressure_hull")
+		# frame something interesting nearby if there is one
+		for o in s.objects:
+			if o.kind in ["kelp", "wreck", "vent", "clam"] and absf(o.pos.y / s.CS - y) < 12 and (o.kind != "kelp" or y < 40):
+				d.position = o.pos + Vector2(-90, -60)
+				if o.kind == "wreck":
+					break
+		for f in s.fauna:
+			if f.kind in ["angler", "leviathan", "jelly"] and absf(f.pos.y / s.CS - y) < 25:
+				f.pos = d.position + Vector2(160, 30)
+				break
+		await _wait(1.2)
+		s._scan()
+		await _wait(0.5)
+		await shot("sea2d_" + band[1])
