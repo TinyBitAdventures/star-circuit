@@ -41,6 +41,18 @@ func _run() -> void:
 	var which: String = OS.get_environment("SHOTS")
 	if which == "":
 		which = "all"
+	if which == "portraits":
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+		await _wait(2.0)
+		var mm := _scene()
+		mm._show_select()
+		mm.select_box.visible = false
+		for i in 4:
+			mm._select(i)
+			await _wait(2.4)
+			await shot("portrait_%d" % i)
+		get_tree().quit()
+		return
 	if which == "volcano":
 		await _volcano_tour()
 		get_tree().quit()

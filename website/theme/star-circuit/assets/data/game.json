@@ -1,0 +1,1702 @@
+{
+  "biomes": {
+    "abyss": {
+      "atmo": "#6fb8ff",
+      "color": "#2f8f7a",
+      "legendary": true,
+      "name": "Abyssal"
+    },
+    "bloom": {
+      "atmo": "#ff9bd6",
+      "color": "#9e4a92",
+      "legendary": false,
+      "name": "Fungal"
+    },
+    "dune": {
+      "atmo": "#f2c47e",
+      "color": "#d0904f",
+      "legendary": false,
+      "name": "Arid"
+    },
+    "ember": {
+      "atmo": "#ff8a5b",
+      "color": "#4a3a3a",
+      "legendary": false,
+      "name": "Volcanic"
+    },
+    "forge": {
+      "atmo": "#ff9a5b",
+      "color": "#5a5f6b",
+      "legendary": true,
+      "name": "Machine"
+    },
+    "frost": {
+      "atmo": "#bfe6ff",
+      "color": "#bcd7ee",
+      "legendary": false,
+      "name": "Glacial"
+    },
+    "prism": {
+      "atmo": "#c49bff",
+      "color": "#5a3fa8",
+      "legendary": false,
+      "name": "Crystalline"
+    },
+    "tempest": {
+      "atmo": "#8a7fd8",
+      "color": "#46425c",
+      "legendary": true,
+      "name": "Tempest"
+    },
+    "verdant": {
+      "atmo": "#7ec8ff",
+      "color": "#4f9d3a",
+      "legendary": false,
+      "name": "Verdant"
+    }
+  },
+  "counts": {
+    "decor": 14,
+    "items": 66,
+    "milestones": 16,
+    "quests": 34,
+    "recipes": 36,
+    "stars": 48,
+    "worlds": 217
+  },
+  "robots": [
+    {
+      "ability": "Phase Dash",
+      "ability_desc": "Blink forward, untouchable for a moment.",
+      "color": "#18c2b0",
+      "desc": "A nimble hover-frame built for charting the unknown. Moves faster, flies farther and learns more from every discovery.",
+      "id": "scout",
+      "name": "Vesper",
+      "perks": [
+        "Ability: Phase Dash (F)",
+        "+20% move speed",
+        "+35% jetpack efficiency",
+        "+50% Exploration XP",
+        "Scanner range +25%"
+      ],
+      "title": "Scout Unit"
+    },
+    {
+      "ability": "Seismic Slam",
+      "ability_desc": "Smash the ground, damaging and hurling back nearby foes.",
+      "color": "#f29a2e",
+      "desc": "A tread-footed rock breaker with a drill for an arm. Rips ore out of the ground faster than anything in the sector.",
+      "id": "miner",
+      "name": "Grit",
+      "perks": [
+        "Ability: Seismic Slam (F)",
+        "Mining speed +40%",
+        "+1 ore per node",
+        "+50% Mining XP",
+        "Heavy frame: +20 energy, +40 hull, +60 cargo"
+      ],
+      "title": "Excavator Unit"
+    },
+    {
+      "ability": "Deploy Turret",
+      "ability_desc": "Drop an auto-turret that shoots enemies for 15 seconds.",
+      "color": "#8f6cf0",
+      "desc": "A tinkerer with a wrench in one hand and a schematic in the other. Crafts cheaper and occasionally makes two of everything.",
+      "id": "engineer",
+      "name": "Cog",
+      "perks": [
+        "Ability: Deploy Turret (F)",
+        "25% chance of double crafts",
+        "+50% Engineering XP",
+        "Starts with Engineering 5",
+        "Balanced frame"
+      ],
+      "title": "Fabricator Unit"
+    },
+    {
+      "ability": "Drain Nova",
+      "ability_desc": "A burst of stolen starlight: damages nearby foes and repairs your hull.",
+      "color": "#e8b93a",
+      "desc": "A radiant energy-drinker that bottles starlight. Huge reserves, fast recharge, and extra plasma from every well.",
+      "id": "siphon",
+      "name": "Halo",
+      "perks": [
+        "Ability: Drain Nova (F)",
+        "+40 max energy",
+        "Solar recharge x1.75",
+        "+1 plasma per well",
+        "+50% Siphoning & Botany XP"
+      ],
+      "title": "Siphon Unit"
+    }
+  ],
+  "stars": [
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": true,
+      "moons": 1,
+      "name": "Solace",
+      "planets": [
+        {
+          "biome": "verdant",
+          "name": "Cradle",
+          "rings": false,
+          "town": "The Cradle"
+        },
+        {
+          "biome": "dune",
+          "name": "Fyntis IV",
+          "rings": false,
+          "town": "Mosshaven"
+        },
+        {
+          "biome": "frost",
+          "name": "Fynren Major",
+          "rings": false,
+          "town": "Tinworks"
+        },
+        {
+          "biome": "prism",
+          "name": "Fynlia IV",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Solace Ring",
+      "x": 0.0,
+      "z": 0.0
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": false,
+      "moons": 3,
+      "name": "Juvi Major",
+      "planets": [
+        {
+          "biome": "ember",
+          "name": "Helxaia",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Ithvela",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Zydun",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Juvi Major IV",
+          "rings": false,
+          "town": "Kettlehaven"
+        }
+      ],
+      "station": "Juvi Major Ring",
+      "x": 4.8,
+      "z": 24.7
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": true,
+      "moons": 4,
+      "name": "Juvelis",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Juvelis I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Juvelis II",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Juvelis III",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Orgor",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Juvelis V",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Juvelis Station",
+      "x": 50.1,
+      "z": -35.6
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": true,
+      "moons": 1,
+      "name": "Galtis Major",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Ruraa",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Galtis Major II",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Galtis Major III",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Galtis Major Ring",
+      "x": 22.4,
+      "z": -35.2
+    },
+    {
+      "cls": "A",
+      "color": "#d5e0ff",
+      "giant": false,
+      "moons": 0,
+      "name": "Iotisa",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Lyrixis",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Mirix",
+          "rings": false,
+          "town": "Hollowworks"
+        },
+        {
+          "biome": "ember",
+          "name": "Iotisa III",
+          "rings": false,
+          "town": "Duskreach"
+        },
+        {
+          "biome": "frost",
+          "name": "Iotisa IV",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Iotisa V",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Iotisa Station",
+      "x": 51.2,
+      "z": 49.6
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": true,
+      "moons": 1,
+      "name": "Hellonis",
+      "planets": [
+        {
+          "biome": "dune",
+          "name": "Hellonis I",
+          "rings": false,
+          "town": "Mosspoint"
+        },
+        {
+          "biome": "dune",
+          "name": "Lydun Minor",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Hellonis III",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Hellonis Waypoint",
+      "x": -8.7,
+      "z": 11.8
+    },
+    {
+      "cls": "B",
+      "color": "#aabfff",
+      "giant": true,
+      "moons": 1,
+      "name": "Iolon",
+      "planets": [
+        {
+          "biome": "frost",
+          "name": "Fynrenia",
+          "rings": true,
+          "town": "Quietworks"
+        },
+        {
+          "biome": "ember",
+          "name": "Iolon II",
+          "rings": false,
+          "town": "Harbormarket"
+        },
+        {
+          "biome": "verdant",
+          "name": "Iolon III",
+          "rings": false,
+          "town": "Copperspire"
+        }
+      ],
+      "station": "Iolon Ring",
+      "x": -5.0,
+      "z": 37.2
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": true,
+      "moons": 1,
+      "name": "Midun IV",
+      "planets": [
+        {
+          "biome": "prism",
+          "name": "Midun IV I",
+          "rings": true,
+          "town": "Kettlepoint"
+        },
+        {
+          "biome": "ember",
+          "name": "Midun IV II",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Midun IV III",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Midun IV IV",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Midun IV V",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Midun IV Exchange",
+      "x": 44.9,
+      "z": -8.7
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": false,
+      "moons": 0,
+      "name": "Xitisus",
+      "planets": [
+        {
+          "biome": "verdant",
+          "name": "Xitisus I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Xilonia",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Katae",
+          "rings": true,
+          "town": "Duskhaven"
+        },
+        {
+          "biome": "frost",
+          "name": "Xitisus IV",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Xitisus Depot",
+      "x": -31.0,
+      "z": 63.3
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": false,
+      "moons": 1,
+      "name": "Kara Prime",
+      "planets": [
+        {
+          "biome": "verdant",
+          "name": "Lomonon",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Kara Prime II",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Kara Prime III",
+          "rings": false,
+          "town": "Mossford"
+        },
+        {
+          "biome": "bloom",
+          "name": "Kara Prime IV",
+          "rings": false,
+          "town": "Rustpoint"
+        }
+      ],
+      "station": "Kara Prime Exchange",
+      "x": 28.4,
+      "z": -28.6
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": false,
+      "moons": 1,
+      "name": "Kapho Major",
+      "planets": [
+        {
+          "biome": "verdant",
+          "name": "Kapho Major I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Kapho Major II",
+          "rings": false,
+          "town": "Quietreach"
+        },
+        {
+          "biome": "prism",
+          "name": "Veque Minor",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Kapho Major Harbor",
+      "x": 60.4,
+      "z": -31.9
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": false,
+      "moons": 0,
+      "name": "Iosolon",
+      "planets": [
+        {
+          "biome": "dune",
+          "name": "Torvi Major",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Eogor",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Solpho",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Iosolon Exchange",
+      "x": -20.4,
+      "z": 66.8
+    },
+    {
+      "cls": "F",
+      "color": "#fff4ea",
+      "giant": false,
+      "moons": 1,
+      "name": "Helsis IV",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Helsis IV I",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Helsis IV II",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Nyrena",
+          "rings": false,
+          "town": "Lanternhaven"
+        },
+        {
+          "biome": "verdant",
+          "name": "Ruviia",
+          "rings": false,
+          "town": "Kettleford"
+        }
+      ],
+      "station": "Helsis IV Ring",
+      "x": -56.5,
+      "z": 13.7
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": true,
+      "moons": 0,
+      "name": "Quaphois",
+      "planets": [
+        {
+          "biome": "dune",
+          "name": "Quaphois I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Quaphois II",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "abyss",
+          "name": "Thalassa",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Quaphois Harbor",
+      "x": 71.2,
+      "z": 25.3
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": true,
+      "moons": 1,
+      "name": "Eoth",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Drarixon",
+          "rings": false,
+          "town": "Duskgate"
+        },
+        {
+          "biome": "ember",
+          "name": "Fynrixis",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Eoth Depot",
+      "x": -33.2,
+      "z": -8.0
+    },
+    {
+      "cls": "A",
+      "color": "#d5e0ff",
+      "giant": true,
+      "moons": 0,
+      "name": "Vegoron",
+      "planets": [
+        {
+          "biome": "ember",
+          "name": "Eovi IV",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Lora Minor",
+          "rings": false,
+          "town": "Tinhollow"
+        }
+      ],
+      "station": "Vegoron Station",
+      "x": 1.5,
+      "z": -44.3
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": true,
+      "moons": 1,
+      "name": "Baqueia",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Baqueia I",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Xipho",
+          "rings": false,
+          "town": "Copperworks"
+        }
+      ],
+      "station": "Baqueia Harbor",
+      "x": -11.4,
+      "z": 33.2
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": true,
+      "moons": 0,
+      "name": "Zyvi",
+      "planets": [
+        {
+          "biome": "dune",
+          "name": "Mique Prime",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Torsol IV",
+          "rings": false,
+          "town": "Hollowhaven"
+        },
+        {
+          "biome": "bloom",
+          "name": "Zyvi III",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Eosol",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Zyvi V",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Zyvi Harbor",
+      "x": 52.0,
+      "z": 0.3
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": false,
+      "moons": 1,
+      "name": "Torpho Prime",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Torpho Prime I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Torpho Prime II",
+          "rings": true,
+          "town": "Mossyard"
+        }
+      ],
+      "station": "Torpho Prime Station",
+      "x": 45.5,
+      "z": 55.1
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": true,
+      "moons": 1,
+      "name": "Quaqueus",
+      "planets": [
+        {
+          "biome": "ember",
+          "name": "Quaqueus I",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Quaqueus II",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Quaqueus Ring",
+      "x": -7.1,
+      "z": 70.8
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": false,
+      "moons": 2,
+      "name": "Dratae IV",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Dratae IV I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Nylon Minor",
+          "rings": true,
+          "town": "Harborhaven"
+        },
+        {
+          "biome": "prism",
+          "name": "Fynraa",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Dratae IV IV",
+          "rings": false,
+          "town": "Frostworks"
+        },
+        {
+          "biome": "bloom",
+          "name": "Vetae",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Dratae IV Ring",
+      "x": 52.0,
+      "z": -27.9
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": true,
+      "moons": 0,
+      "name": "Iora",
+      "planets": [
+        {
+          "biome": "ember",
+          "name": "Iora I",
+          "rings": false,
+          "town": "Kettlerest"
+        },
+        {
+          "biome": "verdant",
+          "name": "Ruren Major",
+          "rings": false,
+          "town": "Brightspire"
+        },
+        {
+          "biome": "forge",
+          "name": "Anvil",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Iora Station",
+      "x": 32.5,
+      "z": 71.1
+    },
+    {
+      "cls": "F",
+      "color": "#fff4ea",
+      "giant": true,
+      "moons": 1,
+      "name": "Hellia Prime",
+      "planets": [
+        {
+          "biome": "verdant",
+          "name": "Hellia Prime I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Dralon IV",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Hellia Prime Waypoint",
+      "x": -6.3,
+      "z": -36.7
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": true,
+      "moons": 0,
+      "name": "Eotha",
+      "planets": [
+        {
+          "biome": "frost",
+          "name": "Ithtisis",
+          "rings": true,
+          "town": "Brightyard"
+        },
+        {
+          "biome": "ember",
+          "name": "Eotha II",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Eotha Depot",
+      "x": -35.2,
+      "z": -51.1
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": false,
+      "moons": 1,
+      "name": "Perix",
+      "planets": [
+        {
+          "biome": "prism",
+          "name": "Perix I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Perix II",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Xixa IV",
+          "rings": false,
+          "town": "Hollowspire"
+        },
+        {
+          "biome": "bloom",
+          "name": "Drath",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Perix Harbor",
+      "x": 10.5,
+      "z": -72.2
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": true,
+      "moons": 1,
+      "name": "Fynpho",
+      "planets": [
+        {
+          "biome": "verdant",
+          "name": "Lyrenia",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Fynpho II",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Celrixis",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Celtis Minor",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Fynpho V",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Fynpho Depot",
+      "x": 17.0,
+      "z": -4.1
+    },
+    {
+      "cls": "O",
+      "color": "#9bb0ff",
+      "giant": true,
+      "moons": 1,
+      "name": "Misolia",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Misolia I",
+          "rings": false,
+          "town": "Emberhollow"
+        },
+        {
+          "biome": "prism",
+          "name": "Misolia II",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Misolia Station",
+      "x": 17.9,
+      "z": 44.3
+    },
+    {
+      "cls": "A",
+      "color": "#d5e0ff",
+      "giant": false,
+      "moons": 2,
+      "name": "Rumar",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Galvel IV",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Rumar II",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Ximon Prime",
+          "rings": false,
+          "town": "Rustworks"
+        },
+        {
+          "biome": "dune",
+          "name": "Rulonia",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Celpho",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Rumar Waypoint",
+      "x": -45.9,
+      "z": 6.1
+    },
+    {
+      "cls": "F",
+      "color": "#fff4ea",
+      "giant": false,
+      "moons": 2,
+      "name": "Celphoon",
+      "planets": [
+        {
+          "biome": "frost",
+          "name": "Judun Major",
+          "rings": false,
+          "town": "Mosshollow"
+        },
+        {
+          "biome": "verdant",
+          "name": "Celphoon II",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Juxais",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Celphoon IV",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Fyndun IV",
+          "rings": true,
+          "town": "Hollowmarket"
+        }
+      ],
+      "station": "Celphoon Exchange",
+      "x": -46.5,
+      "z": -5.4
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": true,
+      "moons": 0,
+      "name": "Helmon Prime",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Helmon Prime I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Vevi",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Helmon Prime Exchange",
+      "x": -17.5,
+      "z": 15.4
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": false,
+      "moons": 3,
+      "name": "Nyxaa",
+      "planets": [
+        {
+          "biome": "ember",
+          "name": "Nyxaa I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Nyno Major",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Nyxaa III",
+          "rings": false,
+          "town": "Quiethaven"
+        },
+        {
+          "biome": "dune",
+          "name": "Fynmonia",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Nydunis",
+          "rings": true,
+          "town": "Copperyard"
+        }
+      ],
+      "station": "Nyxaa Station",
+      "x": -25.0,
+      "z": 50.6
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": true,
+      "moons": 1,
+      "name": "Celrenia",
+      "planets": [
+        {
+          "biome": "frost",
+          "name": "Celrenia I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Celrenia II",
+          "rings": false,
+          "town": "Quietrest"
+        },
+        {
+          "biome": "frost",
+          "name": "Mitae",
+          "rings": false,
+          "town": "Signalcrossing"
+        }
+      ],
+      "station": "Celrenia Exchange",
+      "x": -15.9,
+      "z": -52.4
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": false,
+      "moons": 3,
+      "name": "Galgor",
+      "planets": [
+        {
+          "biome": "frost",
+          "name": "Galgor I",
+          "rings": true,
+          "town": "Lanternspire"
+        },
+        {
+          "biome": "ember",
+          "name": "Galgor II",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Galgor III",
+          "rings": false,
+          "town": "Tinford"
+        }
+      ],
+      "station": "Galgor Ring",
+      "x": -22.9,
+      "z": -14.8
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": false,
+      "moons": 0,
+      "name": "Lodun Minor",
+      "planets": [
+        {
+          "biome": "ember",
+          "name": "Celqueis",
+          "rings": false,
+          "town": "Gearmarket"
+        },
+        {
+          "biome": "ember",
+          "name": "Lodun Minor II",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Lodun Minor III",
+          "rings": false,
+          "town": "Brightcrossing"
+        }
+      ],
+      "station": "Lodun Minor Ring",
+      "x": 11.2,
+      "z": 53.3
+    },
+    {
+      "cls": "B",
+      "color": "#aabfff",
+      "giant": true,
+      "moons": 1,
+      "name": "Dragor Minor",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Dragor Minor I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Dragor Minor II",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Dragor Minor III",
+          "rings": true,
+          "town": "Copperreach"
+        },
+        {
+          "biome": "ember",
+          "name": "Dragor Minor IV",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Bapho IV",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "tempest",
+          "name": "Maelstrom",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Dragor Minor Exchange",
+      "x": 64.0,
+      "z": 38.2
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": true,
+      "moons": 1,
+      "name": "Ximona",
+      "planets": [
+        {
+          "biome": "frost",
+          "name": "Zylon Minor",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Zytaeon",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Ximona III",
+          "rings": true,
+          "town": "Signalworks"
+        }
+      ],
+      "station": "Ximona Harbor",
+      "x": 33.1,
+      "z": -60.3
+    },
+    {
+      "cls": "O",
+      "color": "#9bb0ff",
+      "giant": true,
+      "moons": 1,
+      "name": "Eorixis",
+      "planets": [
+        {
+          "biome": "prism",
+          "name": "Eorixis I",
+          "rings": false,
+          "town": "Quietgate"
+        },
+        {
+          "biome": "prism",
+          "name": "Celtae Major",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Eorixis Station",
+      "x": -1.3,
+      "z": -56.6
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": true,
+      "moons": 2,
+      "name": "Lythia",
+      "planets": [
+        {
+          "biome": "dune",
+          "name": "Drath Prime",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Lomar Major",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Julia Major",
+          "rings": false,
+          "town": "Mosscrossing"
+        },
+        {
+          "biome": "bloom",
+          "name": "Lygor Prime",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Lythia Ring",
+      "x": -11.2,
+      "z": 25.4
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": false,
+      "moons": 1,
+      "name": "Juraon",
+      "planets": [
+        {
+          "biome": "frost",
+          "name": "Rugor Prime",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Juraon II",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Pesis",
+          "rings": false,
+          "town": "Gearrest"
+        }
+      ],
+      "station": "Juraon Depot",
+      "x": -17.5,
+      "z": 43.3
+    },
+    {
+      "cls": "G",
+      "color": "#ffe7a8",
+      "giant": false,
+      "moons": 1,
+      "name": "Helpho Prime",
+      "planets": [
+        {
+          "biome": "dune",
+          "name": "Iolia Major",
+          "rings": false,
+          "town": "Harborspire"
+        },
+        {
+          "biome": "prism",
+          "name": "Ruth Prime",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Helpho Prime Harbor",
+      "x": -42.1,
+      "z": -12.5
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": false,
+      "moons": 2,
+      "name": "Galsis Major",
+      "planets": [
+        {
+          "biome": "verdant",
+          "name": "Galsis Major I",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Kaphoon",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "prism",
+          "name": "Drasolon",
+          "rings": true,
+          "town": "Frostgate"
+        }
+      ],
+      "station": "Galsis Major Harbor",
+      "x": -29.9,
+      "z": -35.8
+    },
+    {
+      "cls": "F",
+      "color": "#fff4ea",
+      "giant": true,
+      "moons": 0,
+      "name": "Draxaia",
+      "planets": [
+        {
+          "biome": "verdant",
+          "name": "Dravelis",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Draxaia II",
+          "rings": true,
+          "town": "Gearspire"
+        },
+        {
+          "biome": "dune",
+          "name": "Aemon",
+          "rings": true,
+          "town": "Coppermarket"
+        }
+      ],
+      "station": "Draxaia Depot",
+      "x": -25.2,
+      "z": 34.4
+    },
+    {
+      "cls": "A",
+      "color": "#d5e0ff",
+      "giant": false,
+      "moons": 2,
+      "name": "Solsola",
+      "planets": [
+        {
+          "biome": "dune",
+          "name": "Solsola I",
+          "rings": false,
+          "town": "Rustspire"
+        },
+        {
+          "biome": "verdant",
+          "name": "Nypho",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "ember",
+          "name": "Solsola III",
+          "rings": false,
+          "town": "Signalyard"
+        },
+        {
+          "biome": "frost",
+          "name": "Solsola IV",
+          "rings": false,
+          "town": "Duskhollow"
+        }
+      ],
+      "station": "Solsola Ring",
+      "x": -17.1,
+      "z": -21.1
+    },
+    {
+      "cls": "F",
+      "color": "#fff4ea",
+      "giant": true,
+      "moons": 2,
+      "name": "Ordun",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Aetae Prime",
+          "rings": false,
+          "town": "Quietcrossing"
+        },
+        {
+          "biome": "verdant",
+          "name": "Ordun II",
+          "rings": false,
+          "town": "Harborpoint"
+        },
+        {
+          "biome": "bloom",
+          "name": "Ordun III",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Lymona",
+          "rings": false,
+          "town": "Mossreach"
+        }
+      ],
+      "station": "Ordun Waypoint",
+      "x": 70.4,
+      "z": -2.5
+    },
+    {
+      "cls": "M",
+      "color": "#ff8a5b",
+      "giant": true,
+      "moons": 0,
+      "name": "Ioth Minor",
+      "planets": [
+        {
+          "biome": "prism",
+          "name": "Bamonis",
+          "rings": false,
+          "town": "Brighthaven"
+        },
+        {
+          "biome": "verdant",
+          "name": "Solvela",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Ioth Minor Exchange",
+      "x": -18.4,
+      "z": -65.8
+    },
+    {
+      "cls": "F",
+      "color": "#fff4ea",
+      "giant": false,
+      "moons": 1,
+      "name": "Karaus",
+      "planets": [
+        {
+          "biome": "ember",
+          "name": "Jusis Minor",
+          "rings": false,
+          "town": "Geargate"
+        },
+        {
+          "biome": "ember",
+          "name": "Karaus II",
+          "rings": false,
+          "town": "Quietmarket"
+        },
+        {
+          "biome": "prism",
+          "name": "Solsol Major",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "frost",
+          "name": "Karaus IV",
+          "rings": true,
+          "town": "Kettlegate"
+        },
+        {
+          "biome": "dune",
+          "name": "Karaus V",
+          "rings": false,
+          "town": ""
+        }
+      ],
+      "station": "Karaus Station",
+      "x": -41.6,
+      "z": -20.6
+    },
+    {
+      "cls": "A",
+      "color": "#d5e0ff",
+      "giant": false,
+      "moons": 1,
+      "name": "Qualonia",
+      "planets": [
+        {
+          "biome": "verdant",
+          "name": "Qualonia I",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Qualonia II",
+          "rings": true,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Ioxa",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "verdant",
+          "name": "Kasola",
+          "rings": false,
+          "town": "Signalgate"
+        }
+      ],
+      "station": "Qualonia Waypoint",
+      "x": 31.9,
+      "z": -44.6
+    },
+    {
+      "cls": "K",
+      "color": "#ffb56b",
+      "giant": false,
+      "moons": 1,
+      "name": "Jusis Major",
+      "planets": [
+        {
+          "biome": "bloom",
+          "name": "Aesis Major",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "bloom",
+          "name": "Iththa",
+          "rings": false,
+          "town": ""
+        },
+        {
+          "biome": "dune",
+          "name": "Katisus",
+          "rings": true,
+          "town": ""
+        }
+      ],
+      "station": "Jusis Major Depot",
+      "x": -50.3,
+      "z": -50.3
+    }
+  ],
+  "version": "0.2.0"
+}
