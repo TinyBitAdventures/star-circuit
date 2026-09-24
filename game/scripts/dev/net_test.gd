@@ -1,5 +1,5 @@
 extends Node
-## Headless multiplayer check against the real Go server (go run in server/):
+## Headless multiplayer check against the real Go server (built from ../star-circuit-server):
 ## join, a scripted second player "Bob" appears on the same planet, chat,
 ## gifts both ways, crates dropped and picked up (first come first served),
 ## both flying in the same system, leaving.
@@ -69,7 +69,10 @@ func _bob_wait(t: String, secs := 3.0) -> Dictionary:
 func _run() -> void:
 	Sound.show_tips = false
 	_port = 17000 + randi() % 1000
-	var dir := ProjectSettings.globalize_path("res://").path_join("../server").simplify_path()
+	# the server lives in its own repo, checked out next to this one
+	var dir := OS.get_environment("STAR_CIRCUIT_SERVER_DIR")
+	if dir == "":
+		dir = ProjectSettings.globalize_path("res://").path_join("../../star-circuit-server").simplify_path()
 	# build first and run the binary itself, so killing it really stops the server
 	var bin := OS.get_cache_dir().path_join("star-circuit-server-test")
 	var out := []

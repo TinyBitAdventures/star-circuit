@@ -15,7 +15,7 @@
 - Everyone plays their own save. Other players' robots walk the same planet and fly in the same system, painted the way they styled them and with name tags. The player list shows where everyone is ("Diving the Deep Sea on Thalassa").
 - Chat, and give items straight to another player. Upgrades stay with your frame.
 - Drop a crate on a planet for anyone to pick up. Whoever grabs it first gets it, and crates survive server restarts for three days.
-- The server is a single small Go program (`server/`), with builds for macOS, Windows and Linux.
+- The server is a single small Go program with builds for macOS, Windows and Linux. It now lives in its own repo, [star-circuit-server](https://github.com/TinyBitAdventures/star-circuit-server): this release pairs with server v0.1.0.
 - **Shared caves:** go down the same Cave Mouth as a friend and you're in the same dig: you see each other's drill pods, every tile either of you cuts disappears for both, and tunnels you dug on your own visits merge when you meet.
 - **Shared Deep Sea:** dive anywhere on a world where a friend is already diving and you join their sea. Cut rock, kelp and opened clams show up for both, and salvaging the wreck pays everyone.
 - **Shared fights:** players are one party. Anyone within 80 m of a drone kill (600 m of a pirate kill in space) gets the XP, credits and their own loot roll. Where you both have the same drone (like the camps around the Cradle), your shots and its death sync, so you wear it down together. A kill only ever pays once.

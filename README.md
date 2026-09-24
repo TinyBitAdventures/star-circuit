@@ -10,7 +10,7 @@ What's new in each version: see [CHANGELOG.md](CHANGELOG.md).
 
 ## Play it (macOS)
 
-1. Download **StarCircuit-macOS.zip** from the [latest release](https://github.com/austinginder/star-circuit/releases/latest) and unzip it.
+1. Download **StarCircuit-macOS.zip** from the [latest release](https://github.com/TinyBitAdventures/star-circuit/releases/latest) and unzip it.
 2. Drag **Star Circuit.app** into Applications (optional).
 3. The first launch is blocked because the app isn't notarized with a paid Apple Developer ID. Allow it once with either:
    - **Right-click the app, choose Open, then Open again.** On macOS 15+ you may instead need System Settings, then Privacy & Security,
@@ -21,7 +21,7 @@ After that it opens normally. It runs natively on Apple Silicon and Intel Macs (
 
 ## Play it (Windows)
 
-1. Download **StarCircuit-Windows.zip** from the [latest release](https://github.com/austinginder/star-circuit/releases/latest) and unzip it.
+1. Download **StarCircuit-Windows.zip** from the [latest release](https://github.com/TinyBitAdventures/star-circuit/releases/latest) and unzip it.
 2. Run **StarCircuit.exe** (one file, 64-bit Windows 10/11).
 3. The game isn't code-signed, so Windows SmartScreen may say "Windows protected your PC". Click **More info**, then **Run anyway**.
 
@@ -29,15 +29,16 @@ Mac and Windows players can play together on the same multiplayer server.
 
 ## Host a multiplayer server
 
-Download the `star-circuit-server` for your machine from the release (macOS, Windows, Linux) and run it; friends press **P** in
-game and type your address. Details, options and HTTPS setup: [server/README.md](server/README.md). On Windows, allow it through
-the firewall when asked.
+The server is its own project: [star-circuit-server](https://github.com/TinyBitAdventures/star-circuit-server). Download the binary for your machine from its
+[latest release](https://github.com/TinyBitAdventures/star-circuit-server/releases/latest) (macOS, Windows, Linux) and run it; friends press **P** in game and type your address.
+Server v0.1.0 pairs with the game from v0.3.0. Details, options and HTTPS setup are in the server's README. On Windows, allow it
+through the firewall when asked.
 
 ## Run from source (any OS Godot supports)
 
 No compiling needed: Godot runs the project directly.
 
-    git clone https://github.com/austinginder/star-circuit.git
+    git clone https://github.com/TinyBitAdventures/star-circuit.git
     cd star-circuit
     brew install --cask godot        # or download Godot 4.7 from godotengine.org
     godot --path game                # play
@@ -50,7 +51,6 @@ The generated models and audio are committed, so Blender and Python are only nee
     # one-time: install export templates (Godot editor > Editor > Manage Export Templates > Download)
     godot --headless --path game --export-release "macOS" ../build/StarCircuit-macOS.zip
     godot --headless --path game --export-release "Windows Desktop" ../build/StarCircuit-Windows/StarCircuit.exe
-    server/build.sh                                   # multiplayer server for macOS, Windows and Linux
 
 ### Regenerate assets
 
@@ -100,7 +100,7 @@ fullscreen, graphics quality and volume.
   players can share a server. Players are one party: **caves and the Deep Sea are shared** (enter the same cave mouth, or dive anywhere on a world
   where a friend is already diving, and you dig the same rock, see each other's tunnels and share the wreck's salvage), and
   **kills are shared**: anyone within 80 m of a drone kill (600 in space) gets the XP, credits and their own loot roll, and
-  where both players have the same drone, hits and deaths sync so you wear it down together. The server is a small Go program in `server/` (see [server/README.md](server/README.md)).
+  where both players have the same drone, hits and deaths sync so you wear it down together. The server is a small Go program: [star-circuit-server](https://github.com/TinyBitAdventures/star-circuit-server).
 
 - **4 robots**: Vesper (scout), Grit (miner), Cog (engineer) and Halo (siphon). Each has its own model, perks and starting skills.
 - **Procedural galaxy**: 48 stars and about 170 planets across 6 biomes (verdant, arid, glacial, volcanic, crystalline, fungal).
@@ -314,9 +314,8 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     godot --headless --path game res://scenes/dev_warp.tscn    # hyperspace: interdiction waves, kills, hits, arrival, relay jump
     SHOTS=warp godot --path game res://scenes/dev_shots.tscn   # hyperspace tunnel, firefight, mines, relay colours
     godot --headless --path game res://scenes/dev_home.tscn    # Homespace: vault uplink costs, inbox, trader orders, pause/resume
-    godot --headless --path game res://scenes/dev_net.tscn     # multiplayer against the real Go server: avatars, chat, gifts, crates, space
+    godot --headless --path game res://scenes/dev_net.tscn     # multiplayer against the real Go server (built from ../star-circuit-server or $STAR_CIRCUIT_SERVER_DIR)
     SHOTS=net godot --path game res://scenes/dev_shots.tscn    # another robot + crate, the Multiplayer panel, the join screen
-    (cd server && go test -race ./...)                         # server: relay, gifts, crate race, password, persistence
     godot --headless --path game res://scenes/dev_lab.tscn     # Micro Lab: hold+vault draw, autoplay to critical mass (60/15 fps), idle failure, graded upgrade, save, balance sweep
     SHOTS=lab godot --path game res://scenes/dev_shots.tscn    # lab bench, formula panel, the soup mid-culture, phages, result card
     SHOTS=home godot --path game res://scenes/dev_shots.tscn   # Homespace room, vault, inbox, trophy wall

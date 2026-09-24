@@ -9,8 +9,8 @@ $data     = star_circuit_data();
 $counts   = $data['counts'] ?? [];
 $version  = $data['version'] ?? '0.2.0';
 $img      = get_template_directory_uri() . '/assets/img/';
-$release  = 'https://github.com/austinginder/star-circuit/releases/latest';
-$repo     = 'https://github.com/austinginder/star-circuit';
+$release  = 'https://github.com/TinyBitAdventures/star-circuit/releases/latest';
+$repo     = 'https://github.com/TinyBitAdventures/star-circuit';
 
 $modes = [
 	[
