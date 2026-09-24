@@ -73,6 +73,8 @@ func _ready() -> void:
 		info = {"key": "dev:volcano", "seed": 777, "biome": "ember", "star": 0, "planet": 0, "dir": [0, 1, 0]}
 		Game.volcano = info
 	planet = Galaxy.planet(int(info.get("star", 0)), int(info.get("planet", 0)))
+	# saves leave this haul out until the run ends: quitting mid-run forfeits it
+	info["haul"] = _run_items
 	_rng.seed = int(info.seed)
 	_generate()
 	_build_backdrop()
@@ -215,7 +217,11 @@ func _generate() -> void:
 					if get_cell(xx, yy) == AIR and is_solid(xx, yy + 1):
 						floor_cells.append(Vector2i(xx, yy))
 						break
-			floor_cells.shuffle()
+			for i in range(floor_cells.size() - 1, 0, -1):
+				var j := _rng.randi_range(0, i)
+				var tmp: Vector2i = floor_cells[i]
+				floor_cells[i] = floor_cells[j]
+				floor_cells[j] = tmp
 			for f in floor_cells.slice(0, mini(floor_cells.size(), 2 + z / 2)):
 				var roll := _rng.randf()
 				var acc := 0.0
@@ -498,8 +504,10 @@ func _update_fx(delta: float) -> void:
 func _escape() -> void:
 	ended = true
 	Sound.stop_all_loops()
-	Game.gain_xp(150 + _run_count() * 10)
-	hud.big("ESCAPED", "Out with %d items, %d seconds to spare" % [_run_count(), int(DURATION - elapsed)], Color("6ee06a"))
+	var n := _run_count()
+	_run_items.clear() # out safely: the haul is yours
+	Game.gain_xp(150 + n * 10)
+	hud.big("ESCAPED", "Out with %d items, %d seconds to spare" % [n, int(DURATION - elapsed)], Color("6ee06a"))
 	Sound.play("quest_complete", -4.0, 0.0, "UI")
 	await get_tree().create_timer(2.2).timeout
 	Game.leave_volcano(true)
@@ -525,6 +533,7 @@ func _erupt() -> void:
 		if q > 0:
 			Game.remove_item(it, q)
 			lost += q
+	_run_items.clear() # the rest is yours now
 	Game.hull = maxf(1.0, Game.hull * 0.4)
 	Game.hull_changed.emit()
 	hud.big("ERUPTION!", "Blasted out of the crater%s" % ("  ·  %d items lost in the ash" % lost if lost > 0 else ""), Color("ff4d4d"))
@@ -545,6 +554,7 @@ func _on_died() -> void:
 		if q > 0:
 			Game.remove_item(it, q)
 			lost += q
+	_run_items.clear()
 	hud.show_death()
 	await get_tree().create_timer(3.0).timeout
 	Game.hull = Game.max_hull() * 0.5

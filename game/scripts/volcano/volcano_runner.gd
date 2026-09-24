@@ -127,7 +127,7 @@ func _physics_process(delta: float) -> void:
 		position.y -= vy * delta
 		if vy > 0.0:
 			on_ground = true
-			if vy > 620.0 and launched <= 0.0:
+			if vy > 620.0 and launched <= 0.0 and not world.ended:
 				Game.take_damage((vy - 620.0) * 0.06)
 				shake = 0.4
 			if not was_ground and vy > 250.0:

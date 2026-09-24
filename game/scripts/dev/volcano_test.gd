@@ -124,6 +124,10 @@ func _run() -> void:
 				lava_near += 1
 	print("[vol] crystals with lava beside them=", lava_near)
 	print("[vol] mined ", deep.item, " taken=", deep.taken, " hold=", Game.count(deep.item), " heat=", snappedf(w.heat, 0.1))
+	# a save mid-run leaves the haul in the volcano (quitting now forfeits it)
+	Game.save_game()
+	var sd: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(Game.slot_path(Game.slot)))
+	print("[vol] mid-run save: hold ", deep.item, "=", Game.count(deep.item), " saved=", int(sd.inventory.get(deep.item, 0)), " haul=", Game.volcano.get("haul", {}))
 	# a geyser launches you
 	var g: Dictionary = w.geysers[0]
 	r.position = Vector2((g.x + 0.5) * w.CS, (g.y + 0.5) * w.CS)
