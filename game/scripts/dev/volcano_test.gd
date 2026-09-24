@@ -47,7 +47,24 @@ func _run() -> void:
 	pw._qt_t = 0.0
 	print("[vol] fire quest star -> ", pw.quest_target().get("label", "none"), " · nearest volcanic world=", Game.nearest_volcanic_world().get("name", "?"))
 	print("[vol] world=", pw.planet.name, " (", pw.planet.biome, ") vent=", vent != null, " info=", vent.cache_info().text if vent else "")
-	vent.open_cache()
+	# the cone is solid: a ray from 25 m out toward the centre stops at its flank
+	var up: Vector3 = vent.dir
+	var side: Vector3 = vent.global_basis.x.normalized()
+	var from: Vector3 = vent.global_position + up * 3.0 + side * 25.0
+	var hit: Dictionary = pw.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, vent.global_position + up * 3.0))
+	var hit_d: float = (hit.position - vent.global_position).length() if hit else -1.0
+	print("[vol] cone solid=", not hit.is_empty(), " hit at ", snappedf(hit_d, 0.1), " m from centre")
+	# walk up to the doorway: standing on the ground in front of it brings up the prompt
+	var door: Vector3 = vent.entrance()
+	pw.player.place_at((door + (door - vent.global_position).normalized() * 1.5).normalized(), pw.gen)
+	await _wait(0.6)
+	var t: Node = pw.nearest_interactable(pw.player.global_position, 4.2)
+	var gap := door.distance_to(pw.player.global_position)
+	print("[vol] door reach: player ", snappedf(gap, 0.1), " m from door, target=", t.interact_info().text if t else "none")
+	if t:
+		t.interact(pw.player)
+	else:
+		vent.open_cache()
 	await _wait(3.0)
 	var w := get_tree().current_scene
 	print("[vol] scene=", w.name, " deposits=", w.deposits.size(), " geysers=", w.geysers.size(), " by zone=", _zones(w))

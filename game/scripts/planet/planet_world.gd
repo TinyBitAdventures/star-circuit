@@ -1036,7 +1036,7 @@ func _compute_quest_target() -> Dictionary:
 	var o: Dictionary = q.obj
 	if o.type == "collect" and o.item in ["fire_opal", "obsidian", "core_ember"]:
 		var v := _nearest_vent(pos)
-		return {"pos": v.global_position, "label": "Volcanic Vent"} if v else {}
+		return {"pos": v.entrance(), "label": "Volcanic Vent"} if v else {}
 	match o.type:
 		"collect":
 			var hits := _nodes.filter(func(n): return is_instance_valid(n) and n.def.item == o.item)

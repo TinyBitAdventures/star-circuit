@@ -1467,6 +1467,20 @@ func _volcano_tour() -> void:
 	await _look_at_from(pw, pw.player, vent.global_position, 40.0, -0.25, 14.0)
 	await _wait(1.0)
 	await shot("vol_vent_3d")
+	# standing at the lava-tube doorway, prompt showing
+	var door: Vector3 = vent.entrance()
+	var out_dir: Vector3 = (door - vent.global_position).normalized()
+	Game.play_time = 40.0
+	pw.player.place_at((door + out_dir * 7.0).normalized(), pw.gen)
+	await _wait(0.6)
+	var pup: Vector3 = pw.player.global_position.normalized()
+	var to: Vector3 = door - pw.player.global_position
+	pw.player.ref_fwd = (to - pup * to.dot(pup)).normalized()
+	pw.player.cam_yaw = 0.0
+	pw.player.cam_pitch = -0.1
+	pw.player.spring.spring_length = 6.0
+	await _wait(1.2)
+	await shot("vol_door")
 	vent.open_cache()
 	await _wait(3.5)
 	var w := _scene()

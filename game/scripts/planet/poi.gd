@@ -4,6 +4,11 @@ extends Node3D
 ## Walk close to discover it; open its cache / read its glyphs for loot + lore.
 
 const DISCOVER_RANGE := 16.0
+# the volcano cone: rim at local y 8.5, base sunk well below ground so hills never show a gap
+const CONE_TOP := 3.5
+const CONE_BOTTOM := 15.0
+const CONE_H := 15.0
+const CONE_Y := 1.0
 
 var world: Node3D
 var type := ""
@@ -37,6 +42,11 @@ func setup(w: Node3D, t: String, idx: int, d: Vector3) -> void:
 		_add_cache()
 
 
+## Where to send the player: the doorway for a volcano, the site itself otherwise.
+func entrance() -> Vector3:
+	return _cache.global_position if type == "volcano" and _cache else global_position
+
+
 func is_discovered() -> bool:
 	return Game.discovered_pois.has(key)
 
@@ -61,8 +71,16 @@ func _add_collision() -> void:
 			sp.radius = 2.2
 			cs.shape = sp
 			cs.position.y = 1.0
-		"cave", "volcano":
-			return # walk right onto the shaft / up the cone
+		"cave":
+			return # walk right onto the shaft
+		"volcano":
+			# a solid cone: you walk around it (or jetpack up it), never through it
+			var cone := CylinderMesh.new()
+			cone.top_radius = CONE_TOP
+			cone.bottom_radius = CONE_BOTTOM
+			cone.height = CONE_H
+			cs.shape = cone.create_convex_shape()
+			cs.position.y = CONE_Y
 		"geode":
 			var sp2 := SphereShape3D.new()
 			sp2.radius = 3.0
@@ -127,7 +145,9 @@ func _add_cache() -> void:
 		"cave":
 			offset = Vector3(0, 0.3, 0)
 		"volcano":
-			offset = Vector3(0, 1.0, 9.0)
+			_add_volcano_entrances(c)
+			_cache = c
+			return
 	c.position = offset
 	if type != "monolith" and type != "cave" and type != "volcano":
 		c.add_child(ModelUtil.instance("res://assets/models/poi_cache.glb"))
@@ -193,22 +213,90 @@ func open_cache() -> void:
 
 
 
+## Cone radius at a local height (the cone narrows from its sunk base to the rim).
+static func cone_radius(h: float) -> float:
+	var t := clampf((CONE_Y + CONE_H * 0.5 - h) / CONE_H, 0.0, 1.0)
+	return lerpf(CONE_TOP, CONE_BOTTOM, t)
+
+
+## Two ways in: a lava-tube doorway at the foot of the cone, snapped to the
+## real ground there, and the crater rim for anyone who jetpacks up.
+func _add_volcano_entrances(door: PoiCache) -> void:
+	var up := dir
+	var side := global_basis.z.normalized()
+	# walk the doorway out until it sits just outside the cone at ground level
+	var gen: PlanetGen = world.gen
+	var r := 11.0
+	var ground := Vector3.ZERO
+	for i in 3:
+		var d := (up + side * r / gen.radius).normalized()
+		ground = gen.surface_point(d)
+		r = cone_radius((ground - global_position).dot(up)) + 1.2
+	var gup := ground.normalized()
+	var outward := (side - gup * side.dot(gup)).normalized()
+	door.global_position = ground + gup * 1.0 + outward * 0.8
+	var arch := _lava_door()
+	door.add_child(arch)
+	arch.global_transform = Transform3D(Basis(gup.cross(outward).normalized(), gup, outward), ground + gup * 1.4 - outward * 0.6)
+	world.register_interactable(door)
+	var rim := PoiCache.new()
+	rim.poi = self
+	add_child(rim)
+	rim.position = Vector3(0, CONE_Y + CONE_H * 0.5 + 0.6, 0)
+	world.register_interactable(rim)
+
+
+## A dark arch in the cone's flank with lava glowing inside (faces local +Z).
+func _lava_door() -> Node3D:
+	var root := Node3D.new()
+	root.top_level = true
+	var arch := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(3.2, 3.4, 1.2)
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color("1a1210")
+	dark.roughness = 1.0
+	bm.material = dark
+	arch.mesh = bm
+	root.add_child(arch)
+	var glow := MeshInstance3D.new()
+	var gm := QuadMesh.new()
+	gm.size = Vector2(2.2, 2.6)
+	var gmat := StandardMaterial3D.new()
+	gmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gmat.albedo_color = Color(1.0, 0.45, 0.12)
+	gmat.emission_enabled = true
+	gmat.emission = Color(1.0, 0.4, 0.1)
+	gmat.emission_energy_multiplier = 3.0
+	gm.material = gmat
+	glow.mesh = gm
+	glow.position = Vector3(0, -0.2, 0.61)
+	root.add_child(glow)
+	var l := OmniLight3D.new()
+	l.light_color = Color(1.0, 0.5, 0.2)
+	l.light_energy = 2.0
+	l.omni_range = 7.0
+	l.position = Vector3(0, 0, 1.6)
+	root.add_child(l)
+	return root
+
+
 ## A smoking cone with a glowing crater (built here rather than in Blender).
 func _volcano_model() -> Node3D:
 	var root := Node3D.new()
 	var cone := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
-	cm.top_radius = 3.5
-	cm.bottom_radius = 13.0
-	cm.height = 9.0
+	cm.top_radius = CONE_TOP
+	cm.bottom_radius = CONE_BOTTOM
+	cm.height = CONE_H
 	cm.radial_segments = 14
-	cm.rings = 3
+	cm.rings = 4
 	var rock := StandardMaterial3D.new()
 	rock.albedo_color = Color("3a2a26")
 	rock.roughness = 1.0
 	cm.material = rock
 	cone.mesh = cm
-	cone.position.y = 4.0
+	cone.position.y = CONE_Y
 	root.add_child(cone)
 	var lava := MeshInstance3D.new()
 	var lm := CylinderMesh.new()
