@@ -159,42 +159,11 @@ func _build_planet(p: Dictionary) -> void:
 	var orbit: float = p.orbit
 	root.position = Galaxy.orbit_pos(p, Game.play_time)
 	var r: float = p.radius * SPACE_SCALE
-	var mi := MeshInstance3D.new()
-	mi.mesh = gen.build_mesh(PLANET_RES, SPACE_SCALE)
-	mi.material_override = gen.terrain_material(SPACE_SCALE)
-	root.add_child(mi)
 	var biome: Dictionary = Db.BIOMES[p.biome]
-	if gen.has_liquid():
-		var w := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = gen.sea_radius() * SPACE_SCALE
-		sm.height = sm.radius * 2.0
-		w.mesh = sm
-		var wm := StandardMaterial3D.new()
-		var wc: Color = biome.water
-		wm.albedo_color = Color(wc.r, wc.g, wc.b, 1.0)
-		wm.roughness = 0.15
-		wm.metallic_specular = 0.8
-		if biome.get("lava", false):
-			wm.emission_enabled = true
-			wm.emission = Color(wc.r, wc.g, wc.b)
-			wm.emission_energy_multiplier = 2.0
-		w.material_override = wm
-		root.add_child(w)
-	var atmo := MeshInstance3D.new()
-	var am := SphereMesh.new()
-	am.radius = r * 1.14
-	am.height = am.radius * 2.0
-	atmo.mesh = am
-	var amat := ShaderMaterial.new()
-	amat.shader = load("res://shaders/atmo_rim.gdshader")
-	amat.set_shader_parameter("color", biome.atmo)
-	atmo.material_override = amat
-	atmo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(atmo)
-	var clouds := gen.cloud_shell(gen.radius * SPACE_SCALE * 1.06, 48)
-	(clouds.material_override as ShaderMaterial).set_shader_parameter("sun_dir", (-root.position).normalized())
-	root.add_child(clouds)
+	if Globe.enabled():
+		root.add_child(Globe.build(gen, gen.radius * SPACE_SCALE, (-root.position).normalized(), 96))
+	else:
+		_classic_planet(root, gen, p, r)
 	if p.rings:
 		root.add_child(_make_rings(r, biome.colors.beach))
 	root.rotation = Vector3(p.tilt, 0, p.tilt * 0.5)
@@ -879,3 +848,42 @@ func net_state() -> Dictionary:
 			base = op
 	var fwd: Vector3 = -player.global_basis.z
 	return {"scene": "space", "planet": anchor, "pos": pos - base, "fwd": fwd, "anim": "boost" if player.visual.boost else "fly"}
+
+
+func _classic_planet(root: Node3D, gen: PlanetGen, p: Dictionary, r: float) -> void:
+	var biome: Dictionary = Db.BIOMES[p.biome]
+	var mi := MeshInstance3D.new()
+	mi.mesh = gen.build_mesh(PLANET_RES, SPACE_SCALE)
+	mi.material_override = gen.terrain_material(SPACE_SCALE)
+	root.add_child(mi)
+	if gen.has_liquid():
+		var w := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = gen.sea_radius() * SPACE_SCALE
+		sm.height = sm.radius * 2.0
+		w.mesh = sm
+		var wm := StandardMaterial3D.new()
+		var wc: Color = biome.water
+		wm.albedo_color = Color(wc.r, wc.g, wc.b, 1.0)
+		wm.roughness = 0.15
+		wm.metallic_specular = 0.8
+		if biome.get("lava", false):
+			wm.emission_enabled = true
+			wm.emission = Color(wc.r, wc.g, wc.b)
+			wm.emission_energy_multiplier = 2.0
+		w.material_override = wm
+		root.add_child(w)
+	var atmo := MeshInstance3D.new()
+	var am := SphereMesh.new()
+	am.radius = r * 1.14
+	am.height = am.radius * 2.0
+	atmo.mesh = am
+	var amat := ShaderMaterial.new()
+	amat.shader = load("res://shaders/atmo_rim.gdshader")
+	amat.set_shader_parameter("color", biome.atmo)
+	atmo.material_override = amat
+	atmo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(atmo)
+	var clouds := gen.cloud_shell(gen.radius * SPACE_SCALE * 1.06, 48)
+	(clouds.material_override as ShaderMaterial).set_shader_parameter("sun_dir", (-root.position).normalized())
+	root.add_child(clouds)

@@ -16,6 +16,7 @@ const BIOME_MUSIC := {"verdant": "verdant", "bloom": "verdant", "dune": "arid", 
 
 var volumes := {"Master": 0.8, "Music": 0.6, "SFX": 0.8, "UI": 0.7, "Ambience": 0.6}
 var art_style := 0 # 0 classic, 1 illustrative, 2 storybook (ArtStyle)
+var globe_style := 0 # planets seen whole: 0 illustrated (Globe), 1 classic terrain mesh
 var gfx_quality := 1 # 0 low, 1 medium (default), 2 high
 var mouse_sens := 1.0
 var invert_y := false
@@ -106,6 +107,7 @@ func save_settings() -> void:
 		cfg.set_value("audio", b, volumes[b])
 	cfg.set_value("graphics", "quality", gfx_quality)
 	cfg.set_value("graphics", "art_style", art_style)
+	cfg.set_value("graphics", "globe_style", globe_style)
 	cfg.set_value("graphics", "fullscreen", fullscreen)
 	cfg.set_value("controls", "mouse_sens", mouse_sens)
 	cfg.set_value("controls", "invert_y", invert_y)
@@ -124,6 +126,7 @@ func _load_settings() -> void:
 			volumes[b] = float(cfg.get_value("audio", b, volumes[b]))
 		gfx_quality = int(cfg.get_value("graphics", "quality", gfx_quality))
 		art_style = int(cfg.get_value("graphics", "art_style", art_style))
+		globe_style = int(cfg.get_value("graphics", "globe_style", globe_style))
 		fullscreen = bool(cfg.get_value("graphics", "fullscreen", false))
 		mouse_sens = float(cfg.get_value("controls", "mouse_sens", 1.0))
 		invert_y = bool(cfg.get_value("controls", "invert_y", false))

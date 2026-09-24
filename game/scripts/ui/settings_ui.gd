@@ -112,6 +112,16 @@ func _general(v: VBoxContainer) -> void:
 		if Sound.art_style == si:
 			_mark(sb)
 		ast.add_child(sb)
+	var gs := _row(v, "Planets from afar")
+	for gi in 2:
+		var gb := UiKit.button(["Illustrated", "Classic"][gi], func():
+			Sound.globe_style = gi
+			Sound.save_settings()
+			_build()
+		)
+		if Sound.globe_style == gi:
+			_mark(gb)
+		gs.add_child(gb)
 	var gq := _row(v, "Graphics quality")
 	for qi in 3:
 		var b := UiKit.button(["Low", "Medium", "High"][qi], func():

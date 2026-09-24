@@ -144,6 +144,10 @@ func _run() -> void:
 		await _town_tour()
 		get_tree().quit()
 		return
+	if which == "globes":
+		await _globes_tour()
+		get_tree().quit()
+		return
 	if which == "sky":
 		await _sky_tour()
 		get_tree().quit()
@@ -944,6 +948,45 @@ func _deep_tour() -> void:
 		g.player.cam_pitch = -0.18
 		await _wait(1.5)
 		await shot("grotto_" + c.theme)
+
+
+func _globes_tour() -> void:
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	await _wait(3.0)
+	await shot("globe_title")
+	Game.new_game("scout", "Tester")
+	await _wait(4.0)
+	Game.go_to_space()
+	await _wait(4.5)
+	var s := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	var k := 0
+	for p in s.planets:
+		if Galaxy.is_moon(p.data) or k >= 5:
+			continue
+		var pos: Vector3 = p.node.global_position
+		var r: float = float(p.data.radius) * s.SPACE_SCALE
+		var side := ((-pos).normalized() * 0.7 + Vector3(0.4, 0.3, 0.5)).normalized()
+		await _space_look(s, pos, side * r * 3.4)
+		await shot("globe_space_%d_%s" % [k, p.data.biome])
+		k += 1
+	await _sky_tour_first()
+
+
+func _sky_tour_first() -> void:
+	Game.go_to_planet(0, 0)
+	await _wait(6.0)
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	for e in w.enemies:
+		e.set_physics_process(false)
+	var body: Node3D = w.sky_bodies[0]
+	await _frame_sky(w, func(ta):
+		w._sky_pivot.rotation.y = -(ta - PI * 0.5) + w._sky_offset
+		return w._sky_pivot.global_transform * body.position
+	)
+	await shot("globe_sky_sister")
 
 
 func _space_look(s, target: Vector3, off: Vector3) -> void:

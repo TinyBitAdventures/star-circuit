@@ -234,6 +234,9 @@ fullscreen, graphics quality and volume.
   Machine world always). Sun shafts stream past silhouettes, strongest at sunrise, sunset and in storms. Frost rime creeps into the
   screen corners on glacial nights and in blizzards, and each world type gets a gentle colour grade. Shadows use tighter cascades
   and softer filtering at every quality level.
+- **Illustrated planets**: planets seen whole (title screen, space, sister worlds in the sky) use `Globe`: the real height and
+  colours are baked once into a small texture (cached in `user://globes/`) and `globe.gdshader` inks coasts, contours and a cel
+  terminator per pixel. Settings → Display → Planets from afar switches back to Classic. `SHOTS=globes` renders them.
 - **Art style (preview)**: Settings → Display → Art style switches planets between Classic, Illustrative and Storybook
   (ink outlines). `SHOTS=style` renders the same scenes in each for comparison.
 - **Customisation**:
@@ -321,6 +324,7 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     DIST=6 godot --path game res://scenes/dev_flicker.tscn      # frame-diff flicker detector on a ringed planet
     SHOTS=depth godot --path game res://scenes/dev_shots.tscn  # landmarks / compass / lore / weather tour
     SHOTS=sky godot --path game res://scenes/dev_shots.tscn    # night sky, rings, floating islands
+    SHOTS=globes godot --path game res://scenes/dev_shots.tscn # illustrated planets: title, space views, a sister world in the sky
     SHOTS=town godot --path game res://scenes/dev_shots.tscn   # towns, merchant/trainer/board panels, docking
     SHOTS=belt godot --path game res://scenes/dev_shots.tscn   # asteroid belt, scanner, mining laser, shards, comet
     SHOTS=spacefight godot --path game res://scenes/dev_shots.tscn  # pirates, cannons, missiles, threat markers, Marauder

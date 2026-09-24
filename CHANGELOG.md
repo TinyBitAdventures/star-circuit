@@ -15,6 +15,10 @@
 ### Fixes
 - Volcanoes were impossible to enter: the cone had no collision (you walked straight through it) and its entry point sat at a fixed height that ended up buried in, or floating above, the surrounding hills. Volcanoes are now solid, their base sinks into the ground, and a glowing lava-tube doorway sits at the foot of the cone on the actual ground. You can also enter from the crater rim if you jetpack up. The quest star points at the doorway.
 
+### Illustrated planets
+- Whole planets now look hand-drawn wherever you see them in full: the title screen, flying through a star system, and sister worlds hanging in the sky. Each is drawn from the world's real terrain: inked coastlines, a shallow-water band with a dashed wave line offshore, contour lines up the hills, flat painted land colours, a single crisp sun glint on the sea, halftone dots across the terminator, a violet night side and a clean two-step halo. Clouds become separate puffs with inked edges, lit on top. Lava worlds glow with a cracked crust.
+- The rest of the game looks exactly as before. Settings > Display > Planets from afar switches back to Classic.
+
 ### Skies and ground detail
 - Skies are a deeper colour overhead and only hazy near the horizon, with a soft glow around the sun and orange and pink dusk colours on the sun's side. Deserts now have a dusty blue sky over the sand, and glacial, crystal, volcanic and storm worlds get their own skies too.
 - Fog is tuned per world (clear on green and icy worlds, thicker on dusty and volcanic ones), matches the sky's haze, glows warm when you look toward the sun, and turns grey in storms.

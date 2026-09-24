@@ -853,8 +853,14 @@ func _build_sky_bodies() -> void:
 		var dist := rel.length()
 		var size := clampf(o.radius / dist * sky_r * 5.0, 30.0, 260.0)
 		var b: Dictionary = Db.BIOMES[o.biome]
-		# the sister world's real terrain, at low resolution
 		var og := PlanetGen.new(o)
+		if Globe.enabled():
+			var g := Globe.build(og, size, sun_dir, 48, false)
+			_sky_pivot.add_child(g)
+			g.position = rel.normalized() * sky_r
+			sky_bodies.append(g)
+			continue
+		# the sister world's real terrain, at low resolution
 		var body := MeshInstance3D.new()
 		body.mesh = og.build_mesh(14, size / og.radius)
 		var m := ShaderMaterial.new()

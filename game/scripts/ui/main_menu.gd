@@ -66,6 +66,15 @@ func _build_world() -> void:
 	planet_node = Node3D.new()
 	add_child(planet_node)
 	planet_node.position = Vector3(26, -8, -60)
+	if Globe.enabled():
+		planet_node.add_child(Globe.build(gen, gen.radius * 0.16, Vector3(0.6, 0.55, 0.6).normalized(), 128))
+	else:
+		_classic_hero(gen)
+	UiKit.add_vignette(self, 0.35)
+	_build_lineup()
+
+
+func _classic_hero(gen: PlanetGen) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = gen.build_mesh(48, 0.16)
 	mi.material_override = gen.terrain_material(0.16)
@@ -94,8 +103,9 @@ func _build_world() -> void:
 	var clouds := gen.cloud_shell(gen.radius * 0.16 * 1.05, 64)
 	(clouds.material_override as ShaderMaterial).set_shader_parameter("sun_dir", Vector3(0.6, 0.55, 0.6).normalized())
 	planet_node.add_child(clouds)
-	UiKit.add_vignette(self, 0.35)
 
+
+func _build_lineup() -> void:
 	# robot line-up
 	var pm := StandardMaterial3D.new()
 	pm.albedo_color = Color("1b2233")

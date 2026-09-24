@@ -11,6 +11,7 @@ uniform float density = 0.9;
 uniform float speed = 0.004;
 uniform float scale = 3.2;
 uniform float seed = 0.0;
+uniform bool stylized = false; // illustrated globes: crisp puffs, flat two-tone light, inked edges
 
 varying vec3 obj;
 
@@ -54,6 +55,30 @@ void fragment() {
 	q += vec3(fbm(q * 0.6), fbm(q * 0.6 + 5.2), fbm(q * 0.6 + 9.7)) * 0.9;
 	float n = fbm(q) + 0.12 * sin(r.y * 9.0);
 	float c = smoothstep(coverage, coverage + 0.18, n);
+	if (stylized) {
+		// scalloped puffs: a finer noise nibbles the edge into billows
+		float nb = n + (vnoise(q * 7.0) - 0.5) * 0.12 + (vnoise(q * 15.0) - 0.5) * 0.04;
+		float thr = coverage + 0.11;
+		float aa = max(fwidth(nb), 1e-4);
+		float cs = smoothstep(thr - aa, thr + aa, nb);
+		vec3 nws = normalize((MODEL_MATRIX * vec4(d, 0.0)).xyz);
+		float ndl = dot(nws, sun_dir);
+		// self-shading: sample the cloud a little toward the sun; where that is
+		// thinner, this side of the puff faces away from the light
+		vec3 ls = normalize((inverse(MODEL_MATRIX) * vec4(sun_dir, 0.0)).xyz);
+		vec3 tg = ls - d * dot(ls, d);
+		vec3 rs = normalize(r + tg * 0.05);
+		vec3 qs = rs * scale + vec3(seed);
+		qs += vec3(fbm(qs * 0.6), fbm(qs * 0.6 + 5.2), fbm(qs * 0.6 + 9.7)) * 0.9;
+		float ns = fbm(qs) + 0.12 * sin(rs.y * 9.0) + (vnoise(qs * 7.0) - 0.5) * 0.12;
+		float lit_side = smoothstep(thr - 0.02, thr + 0.06, ns);
+		vec3 sc = mix(mix(shadow_color, cloud_color, 0.5), cloud_color * 1.08, lit_side);
+		// inked outline just inside the puff
+		float edge = 1.0 - smoothstep(thr + aa, thr + aa * 2.4, nb);
+		sc = mix(sc, shadow_color * 0.6, edge * 0.85);
+		ALBEDO = sc * (0.2 + 0.8 * smoothstep(-0.2, 0.08, ndl));
+		ALPHA = cs;
+	} else {
 	vec3 nw = normalize((MODEL_MATRIX * vec4(d, 0.0)).xyz);
 	float lit = clamp(dot(nw, sun_dir) * 0.8 + 0.35, 0.0, 1.0);
 	float thick = smoothstep(coverage, coverage + 0.35, n);
@@ -63,4 +88,5 @@ void fragment() {
 	col += vec3(1.0, 0.55, 0.3) * term * 0.35 * c;
 	ALBEDO = col * (0.15 + 0.85 * lit);
 	ALPHA = c * density;
+	}
 }
