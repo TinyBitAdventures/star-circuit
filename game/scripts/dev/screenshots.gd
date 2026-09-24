@@ -65,6 +65,10 @@ func _run() -> void:
 		await _warp_tour()
 		get_tree().quit()
 		return
+	if which == "net":
+		await _net_tour()
+		get_tree().quit()
+		return
 	if which == "lab":
 		await _lab_tour()
 		get_tree().quit()
@@ -1606,3 +1610,55 @@ func _lab_tour() -> void:
 		await _wait(1.5)
 		lab._close()
 		await _wait(0.6)
+
+
+func _net_tour() -> void:
+	Sound.show_tips = false
+	var port := 17500 + randi() % 400
+	var bin := OS.get_cache_dir().path_join("star-circuit-server-test")
+	OS.execute("go", ["-C", ProjectSettings.globalize_path("res://").path_join("../server").simplify_path(), "build", "-o", bin, "."])
+	var pid := OS.create_process(bin, ["-addr", "127.0.0.1:%d" % port, "-data", ""])
+	Game.new_game("scout", "Austin")
+	await _wait(4.0)
+	Game.play_time = 40.0
+	Net.join("127.0.0.1:%d" % port)
+	await _wait(1.5)
+	var pw := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var bob := WebSocketPeer.new()
+	bob.connect_to_url("ws://127.0.0.1:%d/ws" % port)
+	for i in 20:
+		bob.poll()
+		await get_tree().process_frame
+	bob.send_text(JSON.stringify({"t": "hello", "name": "Bob", "robot": "miner", "version": Net.PROTOCOL, "look": {"shell": "#ff8a5b", "top": "tophat"}}))
+	var me: Vector3 = pw.player.global_position
+	var up := me.normalized()
+	var fwd: Vector3 = pw.player.heading
+	var side := up.cross(fwd).normalized()
+	var bob_pos: Vector3 = pw.gen.surface_point((me + fwd * 5.0 + side * 1.5).normalized())
+	var crate_pos: Vector3 = pw.gen.surface_point((me + fwd * 3.0 - side * 1.8).normalized())
+	var t := 0.0
+	var dropped := false
+	while t < 3.0:
+		bob.poll()
+		bob.send_text(JSON.stringify({"t": "state", "scene": "planet", "star": Game.star_index, "planet": Game.planet_index, "pos": Net._arr(bob_pos), "fwd": Net._arr(-fwd), "anim": "idle"}))
+		if not dropped and t > 0.5:
+			dropped = true
+			bob.send_text(JSON.stringify({"t": "drop", "star": Game.star_index, "planet": Game.planet_index, "pos": Net._arr(crate_pos), "items": {"lumen": 6, "fire_opal": 1}}))
+			bob.send_text(JSON.stringify({"t": "chat", "text": "Left you some lumen, grab it!"}))
+		await _wait(0.1)
+		t += 0.1
+	pw.player.cam_yaw = 0.0
+	pw.player.cam_pitch = -0.2
+	pw.player.spring.spring_length = 6.5
+	await _wait(1.0)
+	await shot("net_bob_and_crate")
+	pw.hud.toggle_panel("multiplayer")
+	await _wait(0.8)
+	await shot("net_panel")
+	pw.hud.close_panel()
+	Net.leave()
+	pw.hud.toggle_panel("multiplayer")
+	await _wait(0.6)
+	await shot("net_join")
+	OS.kill(pid)

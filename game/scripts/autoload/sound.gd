@@ -392,7 +392,7 @@ const REBINDABLE := [
 	["move_forward", "Forward / thrust"], ["move_back", "Back / brake"], ["move_left", "Left"], ["move_right", "Right"],
 	["jump", "Jump / jetpack / rise"], ["sprint", "Sprint / boost"], ["descend", "Descend"], ["interact", "Interact / land"],
 	["scan", "Scan"], ["ability", "Ability / dock"], ["weapon_cycle", "Swap weapon"], ["use_cell", "Energy cell"],
-	["repair", "Repair kit"], ["takeoff", "Take off / emergency lift"], ["orbit", "Hold orbit (probe)"], ["home", "Homespace"], ["inventory", "Cargo"], ["crafting", "Fabricator"],
+	["repair", "Repair kit"], ["takeoff", "Take off / emergency lift"], ["orbit", "Hold orbit (probe)"], ["home", "Homespace"], ["multiplayer", "Multiplayer"], ["inventory", "Cargo"], ["crafting", "Fabricator"],
 	["skills", "Professions"], ["quests", "Quest log"], ["map", "Map"], ["help", "Field manual"],
 ]
 

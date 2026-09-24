@@ -142,7 +142,7 @@ func _register_input() -> void:
 		"interact": [KEY_E], "scan": [KEY_Q], "use_cell": [KEY_R],
 		"inventory": [KEY_I, KEY_TAB], "crafting": [KEY_C], "skills": [KEY_K],
 		"quests": [KEY_J], "map": [KEY_M], "takeoff": [KEY_T], "help": [KEY_H, KEY_F1],
-		"pause": [KEY_ESCAPE], "ability": [KEY_F], "repair": [KEY_G], "weapon_cycle": [KEY_X], "orbit": [KEY_O], "home": [KEY_Y],
+		"pause": [KEY_ESCAPE], "ability": [KEY_F], "repair": [KEY_G], "weapon_cycle": [KEY_X], "orbit": [KEY_O], "home": [KEY_Y], "multiplayer": [KEY_P],
 	}
 	for action in map:
 		if not InputMap.has_action(action):

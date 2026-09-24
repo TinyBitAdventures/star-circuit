@@ -11,3 +11,4 @@ audio/.venv/
 __pycache__/
 
 .DS_Store
+server/star-circuit-server

@@ -503,7 +503,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			toggle_panel("pause")
 		get_viewport().set_input_as_handled()
 		return
-	for pair in [["inventory", "inventory"], ["crafting", "crafting"], ["skills", "skills"], ["quests", "quests"], ["help", "help"], ["map", "map"]]:
+	for pair in [["inventory", "inventory"], ["crafting", "crafting"], ["skills", "skills"], ["quests", "quests"], ["help", "help"], ["map", "map"], ["multiplayer", "multiplayer"]]:
 		if event.is_action(pair[0]):
 			if pair[1] == "map" and mode != "space":
 				toast("The maps work in space. Press T to break orbit.", UiKit.MUTED)
@@ -607,6 +607,7 @@ func _build_panel() -> void:
 		"sysmap": _panel_sysmap()
 		"settings": _panel_settings()
 		"victory": _panel_victory()
+		"multiplayer": _panel_multiplayer()
 
 
 func _panel_inventory() -> void:
@@ -1113,7 +1114,7 @@ func _panel_pause() -> void:
 	], ["Homespace (%s)" % Sound.key_name("home"), func():
 		close_panel(false)
 		Game.open_home.call_deferred()
-	], ["Settings", func(): toggle_panel("settings")], ["Field Manual", func(): toggle_panel("help")], ["Save & Main Menu", Game.go_to_menu], ["Save & Quit", func():
+	], ["Multiplayer (%s)%s" % [Sound.key_name("multiplayer"), "  ·  online" if Net.is_online() else ""], func(): toggle_panel("multiplayer")], ["Settings", func(): toggle_panel("settings")], ["Field Manual", func(): toggle_panel("help")], ["Save & Main Menu", Game.go_to_menu], ["Save & Quit", func():
 		Game.save_game()
 		get_tree().quit()
 	]]:
@@ -2176,3 +2177,236 @@ func tip(id: String, text: String) -> void:
 	t.tween_interval(10.0)
 	t.tween_property(box, "modulate:a", 0.0, 0.8)
 	t.tween_callback(box.queue_free)
+
+
+# --------------------------------------------------------------------------
+# multiplayer (P)
+# --------------------------------------------------------------------------
+
+var _mp_players: VBoxContainer
+var _mp_chat: RichTextLabel
+var _mp_target: OptionButton
+var _mp_item: OptionButton
+var _mp_qty: SpinBox
+var _mp_wired := false
+
+
+func _mp_wire() -> void:
+	if _mp_wired:
+		return
+	_mp_wired = true
+	Net.status_changed.connect(func():
+		if current_panel == "multiplayer":
+			_rebuild_mp())
+	Net.players_changed.connect(func():
+		if current_panel == "multiplayer":
+			_mp_refresh_players())
+	Net.chat_received.connect(func(_l):
+		if current_panel == "multiplayer":
+			_mp_refresh_chat())
+	Game.inventory_changed.connect(func():
+		if current_panel == "multiplayer" and _mp_item and is_instance_valid(_mp_item):
+			_mp_fill_items())
+
+
+func _rebuild_mp() -> void:
+	if _panel:
+		_panel.queue_free()
+		_panel = null
+	_panel_multiplayer()
+
+
+func _panel_multiplayer() -> void:
+	_mp_wire()
+	var v := _frame("MULTIPLAYER", Vector2(1040, 680))
+	if not Net.is_online():
+		_mp_join_view(v)
+		return
+	var head := HBoxContainer.new()
+	v.add_child(head)
+	var who := UiKit.label("Connected to %s as %s" % [Net.address, Net.my_name], 16, Color("6ee06a"))
+	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(who)
+	head.add_child(UiKit.button("Leave server", func(): Net.leave()))
+	var h := HBoxContainer.new()
+	h.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	h.add_theme_constant_override("separation", 22)
+	v.add_child(h)
+	# players
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(left)
+	left.add_child(UiKit.label("PLAYERS", 13, UiKit.MUTED, true))
+	var ps := ScrollContainer.new()
+	ps.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(ps)
+	_mp_players = VBoxContainer.new()
+	_mp_players.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mp_players.add_theme_constant_override("separation", 8)
+	ps.add_child(_mp_players)
+	# chat
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.size_flags_stretch_ratio = 1.2
+	h.add_child(right)
+	right.add_child(UiKit.label("CHAT", 13, UiKit.MUTED, true))
+	_mp_chat = UiKit.rich("", 15)
+	_mp_chat.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_mp_chat.scroll_following = true
+	_mp_chat.scroll_active = true
+	_mp_chat.fit_content = false
+	right.add_child(_mp_chat)
+	var line := LineEdit.new()
+	line.placeholder_text = "Say something and press Enter"
+	line.max_length = 200
+	line.text_submitted.connect(func(t: String):
+		Net.say(t)
+		line.clear())
+	right.add_child(line)
+	# give / drop
+	v.add_child(HSeparator.new())
+	v.add_child(UiKit.label("SHARE ITEMS", 13, UiKit.MUTED, true))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	v.add_child(row)
+	_mp_item = OptionButton.new()
+	_mp_item.custom_minimum_size = Vector2(300, 40)
+	row.add_child(_mp_item)
+	_mp_qty = SpinBox.new()
+	_mp_qty.min_value = 1
+	_mp_qty.max_value = 9999
+	_mp_qty.custom_minimum_size = Vector2(110, 40)
+	row.add_child(_mp_qty)
+	_mp_item.item_selected.connect(func(_i): _mp_clamp_qty())
+	_mp_target = OptionButton.new()
+	_mp_target.custom_minimum_size = Vector2(220, 40)
+	row.add_child(_mp_target)
+	row.add_child(UiKit.button("Give", func():
+		var item := _mp_selected_item()
+		var to := _mp_target.get_selected_id() if _mp_target.item_count > 0 else 0
+		if item != "" and to > 0:
+			Net.give(to, item, int(_mp_qty.value))))
+	var drop := UiKit.button("Drop a crate here", func():
+		var item := _mp_selected_item()
+		if item != "" and Net.drop_here({item: int(_mp_qty.value)}):
+			toast("Dropped %d %s in a crate. Anyone on this world can pick it up." % [int(_mp_qty.value), Db.item_name(item)], Color("ffd23f")))
+	drop.disabled = not get_tree().current_scene.has_method("drop_point")
+	drop.tooltip_text = "Crates can be dropped on planets." if drop.disabled else "Leaves a crate on the ground in front of you."
+	row.add_child(drop)
+	_mp_fill_items()
+	_mp_refresh_players()
+	_mp_refresh_chat()
+
+
+func _mp_join_view(v: VBoxContainer) -> void:
+	var intro := UiKit.label("Play alongside friends. Everyone keeps their own save; you'll see each other's robots on the same world or in the same system, chat, give each other items, and drop crates for anyone to pick up.", 15, UiKit.TEXT)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD
+	v.add_child(intro)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 10)
+	v.add_child(grid)
+	grid.add_child(UiKit.label("Server address", 15, UiKit.MUTED))
+	var addr := LineEdit.new()
+	addr.placeholder_text = "192.168.1.20  or  play.example.com  or  wss://play.example.com"
+	addr.text = Net.saved_address
+	addr.custom_minimum_size = Vector2(560, 42)
+	grid.add_child(addr)
+	grid.add_child(UiKit.label("Password", 15, UiKit.MUTED))
+	var pw := LineEdit.new()
+	pw.placeholder_text = "Only if the server has one"
+	pw.secret = true
+	pw.text = Net.saved_password
+	pw.custom_minimum_size = Vector2(560, 42)
+	grid.add_child(pw)
+	var go := func(_t = ""):
+		Net.join(addr.text, pw.text)
+	addr.text_submitted.connect(go)
+	pw.text_submitted.connect(go)
+	var row := HBoxContainer.new()
+	v.add_child(row)
+	var b := UiKit.button("Connecting..." if Net.status == "connecting" else "Join", go)
+	b.disabled = Net.status == "connecting"
+	b.custom_minimum_size = Vector2(180, 46)
+	row.add_child(b)
+	if Net.last_error != "":
+		v.add_child(UiKit.label(Net.last_error, 15, Color("ff8a6b")))
+	v.add_child(HSeparator.new())
+	var lan: Array[String] = []
+	for a in IP.get_local_addresses():
+		if a.begins_with("192.168.") or a.begins_with("10.") or (a.begins_with("172.") and a.split(".").size() == 4 and int(a.split(".")[1]) >= 16 and int(a.split(".")[1]) <= 31):
+			lan.append(a)
+	var host := UiKit.rich("[b]Hosting a game[/b]\nRun the server that ships with Star Circuit ([color=#9bd1ff]star-circuit-server[/color], see server/README.md). Friends on your network join with your address%s. Over the internet, open port 7777 on your router and share your public address or domain name, or put the server behind a web server with HTTPS and share [color=#9bd1ff]wss://your.domain[/color]." % (" ([color=#9bd1ff]%s[/color])" % ", ".join(lan) if not lan.is_empty() else ""), 14)
+	host.fit_content = true
+	v.add_child(host)
+
+
+func _mp_selected_item() -> String:
+	if _mp_item == null or _mp_item.item_count == 0 or _mp_item.selected < 0:
+		return ""
+	return String(_mp_item.get_item_metadata(_mp_item.selected))
+
+
+func _mp_fill_items() -> void:
+	var keep := _mp_selected_item()
+	_mp_item.clear()
+	var ids: Array = Game.inventory.keys().filter(func(k): return Net.can_share(k))
+	ids.sort_custom(func(a, b): return Db.item_name(a) < Db.item_name(b))
+	for id in ids:
+		_mp_item.add_item("%s  (x%d)" % [Db.item_name(id), Game.count(id)])
+		_mp_item.set_item_metadata(_mp_item.item_count - 1, id)
+		if id == keep:
+			_mp_item.select(_mp_item.item_count - 1)
+	if _mp_item.item_count == 0:
+		_mp_item.add_item("Nothing to share yet")
+		_mp_item.set_item_metadata(0, "")
+		_mp_item.disabled = true
+	else:
+		_mp_item.disabled = false
+	_mp_clamp_qty()
+
+
+func _mp_clamp_qty() -> void:
+	var item := _mp_selected_item()
+	_mp_qty.max_value = maxi(1, Game.count(item)) if item != "" else 1
+	_mp_qty.value = clampf(_mp_qty.value, 1, _mp_qty.max_value)
+
+
+func _mp_refresh_players() -> void:
+	if _mp_players == null or not is_instance_valid(_mp_players):
+		return
+	for c in _mp_players.get_children():
+		c.queue_free()
+	var keep := _mp_target.get_selected_id() if _mp_target and _mp_target.item_count > 0 else 0
+	_mp_target.clear()
+	var me := UiKit.rich("[b]%s[/b] (you)  ·  %s" % [Net.my_name, Game.robot().name], 15)
+	me.fit_content = true
+	_mp_players.add_child(me)
+	if Net.players.is_empty():
+		_mp_players.add_child(UiKit.label("Nobody else is here yet.", 14, UiKit.MUTED))
+	for id in Net.players:
+		var p: Dictionary = Net.players[id]
+		var rname: String = Db.ROBOTS[p.robot].name if Db.ROBOTS.has(p.robot) else "Robot"
+		var r := UiKit.rich("[b][color=#9bd1ff]%s[/color][/b]  ·  %s\n[color=#8ea3bf]%s[/color]" % [p.name, rname, Net.where_text(id)], 15)
+		r.fit_content = true
+		_mp_players.add_child(r)
+		_mp_target.add_item("to %s" % p.name, id)
+		if id == keep:
+			_mp_target.select(_mp_target.item_count - 1)
+	_mp_target.disabled = _mp_target.item_count == 0
+	if _mp_target.item_count == 0:
+		_mp_target.add_item("nobody online", 0)
+
+
+func _mp_refresh_chat() -> void:
+	if _mp_chat == null or not is_instance_valid(_mp_chat):
+		return
+	var out: Array[String] = []
+	for l in Net.chat_log:
+		var t := String(l.text).replace("[", "[lb]")
+		if String(l.name) == "":
+			out.append("[color=#8ea3bf][i]%s[/i][/color]" % t)
+		else:
+			out.append("[color=#%s][b]%s[/b][/color]: %s" % [(l.color as Color).to_html(false), String(l.name).replace("[", "[lb]"), t])
+	_mp_chat.text = "\n".join(out)

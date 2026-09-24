@@ -56,6 +56,7 @@ The generated models and audio are committed, so Blender and Python are only nee
 | G | use a Repair Kit |
 | X | cycle weapon loadout (Pulse, Scatter, Rail) |
 | T | break orbit and fly to space |
+| P | multiplayer: join a server, players, chat, give and drop items |
 
 | Space | |
 |---|---|
@@ -76,6 +77,11 @@ Every key above can be rebound in **Settings** (main menu or pause), next to mou
 fullscreen, graphics quality and volume.
 
 ## What's in it
+
+- **Multiplayer**: press **P** to join a friend's server by LAN address, public IP or domain (`wss://` too). Everyone keeps their own save.
+  You see each other's robots walking the same planet and flying in the same system (with name tags), chat, **give** items directly,
+  and **drop crates** on a planet for anyone to pick up (the server gives each crate to whoever grabs it first). Mac and Windows
+  players can share a server. The server is a small Go program in `server/` (see [server/README.md](server/README.md)).
 
 - **4 robots**: Vesper (scout), Grit (miner), Cog (engineer) and Halo (siphon). Each has its own model, perks and starting skills.
 - **Procedural galaxy**: 48 stars and about 170 planets across 6 biomes (verdant, arid, glacial, volcanic, crystalline, fungal).
@@ -286,6 +292,9 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     godot --headless --path game res://scenes/dev_warp.tscn    # hyperspace: interdiction waves, kills, hits, arrival, relay jump
     SHOTS=warp godot --path game res://scenes/dev_shots.tscn   # hyperspace tunnel, firefight, mines, relay colours
     godot --headless --path game res://scenes/dev_home.tscn    # Homespace: vault uplink costs, inbox, trader orders, pause/resume
+    godot --headless --path game res://scenes/dev_net.tscn     # multiplayer against the real Go server: avatars, chat, gifts, crates, space
+    SHOTS=net godot --path game res://scenes/dev_shots.tscn    # another robot + crate, the Multiplayer panel, the join screen
+    (cd server && go test -race ./...)                         # server: relay, gifts, crate race, password, persistence
     godot --headless --path game res://scenes/dev_lab.tscn     # Micro Lab: hold+vault draw, autoplay to critical mass (60/15 fps), idle failure, graded upgrade, save, balance sweep
     SHOTS=lab godot --path game res://scenes/dev_shots.tscn    # lab bench, formula panel, the soup mid-culture, phages, result card
     SHOTS=home godot --path game res://scenes/dev_shots.tscn   # Homespace room, vault, inbox, trophy wall

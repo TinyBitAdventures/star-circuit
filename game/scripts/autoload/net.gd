@@ -1,0 +1,416 @@
+extends Node
+## Multiplayer client. Everyone keeps their own save; the server (a small Go
+## program in server/) shares who is where, chat, item gifts and crates
+## dropped on planets. Scenes read `players` and `drops` to draw other robots
+## and crates (see scripts/net/net_view.gd), and call give / drop_here /
+## pickup / say.
+
+signal status_changed
+signal chat_received(line: Dictionary)
+signal players_changed
+signal drops_changed
+signal look_changed(id: int)
+
+const PROTOCOL := "1"
+const DEFAULT_PORT := 7777
+const SEND_RATE := 0.1 # seconds between position updates
+const CFG_PATH := "user://multiplayer.cfg"
+
+var status := "offline" # offline | connecting | online
+var address := ""
+var last_error := ""
+var my_id := 0
+var my_name := ""
+var server_motd := ""
+var players := {} # id -> {name, robot, look, state: {scene, star, planet, label, pos, fwd, anim}, t}
+var drops := {} # id -> {id, star, planet, pos: Vector3, items: {item: qty}, by}
+var chat_log: Array = [] # {name, text, color}
+
+var saved_address := ""
+var saved_password := ""
+
+var _ws: WebSocketPeer
+var _password := ""
+var _hello_sent := false
+var _send_t := 0.0
+var _ping_t := 0.0
+
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS # keeps talking while the Homespace pauses the world
+	Game.appearance_changed.connect(send_look)
+	var cfg := ConfigFile.new()
+	if cfg.load(CFG_PATH) == OK:
+		saved_address = String(cfg.get_value("server", "address", ""))
+		saved_password = String(cfg.get_value("server", "password", ""))
+
+
+func is_online() -> bool:
+	return status == "online"
+
+
+## Turn what the player typed into a socket URL: "192.168.1.20",
+## "play.example.com:7777", "ws://host:port/ws" or "wss://domain".
+static func url_for(addr: String) -> String:
+	addr = addr.strip_edges()
+	if addr == "":
+		return ""
+	var scheme := "ws://"
+	for pre in [["wss://", "wss://"], ["ws://", "ws://"], ["https://", "wss://"], ["http://", "ws://"]]:
+		if addr.begins_with(pre[0]):
+			scheme = pre[1]
+			addr = addr.substr(pre[0].length())
+			break
+	var host := addr
+	var path := "/ws"
+	var slash := addr.find("/")
+	if slash >= 0:
+		host = addr.substr(0, slash)
+		path = addr.substr(slash)
+		if path == "/":
+			path = "/ws"
+	# a bare host gets the default port, unless it's a secure address (443 behind a proxy)
+	var has_port := host.contains("]:") if host.begins_with("[") else host.contains(":")
+	if not has_port and scheme == "ws://":
+		host += ":%d" % DEFAULT_PORT
+	return scheme + host + path
+
+
+func join(addr: String, password := "") -> void:
+	leave(false)
+	var url := url_for(addr)
+	if url == "":
+		last_error = "Enter a server address."
+		status_changed.emit()
+		return
+	address = addr.strip_edges()
+	_password = password
+	last_error = ""
+	_ws = WebSocketPeer.new()
+	_ws.inbound_buffer_size = 1 << 20
+	var err := _ws.connect_to_url(url)
+	if err != OK:
+		last_error = "Couldn't reach %s." % url
+		_ws = null
+		status_changed.emit()
+		return
+	_hello_sent = false
+	status = "connecting"
+	status_changed.emit()
+	if not Game.is_dev_run():
+		var cfg := ConfigFile.new()
+		cfg.set_value("server", "address", address)
+		cfg.set_value("server", "password", password)
+		cfg.save(CFG_PATH)
+		saved_address = address
+		saved_password = password
+
+
+func leave(announce := true) -> void:
+	if _ws:
+		_ws.close(1000, "bye")
+		_ws = null
+	var was := status
+	status = "offline"
+	players.clear()
+	drops.clear()
+	my_id = 0
+	if announce and was != "offline":
+		_system("You left the server.")
+	status_changed.emit()
+	players_changed.emit()
+	drops_changed.emit()
+
+
+func _process(delta: float) -> void:
+	if _ws == null:
+		return
+	_ws.poll()
+	var st := _ws.get_ready_state()
+	if st == WebSocketPeer.STATE_OPEN:
+		if not _hello_sent:
+			_hello_sent = true
+			_send({"t": "hello", "name": Game.player_name, "robot": Game.robot_id, "look": Game.appearance,
+				"version": PROTOCOL, "password": _password})
+		while _ws and _ws.get_available_packet_count() > 0:
+			var txt := _ws.get_packet().get_string_from_utf8()
+			var m = JSON.parse_string(txt)
+			if m is Dictionary:
+				_on_msg(m)
+		if status == "online":
+			_send_t -= delta
+			if _send_t <= 0.0:
+				_send_t = SEND_RATE
+				_send_state()
+			_ping_t -= delta
+			if _ping_t <= 0.0:
+				_ping_t = 5.0
+				_send({"t": "ping"})
+	elif st == WebSocketPeer.STATE_CLOSED:
+		var reason := _ws.get_close_reason()
+		_ws = null
+		if last_error == "":
+			last_error = "Couldn't connect to %s." % address if status == "connecting" else ("Disconnected%s." % ((": " + reason) if reason != "" and reason != "bye" else ""))
+		var was := status
+		status = "offline"
+		players.clear()
+		drops.clear()
+		if was == "online":
+			_system(last_error)
+			Game.notify.emit(last_error, Color("ff8a6b"))
+		status_changed.emit()
+		players_changed.emit()
+		drops_changed.emit()
+
+
+func _send(m: Dictionary) -> void:
+	if _ws and _ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		_ws.send_text(JSON.stringify(m))
+
+
+static func _vec(a) -> Vector3:
+	if a is Array and a.size() == 3:
+		return Vector3(float(a[0]), float(a[1]), float(a[2]))
+	return Vector3.ZERO
+
+
+static func _arr(v: Vector3) -> Array:
+	return [snappedf(v.x, 0.01), snappedf(v.y, 0.01), snappedf(v.z, 0.01)]
+
+
+func _on_msg(m: Dictionary) -> void:
+	match String(m.get("t", "")):
+		"welcome":
+			my_id = int(m.id)
+			my_name = String(m.name)
+			server_motd = String(m.get("motd", ""))
+			players.clear()
+			for p in m.get("players", []):
+				_add_player(p)
+				if p.get("state") is Dictionary:
+					_set_state(int(p.id), p.state)
+			drops.clear()
+			for d in m.get("drops", []):
+				_add_drop(d)
+			status = "online"
+			_system("Connected to %s as %s. %d other%s online." % [address, my_name, players.size(), "" if players.size() == 1 else "s"])
+			if server_motd != "":
+				_system(server_motd)
+			Game.notify.emit("Joined %s" % address, Color("6ee06a"))
+			status_changed.emit()
+			players_changed.emit()
+			drops_changed.emit()
+		"join":
+			_add_player(m)
+			_system("%s joined." % m.name)
+			Game.notify.emit("%s joined the game" % m.name, Color("9bd1ff"))
+			players_changed.emit()
+		"leave":
+			var id := int(m.id)
+			if players.has(id):
+				_system("%s left." % players[id].name)
+				players.erase(id)
+				players_changed.emit()
+		"state":
+			var id := int(m.id)
+			var was_where := where_text(id)
+			_set_state(id, m)
+			if where_text(id) != was_where:
+				players_changed.emit()
+		"look":
+			var id := int(m.id)
+			if players.has(id):
+				players[id].look = m.get("look", {})
+				look_changed.emit(id)
+		"chat":
+			var line := {"name": String(m.name), "text": String(m.text), "color": Color("e6f1ff") if int(m.id) != my_id else Color("9bd1ff")}
+			chat_log.append(line)
+			if chat_log.size() > 80:
+				chat_log.pop_front()
+			if int(m.id) != my_id:
+				Game.notify.emit("%s: %s" % [line.name, line.text], Color("c3d9ff"))
+			chat_received.emit(line)
+		"gift":
+			var item := String(m.item)
+			var qty := clampi(int(m.qty), 1, 9999)
+			if can_share(item):
+				Game.add_item(item, qty, true, true)
+				Game.notify.emit("%s gave you %d %s" % [m.name, qty, Db.item_name(item)], Color("ffd23f"))
+				Sound.ui("coin", -4.0)
+				_system("%s gave you %d %s." % [m.name, qty, Db.item_name(item)])
+		"give_ok":
+			Game.notify.emit("Sent %d %s to %s" % [int(m.qty), Db.item_name(String(m.item)), m.name], Color("6ee06a"))
+			_system("You gave %s %d %s." % [m.name, int(m.qty), Db.item_name(String(m.item))])
+		"give_fail":
+			var item := String(m.item)
+			if can_share(item):
+				Game.add_item(item, clampi(int(m.qty), 1, 9999), true, true)
+			Game.notify.emit(String(m.get("text", "The gift couldn't be delivered.")), Color("ff8a6b"))
+		"drop_add":
+			_add_drop(m.get("drop", {}))
+			drops_changed.emit()
+		"drop_remove":
+			drops.erase(int(m.id))
+			drops_changed.emit()
+		"drop_fail":
+			_restore(m.get("items", {}))
+			Game.notify.emit(String(m.get("text", "Couldn't drop that.")), Color("ff8a6b"))
+		"pickup_ok":
+			var got: Array[String] = []
+			var items: Dictionary = m.get("items", {})
+			for item in items:
+				if can_share(item):
+					var q := clampi(int(items[item]), 1, 9999)
+					Game.add_item(item, q, true, true)
+					got.append("%d %s" % [q, Db.item_name(item)])
+			Sound.ui("pickup", -2.0)
+			Game.notify.emit("Picked up %s%s" % [", ".join(got), ("  (left by %s)" % m.name) if String(m.get("name", "")) != "" else ""], Color("ffd23f"))
+		"pickup_fail":
+			Game.notify.emit("Someone got to that crate first.", UiKit.MUTED)
+		"error":
+			last_error = String(m.get("text", "The server refused the connection."))
+			Game.notify.emit(last_error, Color("ff8a6b"))
+
+
+func _add_player(p: Dictionary) -> void:
+	var id := int(p.get("id", 0))
+	if id == 0 or id == my_id:
+		return
+	players[id] = {"name": String(p.get("name", "Unit")), "robot": String(p.get("robot", "scout")), "look": p.get("look", {}), "state": {}, "t": 0.0}
+
+
+func _set_state(id: int, m: Dictionary) -> void:
+	if not players.has(id):
+		return
+	players[id].state = {
+		"scene": String(m.get("scene", "away")), "star": int(m.get("star", -1)), "planet": int(m.get("planet", -1)),
+		"label": String(m.get("label", "")), "pos": _vec(m.get("pos")), "fwd": _vec(m.get("fwd")), "anim": String(m.get("anim", "")),
+		"anchor": int(m.get("planet", -1)),
+	}
+	players[id].t = Time.get_ticks_msec() / 1000.0
+
+
+func _add_drop(d: Dictionary) -> void:
+	if not d.has("id"):
+		return
+	var items := {}
+	var raw: Dictionary = d.get("items", {})
+	for k in raw:
+		if can_share(k):
+			items[k] = clampi(int(raw[k]), 1, 9999)
+	if items.is_empty():
+		return
+	drops[int(d.id)] = {"id": int(d.id), "star": int(d.star), "planet": int(d.planet), "pos": _vec(d.pos), "items": items, "by": String(d.get("by", ""))}
+
+
+func _system(text: String) -> void:
+	var line := {"name": "", "text": text, "color": UiKit.MUTED}
+	chat_log.append(line)
+	if chat_log.size() > 80:
+		chat_log.pop_front()
+	chat_received.emit(line)
+
+
+func where_text(id: int) -> String:
+	if not players.has(id):
+		return ""
+	var st: Dictionary = players[id].state
+	if st.is_empty() or int(st.get("star", -1)) < 0:
+		return "Somewhere out there"
+	var star := Galaxy.star(int(st.star))
+	var here := ""
+	var pl := int(st.get("planet", -1))
+	if st.scene == "planet" and pl >= 0:
+		here = Galaxy.planet(int(st.star), pl).name
+	elif st.scene == "space":
+		here = "Flying in the %s system" % star.name
+	else:
+		here = String(st.get("label", "Busy"))
+		if pl >= 0:
+			here += " on %s" % Galaxy.planet(int(st.star), pl).name
+	if st.scene == "planet":
+		here += ", %s system" % star.name
+	return here
+
+
+# --------------------------------------------------------------------------
+# what the game calls
+# --------------------------------------------------------------------------
+
+## Upgrades are part of your frame; everything else can change hands.
+static func can_share(item: String) -> bool:
+	return Db.ITEMS.has(item) and String(Db.ITEMS[item].kind) != "upgrade"
+
+
+func say(text: String) -> void:
+	text = text.strip_edges().left(200)
+	if text != "" and is_online():
+		_send({"t": "chat", "text": text})
+
+
+func give(to_id: int, item: String, qty: int) -> bool:
+	if not is_online() or not players.has(to_id) or not can_share(item):
+		return false
+	qty = mini(qty, Game.count(item))
+	if qty <= 0:
+		return false
+	Game.remove_item(item, qty)
+	_send({"t": "give", "to": to_id, "item": item, "qty": qty})
+	return true
+
+
+## Drop items in a crate where you stand (planets only).
+func drop_here(items: Dictionary) -> bool:
+	var sc := get_tree().current_scene
+	if not is_online() or sc == null or not sc.has_method("drop_point"):
+		return false
+	var clean := {}
+	for k in items:
+		var q := mini(int(items[k]), Game.count(k))
+		if can_share(k) and q > 0:
+			clean[k] = q
+	if clean.is_empty():
+		return false
+	for k in clean:
+		Game.remove_item(k, clean[k])
+	var p: Vector3 = sc.drop_point()
+	_send({"t": "drop", "star": Game.star_index, "planet": Game.planet_index, "pos": _arr(p), "items": clean})
+	Sound.ui("craft", -6.0)
+	return true
+
+
+func pickup(id: int) -> void:
+	if is_online() and drops.has(id):
+		_send({"t": "pickup", "id": id})
+
+
+func send_look() -> void:
+	if is_online():
+		_send({"t": "look", "look": Game.appearance})
+
+
+func _restore(items: Dictionary) -> void:
+	for k in items:
+		if can_share(k):
+			Game.add_item(k, clampi(int(items[k]), 1, 9999), true, true)
+
+
+## Where am I? Scenes that host other players provide net_state(); everything
+## else (caves, the sea, volcanoes, orbit, hyperspace) reports "away".
+const AWAY_LABELS := {"Dig": "Digging in a cave", "Grotto": "Exploring a grotto", "Sea": "Diving the Deep Sea",
+	"Volcano": "Running a volcano", "Orbit": "Probing from orbit", "Hyperspace": "In hyperspace"}
+
+func _send_state() -> void:
+	var sc := get_tree().current_scene
+	var m := {"t": "state", "star": Game.star_index, "planet": Game.planet_index, "scene": "away", "label": "Busy"}
+	if sc and sc.has_method("net_state") and not Game.in_home:
+		m.merge(sc.net_state(), true)
+	elif Game.in_home:
+		m.label = "In their Homespace"
+	elif sc:
+		m.label = AWAY_LABELS.get(String(sc.name), "Busy")
+	if m.has("pos") and m.pos is Vector3:
+		m.pos = _arr(m.pos)
+	if m.has("fwd") and m.fwd is Vector3:
+		m.fwd = _arr(m.fwd)
+	_send(m)

@@ -52,6 +52,7 @@ var ring_node: MeshInstance3D
 var _sky_offset := 0.0
 var _cloud_mat: ShaderMaterial
 var ground_cover: GroundCover
+var net_view: NetView # other players and their crates (multiplayer)
 
 var _nodes: Array[ResourceNode] = []
 var _interactables: Array[Node3D] = []
@@ -119,6 +120,9 @@ func _ready() -> void:
 	ground_cover = GroundCover.new()
 	add_child(ground_cover)
 	ground_cover.setup(self, planet.biome, Sound.gfx_quality)
+	net_view = NetView.new()
+	add_child(net_view)
+	net_view.setup(self, "planet")
 	UiKit.add_vignette(self)
 	weather = Weather.new()
 	add_child(weather)
@@ -1159,3 +1163,33 @@ func _on_node_added(n: Node) -> void:
 func _exit_tree() -> void:
 	if get_tree().node_added.is_connected(_on_node_added):
 		get_tree().node_added.disconnect(_on_node_added)
+
+
+# --------------------------------------------------------------------------
+# multiplayer
+# --------------------------------------------------------------------------
+
+## What other players see of us (sent about 10 times a second by Net).
+func net_state() -> Dictionary:
+	if player == null:
+		return {"scene": "away", "label": "Landing"}
+	var v: RobotVisual = player.visual
+	var anim := "idle"
+	if v.jetting:
+		anim = "jet"
+	elif v.swimming:
+		anim = "swim"
+	elif v.airborne:
+		anim = "air"
+	elif v.working:
+		anim = "work"
+	elif v.move_amount > 0.1:
+		anim = "run" if v.sprinting else "walk"
+	return {"scene": "planet", "pos": player.global_position, "fwd": player.heading, "anim": anim}
+
+
+## Where a dropped crate lands: on the ground just in front of the robot.
+func drop_point() -> Vector3:
+	var fwd: Vector3 = player.heading if player else Vector3.FORWARD
+	var p: Vector3 = (player.global_position if player else gen.surface_point(spawn_dir)) + fwd * 1.6
+	return gen.surface_point(p.normalized())

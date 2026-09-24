@@ -2,6 +2,13 @@
 
 ## Unreleased (v0.3.0)
 
+### Multiplayer
+- Press **P** (or pick Multiplayer in the pause menu) and join a server by LAN address (`192.168.1.20`), public IP or domain (`play.example.com`), or `wss://` behind HTTPS. An optional password keeps it private.
+- Everyone plays their own save. Other players' robots walk the same planet and fly in the same system, painted the way they styled them and with name tags. The player list shows where everyone is ("Diving the Deep Sea on Thalassa").
+- Chat, and give items straight to another player. Upgrades stay with your frame.
+- Drop a crate on a planet for anyone to pick up. Whoever grabs it first gets it, and crates survive server restarts for three days.
+- The server is a single small Go program (`server/`), with builds for macOS, Windows and Linux.
+
 ### Fixes
 - Volcanoes were impossible to enter: the cone had no collision (you walked straight through it) and its entry point sat at a fixed height that ended up buried in, or floating above, the surrounding hills. Volcanoes are now solid, their base sinks into the ground, and a glowing lava-tube doorway sits at the foot of the cone on the actual ground. You can also enter from the crater rim if you jetpack up. The quest star points at the doorway.
 

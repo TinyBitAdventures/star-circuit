@@ -8,6 +8,7 @@ const PLANET_RES := 36
 var star: Dictionary
 var hud: CanvasLayer
 var player: Node3D
+var net_view: NetView # other players flying in this system
 var planets: Array = [] # [{data, node, radius}]
 var env: Environment
 var asteroids: Array[Asteroid] = []
@@ -46,6 +47,9 @@ func _ready() -> void:
 	player = preload("res://scripts/space/space_player.gd").new()
 	player.world = self
 	add_child(player)
+	net_view = NetView.new()
+	add_child(net_view)
+	net_view.setup(self, "space")
 	_place_player()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	Sound.loop_stop("ambience", 1.5)
@@ -855,3 +859,23 @@ func on_heart_destroyed() -> void:
 
 func _label_h(n: Node3D) -> float:
 	return float(n.get_meta("label_h", 20.0))
+
+
+## What other players see of us: position relative to the nearest planet,
+## because orbits run on each player's own clock.
+func net_state() -> Dictionary:
+	if player == null:
+		return {"scene": "away", "label": "Warping in"}
+	var pos: Vector3 = player.global_position
+	var anchor := -1
+	var base := Vector3.ZERO
+	var bd := INF
+	for p in planets:
+		var op: Vector3 = Galaxy.orbit_pos(p.data, Game.play_time)
+		var d := op.distance_to(pos)
+		if d < bd:
+			bd = d
+			anchor = int(p.data.index)
+			base = op
+	var fwd: Vector3 = -player.global_basis.z
+	return {"scene": "space", "planet": anchor, "pos": pos - base, "fwd": fwd, "anim": "boost" if player.visual.boost else "fly"}
