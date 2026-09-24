@@ -23,17 +23,19 @@ var _post_mat: ShaderMaterial
 ## Per-world look for the atmosphere pass: heat haze, sun-shaft strength,
 ## colour grade, and whether cold nights frost the lens.
 const POST := {
-	"dune": {"shimmer": 1.0, "rays": 0.35, "grade": Color(1.06, 1.0, 0.9), "grade_amt": 0.5},
-	"ember": {"shimmer": 1.3, "rays": 0.3, "grade": Color(1.1, 0.95, 0.85), "grade_amt": 0.4, "hot_night": true},
-	"forge": {"shimmer": 1.1, "rays": 0.3, "grade": Color(1.08, 0.96, 0.88), "grade_amt": 0.4, "hot_night": true},
-	"frost": {"shimmer": 0.0, "rays": 0.4, "grade": Color(0.92, 0.98, 1.08), "grade_amt": 0.5, "frost": true},
-	"verdant": {"shimmer": 0.0, "rays": 0.55, "grade": Color(1.02, 1.03, 0.97), "grade_amt": 0.3},
-	"bloom": {"shimmer": 0.15, "rays": 0.6, "grade": Color(1.05, 0.95, 1.08), "grade_amt": 0.5},
-	"prism": {"shimmer": 0.2, "rays": 0.5, "grade": Color(1.02, 0.96, 1.1), "grade_amt": 0.4},
-	"abyss": {"shimmer": 0.0, "rays": 0.5, "grade": Color(0.92, 1.0, 1.08), "grade_amt": 0.4},
-	"tempest": {"shimmer": 0.0, "rays": 0.25, "grade": Color(0.9, 0.95, 1.05), "grade_amt": 0.5},
+	"dune": {"shimmer": 1.0, "rays": 0.35, "grade": Color(1.06, 1.0, 0.9), "grade_amt": 0.5, "fog": 0.0019, "haze": 1.3, "sky": Color("6a9fd0"), "haze_tint": 0.6},
+	"ember": {"shimmer": 1.3, "rays": 0.3, "grade": Color(1.1, 0.95, 0.85), "grade_amt": 0.4, "hot_night": true, "fog": 0.0026, "haze": 1.3, "sky": Color("8a4a3a"), "haze_tint": 0.55},
+	"forge": {"shimmer": 1.1, "rays": 0.3, "grade": Color(1.08, 0.96, 0.88), "grade_amt": 0.4, "hot_night": true, "fog": 0.0024, "haze": 1.2, "haze_tint": 0.45},
+	"frost": {"shimmer": 0.0, "rays": 0.4, "grade": Color(0.92, 0.98, 1.08), "grade_amt": 0.5, "frost": true, "fog": 0.0013, "haze": 0.8, "sky": Color("6aaee8")},
+	"verdant": {"shimmer": 0.0, "rays": 0.55, "grade": Color(1.02, 1.03, 0.97), "grade_amt": 0.3, "fog": 0.0012, "haze": 0.75},
+	"bloom": {"shimmer": 0.15, "rays": 0.6, "grade": Color(1.05, 0.95, 1.08), "grade_amt": 0.5, "fog": 0.0017, "haze": 1.0},
+	"prism": {"shimmer": 0.2, "rays": 0.5, "grade": Color(1.02, 0.96, 1.1), "grade_amt": 0.4, "fog": 0.0015, "haze": 0.9, "sky": Color("9a78e0")},
+	"abyss": {"shimmer": 0.0, "rays": 0.5, "grade": Color(0.92, 1.0, 1.08), "grade_amt": 0.4, "fog": 0.0014, "haze": 0.85},
+	"tempest": {"shimmer": 0.0, "rays": 0.25, "grade": Color(0.9, 0.95, 1.05), "grade_amt": 0.5, "fog": 0.0022, "haze": 1.4, "sky": Color("5a5098")},
 }
 var spawn_dir := Vector3.UP
+var fog_base := 0.0022 # this world's clear-weather fog (weather thickens it)
+var haze_base := 1.0
 var flora_tint := Color.WHITE
 var is_home := false
 var danger_level := 1
@@ -169,7 +171,14 @@ func _process(delta: float) -> void:
 	if player:
 		var up := player.global_position.normalized()
 		var day := smoothstep(-0.25, 0.2, up.dot(sun_dir))
-		env.fog_light_color = (biome.horizon as Color).darkened(0.2) * day + Color(0.02, 0.03, 0.07) * (1.0 - day)
+		var sun_up := up.dot(sun_dir)
+		var dusk := exp(-pow(sun_up * 4.0, 2.0))
+		var fog_col := haze_color().lerp(Color(1.0, 0.62, 0.45), dusk * 0.35)
+		if weather:
+			# storms grey the air out and thicken the horizon haze
+			fog_col = fog_col.lerp(Color(0.62, 0.64, 0.68), weather.storm * 0.35)
+			_atmo_mat.set_shader_parameter("haze", haze_base * (1.0 + weather.storm * 0.8))
+		env.fog_light_color = fog_col * day + Color(0.02, 0.03, 0.07) * (1.0 - day)
 		env.ambient_light_energy = lerpf(0.25, 0.6, day)
 		sun.light_energy = 1.25 * smoothstep(-0.12, 0.12, up.dot(sun_dir))
 		_update_post(up, day)
@@ -177,11 +186,11 @@ func _process(delta: float) -> void:
 			var wc: Color = biome.water
 			var murk := Color(wc.r, wc.g, wc.b).darkened(0.35 + clampf(underwater_depth * 0.03, 0.0, 0.5))
 			env.fog_light_color = env.fog_light_color.lerp(murk * (0.4 + 0.6 * day), underwater)
-			env.fog_density = lerpf(0.0022, 0.045 + underwater_depth * 0.004, underwater)
+			env.fog_density = lerpf(fog_base, 0.045 + underwater_depth * 0.004, underwater)
 			_uw_fog = true
 		elif _uw_fog:
 			_uw_fog = false
-			env.fog_density = 0.0022 # the weather takes it from here
+			env.fog_density = fog_base # the weather takes it from here
 		if day < 0.1 and _combat_check >= 0.49:
 			Game.tip("night", "Night falls. Your energy only recharges in sunlight, so go easy on the jetpack until dawn. Energy Cells %s top you up." % Game.key("use_cell"))
 
@@ -210,10 +219,15 @@ func _build_environment() -> void:
 	env.glow_intensity = 0.6
 	env.glow_bloom = 0.06
 	env.glow_hdr_threshold = 1.0
+	var look: Dictionary = POST.get(planet.biome, POST.verdant)
+	fog_base = float(look.get("fog", 0.0018))
+	haze_base = float(look.get("haze", 1.0))
 	env.fog_enabled = true
-	env.fog_light_color = biome.horizon
-	env.fog_density = 0.0022
+	env.fog_light_color = haze_color()
+	env.fog_density = fog_base
 	env.fog_sky_affect = 0.0
+	# looking toward the sun, distant fog glows warm
+	env.fog_sun_scatter = 0.3
 	UiKit.polish_environment(env)
 	we.environment = env
 	add_child(we)
@@ -226,6 +240,20 @@ func _build_environment() -> void:
 	add_child(sun)
 
 
+## The horizon haze colour, matched to the sky dome (atmosphere.gdshader haze_color()).
+func haze_color() -> Color:
+	var zen := sky_zenith()
+	var look: Dictionary = POST.get(planet.biome, POST.verdant)
+	return zen.lerp(Color.WHITE, 0.35).lerp(biome.horizon, float(look.get("haze_tint", 0.25))) * 0.9
+
+
+## The sky overhead from the ground. Some worlds look one colour from orbit but have
+## a different sky from below (a desert's sand-coloured haze over a dusty blue sky).
+func sky_zenith() -> Color:
+	var look: Dictionary = POST.get(planet.biome, POST.verdant)
+	return look.get("sky", biome.atmo)
+
+
 func _build_terrain() -> void:
 	var t0 := Time.get_ticks_msec()
 	var mesh := gen.build_mesh(TERRAIN_RES)
@@ -234,6 +262,8 @@ func _build_terrain() -> void:
 	mi.material_override = gen.terrain_material()
 	if planet.biome == "forge":
 		(mi.material_override as ShaderMaterial).set_shader_parameter("grid_glow", 1.0)
+	var rip: float = {"dune": 1.0, "frost": 0.45, "tempest": 0.5}.get(planet.biome, 0.0)
+	(mi.material_override as ShaderMaterial).set_shader_parameter("ripples", rip)
 	add_child(mi)
 	var body := StaticBody3D.new()
 	var cs := CollisionShape3D.new()
@@ -284,8 +314,10 @@ func _build_atmosphere() -> void:
 	# draw the sky dome before every other transparent thing (labels, beams,
 	# particles), otherwise it paints over them from behind
 	_atmo_mat.render_priority = -128
-	_atmo_mat.set_shader_parameter("zenith_color", biome.atmo)
+	_atmo_mat.set_shader_parameter("zenith_color", sky_zenith())
 	_atmo_mat.set_shader_parameter("horizon_color", biome.horizon)
+	_atmo_mat.set_shader_parameter("haze", haze_base)
+	_atmo_mat.set_shader_parameter("haze_tint", float(POST.get(planet.biome, POST.verdant).get("haze_tint", 0.25)))
 	_atmo_mat.set_shader_parameter("planet_radius", gen.radius)
 	_atmo_mat.set_shader_parameter("atmo_height", gen.radius * 0.8)
 	_atmo_mat.set_shader_parameter("sun_color", (Galaxy.star(Game.star_index).color as Color).lerp(Color.WHITE, 0.4))

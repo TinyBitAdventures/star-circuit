@@ -835,6 +835,9 @@ func _gfx_view(w, dir: Vector3, yaw: float, pitch: float, arm: float, t: float, 
 
 func _gfx_tour() -> void:
 	var tag: String = OS.get_environment("TAG") if OS.get_environment("TAG") != "" else "x"
+	# compare at a fixed quality (Medium, the default) whatever settings.cfg says
+	Sound.gfx_quality = int(OS.get_environment("QUALITY")) if OS.get_environment("QUALITY") != "" else 1
+	Sound.apply_gfx()
 	Game.new_game("scout", "Tester")
 	await _wait(5.0)
 	var w := _scene()

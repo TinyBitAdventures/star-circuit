@@ -9,10 +9,13 @@ uniform float bump_strength = 0.55;
 uniform float snow_sparkle = 1.0;
 uniform float grid_glow = 0.0; // machine world: glowing circuit lines
 uniform float paint = 1.0; // TOON variant: how bold the colour is
+uniform float macro = 1.0; // big dry/lush colour patches and soil tone that read from the ground
+uniform float ripples = 0.0; // wind ripples (dunes, wind-carved snow)
 
 varying vec3 obj_pos;
 varying vec3 obj_n;
 varying vec3 world_pos;
+varying vec2 macro_n; // large-scale patch noise, per vertex (it's far bigger than a triangle)
 
 vec3 srgb_to_linear(vec3 c) {
 	return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045)));
@@ -42,6 +45,8 @@ void vertex() {
 	obj_pos = VERTEX;
 	obj_n = NORMAL;
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec3 pv = VERTEX * detail_scale;
+	macro_n = vec2(fbm(pv * 0.09 + vec3(3.1, 0.0, 1.7)), fbm(pv * 0.22 + vec3(7.7, 2.0, 0.0)));
 }
 
 void fragment() {
@@ -64,6 +69,25 @@ void fragment() {
 	float strata = sin(r * detail_scale * 9.0 + n1 * 6.0) * 0.5 + 0.5;
 	float rocky = smoothstep(0.1, 0.3, slope);
 	col *= mix(1.0, 0.72 + 0.35 * strata, rocky);
+
+	// macro patches: the hue drifts dry and lush across the land, with darker soil
+	// in places, big enough to break up the ground around the player
+	float m1 = macro_n.x;
+	float m2 = macro_n.y;
+	vec3 dry_col = col * vec3(1.1, 1.02, 0.8);
+	vec3 lush_col = col * vec3(0.9, 1.0, 0.93);
+	col = mix(col, mix(lush_col, dry_col, smoothstep(0.35, 0.65, m1)), macro * (1.0 - rocky * 0.6));
+	col *= mix(1.0, 0.84 + 0.3 * m2, macro);
+
+	// wind ripples: one prevailing direction, bent by noise
+	float rip_ph = 0.0;
+	vec3 rip_dir = vec3(0.0);
+	if (ripples > 0.0) {
+		vec3 wd = normalize(vec3(0.8, 0.15, 0.58));
+		rip_dir = normalize(wd - up * dot(wd, up));
+		rip_ph = dot(p, rip_dir) * 7.0 + fbm(p * 0.5) * 9.0;
+		col *= 1.0 + 0.08 * sin(rip_ph) * ripples * near_detail * (1.0 - rocky);
+	}
 
 	// wet, darker sand just above the waterline
 	if (sea_radius > 0.0) {
@@ -91,6 +115,12 @@ void fragment() {
 #else
 	NORMAL = normalize(NORMAL - bump_view * bump_strength * (0.35 + 0.65 * near_detail) * (1.0 + rocky));
 #endif
+	if (ripples > 0.0) {
+		// asymmetric ripple: gentle windward face, steeper lee
+		float sl = cos(rip_ph) + 0.35 * cos(rip_ph * 2.0);
+		vec3 rv = (VIEW_MATRIX * MODEL_MATRIX * vec4(rip_dir, 0.0)).xyz;
+		NORMAL = normalize(NORMAL - rv * sl * 0.55 * ripples * near_detail * (1.0 - rocky));
+	}
 
 	// snow / ice sparkle
 	float luma = dot(base, vec3(0.299, 0.587, 0.114));

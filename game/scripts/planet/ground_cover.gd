@@ -8,12 +8,12 @@ const MOVE_REBUILD := 11.0
 
 ## per biome: blade colours, density (0..1), sprig type for the second layer
 const LOOK := {
-	"verdant": {"base": Color("2f6e22"), "tip": Color("a6e060"), "density": 1.0, "height": 0.75, "sprig": "flower", "sprig_density": 0.06},
+	"verdant": {"base": Color("2f6e22"), "tip": Color("a6e060"), "density": 1.0, "height": 0.5, "sprig": "flower", "sprig_density": 0.06},
 	"bloom": {"base": Color("5a2a5e"), "tip": Color("ff9bd6"), "density": 0.8, "height": 0.6, "sprig": "mushroom", "sprig_density": 0.08, "emissive": 0.25},
 	"prism": {"base": Color("3a2a6b"), "tip": Color("c9a6ff"), "density": 0.35, "height": 0.5, "sprig": "crystal", "sprig_density": 0.12, "emissive": 0.4},
 	"frost": {"base": Color("8fb3d1"), "tip": Color("f2f8ff"), "density": 0.35, "height": 0.45, "sprig": "", "sprig_density": 0.0},
-	"dune": {"base": Color("8c6a3c"), "tip": Color("e8cf94"), "density": 0.18, "height": 0.55, "sprig": "", "sprig_density": 0.0},
-	"abyss": {"base": Color("1f5f55"), "tip": Color("7ef0c8"), "density": 0.8, "height": 0.7, "sprig": "mushroom", "sprig_density": 0.05, "emissive": 0.15},
+	"dune": {"base": Color("8c6a3c"), "tip": Color("e8cf94"), "density": 0.06, "height": 0.45, "sprig": "", "sprig_density": 0.0},
+	"abyss": {"base": Color("1f5f55"), "tip": Color("7ef0c8"), "density": 0.8, "height": 0.5, "sprig": "mushroom", "sprig_density": 0.05, "emissive": 0.15},
 	"tempest": {"base": Color("3a3650"), "tip": Color("b8b0ff"), "density": 0.3, "height": 0.5, "sprig": "crystal", "sprig_density": 0.05, "emissive": 0.3},
 	"forge": {"base": Color("2a2c33"), "tip": Color("ff8a3a"), "density": 0.0, "height": 0.3, "sprig": "", "sprig_density": 0.0},
 	"ember": {"base": Color("2a1d1d"), "tip": Color("ff6a2a"), "density": 0.0, "height": 0.3, "sprig": "", "sprig_density": 0.0},
@@ -24,6 +24,7 @@ var look: Dictionary
 var max_instances := 8000
 var _grass: MultiMeshInstance3D
 var _sprigs: MultiMeshInstance3D
+var _stones: MultiMeshInstance3D
 var _centre := Vector3.ZERO
 var _busy := false
 var _gen := 0
@@ -33,14 +34,22 @@ var _task := -1
 func setup(w: Node3D, biome: String, quality: int) -> void:
 	world = w
 	look = LOOK.get(biome, LOOK.verdant)
-	max_instances = [0, 4500, 9000][clampi(quality, 0, 2)]
-	if max_instances == 0 or float(look.density) <= 0.0:
+	max_instances = [2500, 5500, 7000][clampi(quality, 0, 2)]
+	if max_instances == 0:
 		set_process(false)
 		return
 	var tint: Color = w.flora_tint
-	var base: Color = (look.base as Color).lerp(tint.darkened(0.45), 0.35)
+	# roots take the ground's colour so tufts grow out of the terrain, not onto it
+	var ground: Color = (w.biome.colors.low as Color)
+	var base: Color = (look.base as Color).lerp(tint.darkened(0.45), 0.35).lerp(ground.darkened(0.2), 0.5)
 	var tip: Color = (look.tip as Color).lerp(tint.lightened(0.2), 0.3)
-	_grass = _make_mmi(_tuft_mesh(float(look.height)), base, tip, float(look.get("emissive", 0.0)))
+	if float(look.density) > 0.0:
+		_grass = _make_mmi(_tuft_mesh(float(look.height)), base, tip, float(look.get("emissive", 0.0)))
+	# pebbles and small stones on every world
+	var rock: Color = (w.biome.colors.rock as Color).lerp(ground, 0.3)
+	_stones = _make_mmi(_stone_mesh(), rock.darkened(0.25), rock.lightened(0.15), 0.0)
+	_stones.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	(_stones.multimesh.mesh.surface_get_material(0) as ShaderMaterial).set_shader_parameter("wind", 0.0)
 	if look.sprig != "":
 		var sprig_col: Color = {"flower": Color("ffd23f"), "mushroom": Color("7ee8fa"), "crystal": Color("d9b8ff")}[look.sprig]
 		_sprigs = _make_mmi(_sprig_mesh(look.sprig), sprig_col.darkened(0.3), sprig_col, 0.8 if look.sprig != "flower" else 0.1)
@@ -66,19 +75,46 @@ func _make_mmi(mesh: Mesh, base: Color, tip: Color, emissive: float) -> MultiMes
 	return mmi
 
 
-## A tuft of 5 tapered blades, normals pointing up so they shade like the ground.
+## A tuft of 7 tapered blades, normals pointing up so they shade like the ground.
 func _tuft_mesh(height: float) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	for b in 5:
+	for b in 7:
 		var a := rng.randf() * TAU
-		var off := Vector3(cos(a), 0, sin(a)) * rng.randf_range(0.0, 0.18)
-		var side := Vector3(-sin(a + 1.2), 0, cos(a + 1.2)) * 0.05
+		var off := Vector3(cos(a), 0, sin(a)) * rng.randf_range(0.0, 0.26)
+		var side := Vector3(-sin(a + 1.2), 0, cos(a + 1.2)) * 0.055
 		var hgt := height * rng.randf_range(0.6, 1.2)
 		var lean := Vector3(cos(a), 0, sin(a)) * hgt * rng.randf_range(0.1, 0.35)
 		for v in [[off - side, 0.0], [off + side, 0.0], [off + lean + Vector3(0, hgt, 0), 1.0]]:
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2(0.5, v[1]))
+			st.add_vertex(v[0])
+	return st.commit()
+
+
+## A squashed, faceted pebble. UV.y carries a fake top-lit shade (1 on top).
+func _stone_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var ring: Array[Vector3] = []
+	for i in 6:
+		var a := i * TAU / 6.0 + rng.randf_range(-0.2, 0.2)
+		ring.append(Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.8, 1.1) * 0.5 + Vector3(0, 0.12, 0))
+	var top := Vector3(rng.randf_range(-0.1, 0.1), 0.34, rng.randf_range(-0.1, 0.1))
+	for i in 6:
+		var a0 := ring[i]
+		var a1 := ring[(i + 1) % 6]
+		var n := (a1 - a0).cross(top - a0).normalized()
+		for v in [[top, 1.0], [a1, 0.55], [a0, 0.55]]:
+			st.set_normal(-n if n.y < 0.0 else n)
+			st.set_uv(Vector2(0.5, v[1]))
+			st.add_vertex(v[0])
+		# skirt down into the ground so no gap shows
+		for v in [[a0, 0.55], [a1, 0.55], [a1 * Vector3(1.05, 0.0, 1.05) - Vector3(0, 0.08, 0), 0.0], [a0, 0.55], [a1 * Vector3(1.05, 0.0, 1.05) - Vector3(0, 0.08, 0), 0.0], [a0 * Vector3(1.05, 0.0, 1.05) - Vector3(0, 0.08, 0), 0.0]]:
 			st.set_normal(Vector3.UP)
 			st.set_uv(Vector2(0.5, v[1]))
 			st.add_vertex(v[0])
@@ -130,9 +166,15 @@ func _sprig_mesh(kind: String) -> ArrayMesh:
 
 func _process(_delta: float) -> void:
 	var player: Node3D = world.player
-	if player == null or _busy:
+	if player == null:
 		return
 	var pos := player.global_position
+	# blades part around the robot's feet
+	for mmi in [_grass, _sprigs]:
+		if mmi:
+			(mmi.multimesh.mesh.surface_get_material(0) as ShaderMaterial).set_shader_parameter("player_pos", pos)
+	if _busy:
+		return
 	if _centre != Vector3.ZERO and pos.distance_to(_centre) < MOVE_REBUILD:
 		return
 	_centre = pos
@@ -142,7 +184,7 @@ func _process(_delta: float) -> void:
 	var dir := pos.normalized()
 	var town_c: Vector3 = world.town.centre if world.town else Vector3.ZERO
 	var gen: PlanetGen = world.gen
-	var params := {"n": int(max_instances * float(look.density)), "sprig_n": int(max_instances * float(look.sprig_density))}
+	var params := {"n": int(max_instances * float(look.density)), "sprig_n": int(max_instances * float(look.sprig_density)), "stone_n": int(max_instances * 0.05)}
 	_task = WorkerThreadPool.add_task(func(): _build(job_gen, dir, town_c, gen, params))
 
 
@@ -161,11 +203,14 @@ func _build(job_gen: int, dir: Vector3, town_c: Vector3, gen: PlanetGen, params:
 	var b := PlanetGen.align_basis(dir)
 	var grass := []
 	var sprigs := []
+	var stones := []
 	var n: int = params.n
 	var sprig_n: int = params.sprig_n
+	var stone_n: int = params.stone_n
 	var sea := gen.sea + 0.003 if gen.has_liquid() else -1.0
-	for i in n + sprig_n:
-		var rr := RADIUS * sqrt(rng.randf())
+	for i in n + sprig_n + stone_n:
+		# denser near the player, where the eye is
+		var rr := RADIUS * pow(rng.randf(), 0.8)
 		var a := rng.randf() * TAU
 		var d := (dir + (b.x * cos(a) + b.z * sin(a)) * rr / gen.radius).normalized()
 		var hgt := gen.height(d)
@@ -179,24 +224,32 @@ func _build(job_gen: int, dir: Vector3, town_c: Vector3, gen: PlanetGen, params:
 			continue
 		var edge := 1.0 - smoothstep(RADIUS * 0.75, RADIUS, rr)
 		var s := rng.randf_range(0.7, 1.3) * (0.35 + 0.65 * edge)
+		if i >= n + sprig_n:
+			# stones: mostly pebbles, the odd fist-sized rock
+			s = (0.12 + 0.5 * pow(rng.randf(), 3.0)) * (0.5 + 0.5 * edge)
 		var xf := Transform3D(PlanetGen.align_basis(d, rng.randf() * TAU).scaled(Vector3.ONE * s), p)
 		if i < n:
 			grass.append(xf)
-		else:
+		elif i < n + sprig_n:
 			sprigs.append(xf)
-	_apply.call_deferred(job_gen, grass, sprigs)
+		else:
+			stones.append(xf)
+	_apply.call_deferred(job_gen, grass, sprigs, stones)
 
 
-func _apply(job_gen: int, grass: Array, sprigs: Array) -> void:
+func _apply(job_gen: int, grass: Array, sprigs: Array, stones: Array) -> void:
 	_busy = false
 	if _task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_task)
 		_task = -1
 	if job_gen != _gen or not is_inside_tree():
 		return
-	_fill(_grass, grass)
+	if _grass:
+		_fill(_grass, grass)
 	if _sprigs:
 		_fill(_sprigs, sprigs)
+	if _stones:
+		_fill(_stones, stones)
 
 
 func _fill(mmi: MultiMeshInstance3D, xforms: Array) -> void:

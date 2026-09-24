@@ -2,6 +2,14 @@
 
 ## Unreleased (v0.3.0)
 
+### Skies and ground detail
+- Skies are a deeper colour overhead and only hazy near the horizon, with a soft glow around the sun and orange and pink dusk colours on the sun's side. Deserts now have a dusty blue sky over the sand, and glacial, crystal, volcanic and storm worlds get their own skies too.
+- Fog is tuned per world (clear on green and icy worlds, thicker on dusty and volcanic ones), matches the sky's haze, glows warm when you look toward the sun, and turns grey in storms.
+- Grass is much fuller near you, with colour variation and drier patches, and it parts around your robot's feet as you walk. Deserts have sparse dry tufts.
+- Pebbles and small stones are scattered across every world.
+- The ground drifts between dry and lush patches with darker soil, and dunes, snowfields and storm worlds show wind ripples.
+- Low quality now shows a lighter layer of grass and stones instead of none.
+
 ### The Micro Lab
 - A new station in the Homespace. Load ingredients from your hold or vault and drop into a bowl of primordial soup under the microscope: a warm, swirling broth with fat droplets, flecks and bubbles, tinted by what went in.
 - Every ingredient becomes a strain of cells with its own habits: some drift, some dart about, some blink from place to place, some swarm, and some wear shells you have to crack first.

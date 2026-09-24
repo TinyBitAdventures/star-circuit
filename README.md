@@ -198,6 +198,11 @@ fullscreen, graphics quality and volume.
 - **Graphics**:
   - Terrain has procedural micro-bump detail, rock strata on slopes, wet shorelines and snow glints.
   - Wind-swept grass, flowers, glowing mushrooms, crystal shards and frost tufts fill in around you on a background thread and fade out at the edges.
+    Tufts vary in colour with dry and lush patches, part around your robot's feet as you walk, and pebbles and small stones scatter across every world
+    (Low quality keeps a lighter layer).
+  - Skies are deep overhead and hazy only near the horizon, with a sun glow and dusk colours on the sun's side. Each world has its own fog
+    density and a haze colour matched to its sky, and distant fog glows warm toward the sun. Deserts have a dusty blue sky over the sand.
+  - Terrain drifts between dry and lush colour patches with darker soil, and dunes (plus snowfields and storm worlds) carry wind ripples.
   - Animated, sun-lit cloud layers are visible from the ground and from orbit.
   - Water has depth-based shallows, shoreline foam and ripple normals.
   - Lighting uses AgX tone mapping, SSAO, softer sun shadows, rim light on robots and creatures, and a vignette.
@@ -304,7 +309,7 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     SHOTS=polish godot --path game res://scenes/dev_shots.tscn # menus, settings, tips, quest star, species log, milestones, lava
     SHOTS=station godot --path game res://scenes/dev_shots.tscn     # sprint, orbital station, market tabs
     SHOTS=outfit godot --path game res://scenes/dev_shots.tscn      # outfitter preview, paint/parts/loadout, 4 styled robots
-    TAG=before SHOTS=gfx godot --path game res://scenes/dev_shots.tscn  # fixed views for graphics before/after comparisons
+    TAG=before SHOTS=gfx godot --path game res://scenes/dev_shots.tscn  # fixed views for graphics before/after comparisons (Medium; QUALITY=0/2 to override)
     godot --path game res://scenes/dev_fps.tscn                     # frame rate per graphics quality
     godot --headless --path game res://scenes/dev_dig.tscn          # cave -> dig -> chamber -> grotto -> back to the surface
     SHOTS=deep godot --path game res://scenes/dev_shots.tscn        # cave mouth, dig layers, chambers, all four grotto themes

@@ -8,9 +8,13 @@ uniform float wind = 1.0;
 uniform float emissive = 0.0;
 uniform float fade_near = 30.0;
 uniform float fade_far = 44.0;
+uniform float variation = 1.0; // per-tuft brightness and dry/lush patches
+uniform vec3 player_pos = vec3(0.0); // blades flatten and part around the robot
 
 varying float h;
 varying vec3 wpos;
+varying float tuft; // per-instance random
+varying float dry;  // large-scale dry patch mask
 
 float hash2(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -20,11 +24,22 @@ void vertex() {
 	h = UV.y;
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	vec3 inst = MODEL_MATRIX[3].xyz;
+	tuft = fract(sin(dot(inst, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+	vec3 q = inst * 0.045;
+	dry = smoothstep(0.35, 0.75, sin(q.x * 1.7 + sin(q.z * 1.3)) * 0.5 + sin(q.y * 1.1 + q.z * 0.9) * 0.3 + 0.5);
 	float t = TIME * 1.7 + dot(inst, vec3(0.13, 0.07, 0.11));
 	float gust = sin(TIME * 0.4 + dot(inst, vec3(0.02, 0.03, 0.025))) * 0.5 + 0.5;
 	float sway = (sin(t) + 0.45 * sin(t * 2.3)) * (0.08 + 0.12 * gust) * wind * h * h;
 	VERTEX.x += sway;
 	VERTEX.z += sway * 0.6;
+	// trample: squash and lean away near the player
+	float pd = distance(inst, player_pos);
+	float squash = smoothstep(0.5, 1.8, pd);
+	if (wind > 0.0 && squash < 1.0) {
+		VERTEX.y *= mix(0.3, 1.0, squash);
+		vec3 away = (inverse(mat3(MODEL_MATRIX)) * normalize(inst - player_pos + vec3(0.0001)));
+		VERTEX.xz += away.xz * (1.0 - squash) * 0.35 * h;
+	}
 }
 
 void fragment() {
@@ -34,7 +49,10 @@ void fragment() {
 	if (hash2(FRAGCOORD.xy) > fade) {
 		discard;
 	}
-	vec3 c = mix(base_color, tip_color, h);
+	vec3 tip = tip_color * mix(1.0, 0.82 + 0.3 * tuft, variation);
+	// dry patches: tips fade toward straw
+	tip = mix(tip, tip * vec3(1.15, 1.0, 0.55) + vec3(0.06, 0.04, 0.0), dry * 0.55 * variation);
+	vec3 c = mix(base_color, tip, h * h * (3.0 - 2.0 * h));
 	ALBEDO = c;
 	ROUGHNESS = 0.85;
 	EMISSION = tip_color * emissive * h;
