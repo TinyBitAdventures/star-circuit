@@ -9,6 +9,9 @@
 - "Into the Fire" points the quest star at the nearest vent (and at the volcanic planet from space), and names the nearest volcanic world when you accept it.
 - The "Into the Fire" quest, the "Firewalker" milestone, an Obsidian Heat Plating recipe, and a rumbling ambience.
 
+### Art style (preview)
+- Settings → Display → Art style: **Classic** (default), **Illustrative** (banded light, cool shade, warm rims, painted terrain) or **Storybook** (Illustrative plus ink outlines). Planets only for now.
+
 ### Hyperspace
 - Warps and relay jumps now fly you down a hyperspace tunnel. Calm jumps last a few seconds and can be skipped.
 - Pirate interdictions: swarm drones that telegraph and dive, raiders and gunships firing from ahead, and mine fields. Aim with the mouse, fire cannons and homing missiles, and dodge with WASD. Clearing every wave pays a salvage bounty; getting knocked out drops you at the destination with some cargo lost.

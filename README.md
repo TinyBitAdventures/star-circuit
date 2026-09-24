@@ -200,6 +200,8 @@ fullscreen, graphics quality and volume.
   Machine world always). Sun shafts stream past silhouettes, strongest at sunrise, sunset and in storms. Frost rime creeps into the
   screen corners on glacial nights and in blizzards, and each world type gets a gentle colour grade. Shadows use tighter cascades
   and softer filtering at every quality level.
+- **Art style (preview)**: Settings → Display → Art style switches planets between Classic, Illustrative and Storybook
+  (ink outlines). `SHOTS=style` renders the same scenes in each for comparison.
 - **Customisation**:
   - The **Outfitter** (a stall in every town, and a tab at every orbital station) has a live 3D preview you can drag to spin,
     in standing or flight pose.
