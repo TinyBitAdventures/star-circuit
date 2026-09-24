@@ -10,8 +10,10 @@ signal chat_received(line: Dictionary)
 signal players_changed
 signal drops_changed
 signal look_changed(id: int)
+## Something happened in the room we're in (a tile dug, a clam opened, a kill...).
+signal room_event(from_id: int, from_name: String, kind: String, data: Dictionary)
 
-const PROTOCOL := "1"
+const PROTOCOL := "2"
 const DEFAULT_PORT := 7777
 const SEND_RATE := 0.1 # seconds between position updates
 const CFG_PATH := "user://multiplayer.cfg"
@@ -34,6 +36,8 @@ var _password := ""
 var _hello_sent := false
 var _send_t := 0.0
 var _ping_t := 0.0
+var room := "" # the shared space we're in, from the scene's net_state()
+var _hits := {} # enemy net id -> damage not yet sent (batched with the state tick)
 
 
 func _ready() -> void:
@@ -267,6 +271,10 @@ func _on_msg(m: Dictionary) -> void:
 			Game.notify.emit("Picked up %s%s" % [", ".join(got), ("  (left by %s)" % m.name) if String(m.get("name", "")) != "" else ""], Color("ffd23f"))
 		"pickup_fail":
 			Game.notify.emit("Someone got to that crate first.", UiKit.MUTED)
+		"ev":
+			var data = m.get("data", {})
+			if String(m.get("room", "")) == room and data is Dictionary:
+				room_event.emit(int(m.id), String(m.get("name", "")), String(m.get("kind", "")), data)
 		"error":
 			last_error = String(m.get("text", "The server refused the connection."))
 			Game.notify.emit(last_error, Color("ff8a6b"))
@@ -285,7 +293,7 @@ func _set_state(id: int, m: Dictionary) -> void:
 	players[id].state = {
 		"scene": String(m.get("scene", "away")), "star": int(m.get("star", -1)), "planet": int(m.get("planet", -1)),
 		"label": String(m.get("label", "")), "pos": _vec(m.get("pos")), "fwd": _vec(m.get("fwd")), "anim": String(m.get("anim", "")),
-		"anchor": int(m.get("planet", -1)),
+		"anchor": int(m.get("planet", -1)), "room": String(m.get("room", "")),
 	}
 	players[id].t = Time.get_ticks_msec() / 1000.0
 
@@ -409,8 +417,51 @@ func _send_state() -> void:
 		m.label = "In their Homespace"
 	elif sc:
 		m.label = AWAY_LABELS.get(String(sc.name), "Busy")
+	room = String(m.get("room", ""))
 	if m.has("pos") and m.pos is Vector3:
 		m.pos = _arr(m.pos)
 	if m.has("fwd") and m.fwd is Vector3:
 		m.fwd = _arr(m.fwd)
 	_send(m)
+	if not _hits.is_empty() and room != "":
+		send_event("hits", {"h": _hits})
+		_hits = {}
+
+
+# --------------------------------------------------------------------------
+# rooms: shared caves, seas and fights
+# --------------------------------------------------------------------------
+
+## Tell everyone in our room that something happened.
+func send_event(kind: String, data: Dictionary) -> void:
+	if is_online() and room != "":
+		_send({"t": "ev", "room": room, "kind": kind, "data": data})
+
+
+## Players currently sharing our room.
+func room_peers() -> Array:
+	var out := []
+	if room == "":
+		return out
+	for id in players:
+		if String(players[id].state.get("room", "")) == room:
+			out.append(id)
+	return out
+
+
+## Damage we did to a shared enemy, sent in one batch per state tick.
+func queue_hit(nid: String, amount: float) -> void:
+	if is_online() and nid != "":
+		_hits[nid] = snappedf(float(_hits.get(nid, 0.0)) + amount, 0.1)
+
+
+## The room of a friend already in a mini game of this kind on a world ("sea:").
+func friend_room(prefix: String, star: int, planet: int) -> String:
+	if not is_online():
+		return ""
+	for id in players:
+		var st: Dictionary = players[id].state
+		var r := String(st.get("room", ""))
+		if r.begins_with(prefix) and int(st.get("star", -1)) == star and int(st.get("planet", -1)) == planet:
+			return r
+	return ""

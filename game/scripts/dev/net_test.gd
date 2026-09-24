@@ -148,16 +148,116 @@ func _run() -> void:
 	crate.interact(pw.player)
 	await _wait(0.5)
 	print("[net] picked up: lumen ", lu0, " -> ", Game.count("lumen"), " crates left=", pw.net_view.crates.size())
+	# ---- shared fights: Bob in our planet room, fighting the same drone
+	var room := "planet:%d:%d" % [Game.star_index, Game.planet_index]
+	_bob_send({"t": "state", "scene": "planet", "room": room, "star": Game.star_index, "planet": Game.planet_index, "pos": Net._arr(bob_pos), "fwd": Net._arr(side), "anim": "idle"})
+	await _wait(0.3)
+	var foe: Enemy = null
+	for e in pw.enemies:
+		if e.is_alive():
+			foe = e
+			break
+	var hp0: float = foe.hp
+	_bob_send({"t": "ev", "room": room, "kind": "hits", "data": {"h": {foe.nid: 10.0}}})
+	await _wait(0.3)
+	print("[net] shared hit: ", foe.nid, " hp ", snappedf(hp0, 0.1), " -> ", snappedf(foe.hp, 0.1))
+	var xp0 := Game.xp
+	var k0 := Game.kills
+	var kill := {"nid": foe.nid, "type": foe.type, "lvl": foe.level, "elite": foe.elite, "pos": Net._arr(pw.player.global_position)}
+	_bob_send({"t": "ev", "room": room, "kind": "kill", "data": kill})
+	await _wait(0.3)
+	print("[net] shared kill: foe dead=", not foe.is_alive(), " kills ", k0, " -> ", Game.kills, " xp ", xp0, " -> ", Game.xp)
+	_bob_send({"t": "ev", "room": room, "kind": "kill", "data": kill})
+	await _wait(0.3)
+	print("[net] duplicate kill paid again=", Game.kills != k0 + 1)
+	var far := kill.duplicate()
+	far.nid = "x:far"
+	far.pos = Net._arr(pw.player.global_position + up * 500.0)
+	_bob_send({"t": "ev", "room": room, "kind": "kill", "data": far})
+	await _wait(0.3)
+	print("[net] far kill shared=", Game.kills != k0 + 1)
+	# our hits and kills reach Bob
+	var foe2: Enemy = null
+	for e in pw.enemies:
+		if e.is_alive() and e != foe:
+			foe2 = e
+			break
+	bob_in.clear()
+	foe2.take_hit(5.0)
+	var hits := await _bob_wait("ev")
+	foe2.take_hit(999999.0)
+	await _wait(0.3)
+	var kev := {}
+	for m in bob_in:
+		if m.t == "ev" and m.kind == "kill":
+			kev = m
+	print("[net] bob got hits=", hits.get("kind", ""), " ", hits.get("data", {}).get("h", {}), " kill=", kev.get("data", {}).get("nid", "") == foe2.nid)
+	# ---- a shared cave
+	var cave: Poi = null
+	for p in pw.pois:
+		if p.type == "cave":
+			cave = p
+	cave.open_cache()
+	await _wait(3.0)
+	var dw := get_tree().current_scene
+	var croom: String = "dig:" + dw.cave_key
+	bob_in.clear()
+	for i in 4:
+		_bob_send({"t": "state", "scene": "dig", "room": croom, "star": Game.star_index, "planet": Game.planet_index, "pos": [dw.pod.position.x + 64.0, dw.pod.position.y, 0], "fwd": [1, 0, 0], "anim": "drill"})
+		await _wait(0.15)
+	# Bob arrives second: his tunnels merge into ours and we answer with ours
+	bob_in.clear()
+	var bob_raw := PackedByteArray()
+	bob_raw.resize((dw.W * dw.H + 7) / 8)
+	var bcell := Vector2i(20, dw.SURFACE + 8)
+	var bi: int = dw.idx(bcell.x, bcell.y)
+	bob_raw[bi >> 3] |= (1 << (bi & 7))
+	_bob_send({"t": "ev", "room": croom, "kind": "mask", "data": {"dug": Marshalls.raw_to_base64(bob_raw), "reply": false}})
+	var mask := await _bob_wait("ev", 2.0)
+	print("[net] cave: bob's tunnel merged=", dw.dug[bi] == 1, " we replied with ours=", mask.get("kind", "") == "mask" and not bool(mask.get("data", {}).get("reply", false)) == false)
+	var nv2: NetView2D = null
+	for c in dw.get_children():
+		if c is NetView2D:
+			nv2 = c
+	var cell := Vector2i(10, dw.SURFACE + 6)
+	var was_dug: int = dw.dug[dw.idx(cell.x, cell.y)]
+	_bob_send({"t": "ev", "room": croom, "kind": "dig", "data": {"x": cell.x, "y": cell.y}})
+	await _wait(0.3)
+	print("[net] cave: bob diver=", nv2 != null and nv2.divers.has(bob_id), " remote dig ", was_dug, " -> ", dw.dug[dw.idx(cell.x, cell.y)])
+	bob_in.clear()
+	dw.dig_out(Vector2i(12, dw.SURFACE + 6))
+	var dev := await _bob_wait("ev")
+	print("[net] cave: bob sees our dig=", dev.get("kind", "") == "dig" and int(dev.get("data", {}).get("x", -1)) == 12)
+	Game.leave_cave()
+	await _wait(4.0)
+	# ---- a friend's sea: diving anywhere on this world joins it
+	var sea_key := "%s:sea:9,9,9" % Galaxy.planet(Game.star_index, Game.planet_index).key
+	for i in 3:
+		_bob_send({"t": "state", "scene": "sea", "room": "sea:" + sea_key, "star": Game.star_index, "planet": Game.planet_index, "pos": [400, 300, 0], "fwd": [1, 0, 0]})
+		await _wait(0.15)
+	Game.enter_sea(Vector3.UP, Galaxy.planet(Game.star_index, Game.planet_index))
+	await _wait(3.0)
+	var sw0 := get_tree().current_scene
+	var cr0 := Game.credits
+	_bob_send({"t": "ev", "room": "sea:" + sea_key, "kind": "wreck", "data": {"id": 9999}})
+	await _wait(0.4)
+	print("[net] sea: joined friend's sea=", Game.sea.get("key", "") == sea_key, " scene=", sw0.name, " wreck share credits ", cr0, " -> ", Game.credits)
+	Game.leave_sea()
+	await _wait(4.0)
 	# fly: both in space, Bob 30 m off the first planet
 	Game.go_to_space()
 	await _wait(4.0)
 	var sw := get_tree().current_scene
 	var rel := Vector3(30, 5, 0)
 	for i in 5:
-		_bob_send({"t": "state", "scene": "space", "star": Game.star_index, "planet": 0, "pos": Net._arr(rel), "fwd": [0, 0, -1], "anim": "fly"})
+		_bob_send({"t": "state", "scene": "space", "room": "space:%d" % Game.star_index, "star": Game.star_index, "planet": 0, "pos": Net._arr(rel), "fwd": [0, 0, -1], "anim": "fly"})
 		await _wait(0.15)
 	await _wait(0.6)
 	var sav: RemotePlayer = sw.net_view.avatars.get(bob_id)
+	var sk0 := Game.space_kills
+	_bob_send({"t": "ev", "room": "space:%d" % Game.star_index, "kind": "skill", "data": {"type": "raider", "lvl": 3, "elite": false, "anchor": 0, "pos": Net._arr(sw.player.global_position - Galaxy.orbit_pos(Galaxy.planet(Game.star_index, 0), Game.play_time))}})
+	await _wait(0.4)
+	print("[net] space shared kill: ", sk0, " -> ", Game.space_kills)
 	var expect := Galaxy.orbit_pos(Galaxy.planet(Game.star_index, 0), Game.play_time) + rel
 	print("[net] space: scene=", sw.name, " bob flying=", sav != null, " off by ", snappedf(sav.global_position.distance_to(expect), 0.1) if sav else -1.0, " where=", Net.where_text(bob_id))
 	# Bob leaves, then we do

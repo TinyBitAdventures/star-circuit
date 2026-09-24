@@ -53,3 +53,8 @@ players and crates already there), relays `join` / `leave` / `state` / `chat` /
 (`drop_add`, `drop_remove`, `pickup_ok`, `pickup_fail`): the first pickup
 request wins. Space positions are relative to the nearest planet, because
 orbits run on each player's own clock. See `hub.go` for the message struct.
+
+Each `state` names a **room** (`planet:<star>:<planet>`, `space:<star>`, `dig:<cave>`, `sea:<sea>`). An `ev`
+message (`room`, `kind`, `data`) goes only to the other players in that room: tiles dug, dug-tile masks when
+someone arrives, clams, kelp, the wreck, batched hits on drones (`hits`) and kills (`kill`, `skill` in space).
+Protocol 2 added rooms; the game and the server must match.

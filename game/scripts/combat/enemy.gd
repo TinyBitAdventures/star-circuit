@@ -18,6 +18,7 @@ var dir := Vector3.UP # unit position on the sphere
 var home_dir := Vector3.UP
 var heading := Vector3.FORWARD
 var camp_id := 0
+var nid := "" # multiplayer: the same drone on every player's screen shares this id
 
 var _model: Node3D
 var _parts := {}
@@ -338,6 +339,7 @@ func take_hit(amount: float, crit := false) -> bool:
 	if state == "dead" or state == "return":
 		return false
 	hp -= amount
+	Net.queue_hit(nid, amount)
 	_flash = 0.15
 	world.floating_text(global_position + dir * (3.2 if elite else 2.4), ("%d!" if crit else "%d") % int(amount), Color("ffe066") if crit else Color.WHITE, crit)
 	if state == "idle":
@@ -349,7 +351,20 @@ func take_hit(amount: float, crit := false) -> bool:
 	return false
 
 
-func _die() -> void:
+## A friend's shots landing on our copy of this drone.
+func remote_hit(amount: float) -> void:
+	if state == "dead":
+		return
+	hp -= amount
+	_flash = 0.15
+	world.floating_text(global_position + dir * (3.2 if elite else 2.4), "%d" % int(amount), Color("9bd1ff"), false)
+	_update_plate()
+	if hp <= 0.0:
+		_die(true)
+
+
+## remote: a friend landed the killing blow (their kill message carries the shared reward).
+func _die(remote := false) -> void:
 	state = "dead"
 	collision_layer = 0
 	if is_instance_valid(_telegraph):
@@ -357,7 +372,9 @@ func _die() -> void:
 	_bar.visible = false
 	_name.visible = false
 	Sound.play_3d("enemy_die", global_position, 0.0 if elite else -3.0, 0.1, 22.0)
-	Game.record_kill(type, level, elite)
+	if not remote:
+		Game.record_kill(type, level, elite)
+		world.share_kill(self)
 	world.on_enemy_killed(self)
 	world.explosion(global_position + dir * 1.2, Color(1.0, 0.45, 0.2), 2.2 if elite else 1.3)
 	var t := create_tween()

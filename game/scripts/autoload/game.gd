@@ -1891,6 +1891,10 @@ func sea_state(key: String) -> Dictionary:
 
 func enter_sea(dir: Vector3, planet: Dictionary) -> void:
 	var key := sea_key(dir, planet)
+	# multiplayer: a friend already diving on this world? join their sea
+	var friend := Net.friend_room("sea:", star_index, planet_index)
+	if friend != "":
+		key = friend.substr(4)
 	sea = {"key": key, "dir": [dir.x, dir.y, dir.z], "seed": hash(key) ^ int(planet.seed), "biome": planet.biome,
 		"star": star_index, "planet": planet_index, "pos": []}
 	land_dir = dir

@@ -97,7 +97,10 @@ fullscreen, graphics quality and volume.
 - **Multiplayer**: press **P** to join a friend's server by LAN address, public IP or domain (`wss://` too). Everyone keeps their own save.
   You see each other's robots walking the same planet and flying in the same system (with name tags), chat, **give** items directly,
   and **drop crates** on a planet for anyone to pick up (the server gives each crate to whoever grabs it first). Mac and Windows
-  players can share a server. The server is a small Go program in `server/` (see [server/README.md](server/README.md)).
+  players can share a server. Players are one party: **caves and the Deep Sea are shared** (enter the same cave mouth, or dive anywhere on a world
+  where a friend is already diving, and you dig the same rock, see each other's tunnels and share the wreck's salvage), and
+  **kills are shared**: anyone within 80 m of a drone kill (600 in space) gets the XP, credits and their own loot roll, and
+  where both players have the same drone, hits and deaths sync so you wear it down together. The server is a small Go program in `server/` (see [server/README.md](server/README.md)).
 
 - **4 robots**: Vesper (scout), Grit (miner), Cog (engineer) and Halo (siphon). Each has its own model, perks and starting skills.
 - **Procedural galaxy**: 48 stars and about 170 planets across 6 biomes (verdant, arid, glacial, volcanic, crystalline, fungal).

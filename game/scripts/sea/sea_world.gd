@@ -105,6 +105,14 @@ func _ready() -> void:
 	Sound.play("splash", -4.0, 0.05)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	hud.show_location_banner("The Deep Sea", "Beneath the waves of %s" % planet.name)
+	# multiplayer: friends diving this sea swim with you
+	var nv := NetView2D.new()
+	add_child(nv)
+	nv.setup(self, "sea")
+	Net.room_event.connect(_on_room_event)
+	get_tree().create_timer(1.0).timeout.connect(func():
+		if is_instance_valid(self):
+			Net.send_event("mask", {"dug": _dug_b64(), "reply": false}))
 	get_tree().create_timer(3.0).timeout.connect(func():
 		if is_instance_valid(self):
 			Game.tip("first_sea", "Swim with WASD (%s up, %s down), boost with %s. Push into rock to cut it. %s scans nearby creatures, %s harvests kelp, opens clams and loots wrecks. Below about 200 m the Abyss crushes an unprotected hull: fabricate a Pressure Hull first." % [Game.key("jump"), Game.key("descend"), Game.key("sprint"), Game.key("scan"), Game.key("interact")])
@@ -285,13 +293,17 @@ func _load_state() -> void:
 			o["looted"] = true
 
 
-func save_state() -> void:
+func _dug_b64() -> String:
 	var raw := PackedByteArray()
 	raw.resize((W * H + 7) / 8)
 	for i in W * H:
 		if dug[i]:
 			raw[i >> 3] |= (1 << (i & 7))
-	Game.sea_state(key).dug = Marshalls.raw_to_base64(raw)
+	return Marshalls.raw_to_base64(raw)
+
+
+func save_state() -> void:
+	Game.sea_state(key).dug = _dug_b64()
 
 
 # --------------------------------------------------------------------------
@@ -531,6 +543,8 @@ func _nearest_object() -> Dictionary:
 
 
 func _use(o: Dictionary) -> void:
+	if o.kind in ["kelp", "clam", "wreck"]:
+		Net.send_event(o.kind, {"id": int(o.id)})
 	match o.kind:
 		"kelp":
 			o.cut = true
@@ -612,6 +626,7 @@ func hardness(p: Vector2i) -> float:
 
 
 func dig_out(p: Vector2i) -> void:
+	Net.send_event("dig", {"x": p.x, "y": p.y})
 	var c := get_cell(p.x, p.y)
 	cells[idx(p.x, p.y)] = WATER
 	dug[idx(p.x, p.y)] = 1
@@ -1014,3 +1029,71 @@ func _build_depth_meter() -> void:
 	_press_label = UiKit.label("", 12, UiKit.MUTED)
 	v.add_child(_press_label)
 	v.add_child(UiKit.label("T  emergency ascent", 12, UiKit.MUTED))
+
+
+# --------------------------------------------------------------------------
+# multiplayer
+# --------------------------------------------------------------------------
+
+func net_state() -> Dictionary:
+	return {"scene": "sea", "room": "sea:" + key, "label": "Diving the Deep Sea",
+		"pos": Vector3(diver.position.x, diver.position.y, 0.0), "fwd": Vector3(diver._facing, 0.0, 0.0), "anim": "drill" if diver._drilling else ""}
+
+
+func _clear_remote(p: Vector2i, fx: bool) -> bool:
+	if p.x < 0 or p.y < 0 or p.x >= W or p.y >= H or dug[idx(p.x, p.y)] or not is_solid(p.x, p.y):
+		return false
+	cells[idx(p.x, p.y)] = WATER
+	dug[idx(p.x, p.y)] = 1
+	if fx:
+		_redraw_cell(p)
+		_burst(cell_centre(p), palette[zone_of(p.y)], 10)
+	return true
+
+
+func _object(id: int) -> Dictionary:
+	for o in objects:
+		if int(o.id) == id:
+			return o
+	return {}
+
+
+func _on_room_event(_from: int, from_name: String, kind: String, data: Dictionary) -> void:
+	match kind:
+		"dig":
+			_clear_remote(Vector2i(int(data.get("x", -1)), int(data.get("y", -1))), true)
+		"kelp":
+			var o := _object(int(data.get("id", -1)))
+			if not o.is_empty():
+				o.cut = true
+		"clam":
+			# it opens for you to see; the pearl (if any) was theirs
+			var o := _object(int(data.get("id", -1)))
+			if not o.is_empty() and not o.get("open", false):
+				o.open = true
+				_burst(o.pos, Color("f3eef8"), 8)
+		"wreck":
+			# a salvage crew shares the haul
+			var o := _object(9999)
+			if not o.is_empty() and not o.get("looted", false):
+				o["looted"] = true
+				Game.sea_state(key).wreck = true
+				var cr := _rng.randi_range(180, 320)
+				Game.add_credits(cr)
+				Game.add_item("ancient_relic", 1, true)
+				Game.add_item("deep_probe", 1, true)
+				Game.gain_skill_xp("exploration", 120)
+				hud.big("WRECK SALVAGED", "%s cut it open  ·  your share: +%d credits, Ancient Relic, Deep Probe" % [from_name, cr], Color("ffd98a"))
+				Sound.play("quest_complete", -4.0, 0.0, "UI")
+		"mask":
+			var raw := Marshalls.base64_to_raw(String(data.get("dug", "")))
+			var changed := 0
+			for i in mini(raw.size() * 8, W * H):
+				if raw[i >> 3] & (1 << (i & 7)) and _clear_remote(Vector2i(i % W, i / W), false):
+					changed += 1
+			if changed > 0:
+				for c in _chunks:
+					_chunks[c].queue_redraw()
+				save_state()
+			if not bool(data.get("reply", true)):
+				Net.send_event("mask", {"dug": _dug_b64(), "reply": true})

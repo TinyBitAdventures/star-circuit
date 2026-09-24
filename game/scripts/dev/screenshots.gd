@@ -1700,8 +1700,35 @@ func _net_tour() -> void:
 	await _wait(0.8)
 	await shot("net_panel")
 	pw.hud.close_panel()
+	# a shared cave: Bob drilling next to us
+	var cave: Poi = null
+	for p in pw.pois:
+		if p.type == "cave":
+			cave = p
+	cave.open_cache()
+	await _wait(3.0)
+	var dw := _scene()
+	dw.pod.position = dw.cell_centre(Vector2i(22, dw.SURFACE + 3))
+	for i in 25:
+		bob.poll()
+		bob.send_text(JSON.stringify({"t": "state", "scene": "dig", "room": "dig:" + dw.cave_key, "star": Game.star_index, "planet": Game.planet_index, "pos": [dw.pod.position.x + 90.0, dw.pod.position.y + 40.0, 0], "fwd": [-1, 0, 0], "anim": "drill"}))
+		await _wait(0.1)
+	await shot("net_cave")
+	Game.leave_cave()
+	await _wait(4.0)
+	var skey := "%s:sea:9,9,9" % Galaxy.planet(Game.star_index, Game.planet_index).key
+	for i in 3:
+		bob.poll()
+		bob.send_text(JSON.stringify({"t": "state", "scene": "sea", "room": "sea:" + skey, "star": Game.star_index, "planet": Game.planet_index, "pos": [0, 0, 0]}))
+		await _wait(0.1)
+	Game.enter_sea(Vector3.UP, Galaxy.planet(Game.star_index, Game.planet_index))
+	await _wait(3.0)
+	var sw := _scene()
+	sw.diver.position = sw.cell_centre(Vector2i(30, sw.SURF + 14))
+	for i in 25:
+		bob.poll()
+		bob.send_text(JSON.stringify({"t": "state", "scene": "sea", "room": "sea:" + skey, "star": Game.star_index, "planet": Game.planet_index, "pos": [sw.diver.position.x + 110.0, sw.diver.position.y - 30.0, 0], "fwd": [-1, 0, 0]}))
+		await _wait(0.1)
+	await shot("net_sea")
 	Net.leave()
-	pw.hud.toggle_panel("multiplayer")
-	await _wait(0.6)
-	await shot("net_join")
 	OS.kill(pid)

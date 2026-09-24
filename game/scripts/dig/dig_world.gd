@@ -104,6 +104,14 @@ func _ready() -> void:
 	)
 	if saved.is_empty():
 		hud.show_location_banner("The Deep", "A: left  D: right  S: dig down  W: thrust  ·  push into rock to drill")
+	# multiplayer: friends in the same cave dig the same rock
+	var nv := NetView2D.new()
+	add_child(nv)
+	nv.setup(self, "dig")
+	Net.room_event.connect(_on_room_event)
+	get_tree().create_timer(1.0).timeout.connect(func():
+		if is_instance_valid(self):
+			Net.send_event("mask", {"dug": _dug_b64(), "reply": false}))
 
 
 # --------------------------------------------------------------------------
@@ -233,13 +241,17 @@ func _load_dug() -> void:
 				cells[i] = AIR
 
 
-func save_dug() -> void:
+func _dug_b64() -> String:
 	var raw := PackedByteArray()
 	raw.resize((W * H + 7) / 8)
 	for i in W * H:
 		if dug[i]:
 			raw[i >> 3] |= (1 << (i & 7))
-	Game.dig_state(cave_key).dug = Marshalls.raw_to_base64(raw)
+	return Marshalls.raw_to_base64(raw)
+
+
+func save_dug() -> void:
+	Game.dig_state(cave_key).dug = _dug_b64()
 	var sraw := PackedByteArray()
 	sraw.resize((W * H + 7) / 8)
 	for i in W * H:
@@ -459,6 +471,7 @@ func dig_block_reason(p: Vector2i) -> String:
 
 
 func dig_out(p: Vector2i) -> void:
+	Net.send_event("dig", {"x": p.x, "y": p.y})
 	var c := get_cell(p.x, p.y)
 	cells[idx(p.x, p.y)] = AIR
 	dug[idx(p.x, p.y)] = 1
@@ -813,3 +826,46 @@ func _paint_minimap() -> void:
 		if seen[idx(cc.x, cc.y)]:
 			_mm_img.set_pixel(cc.x, cc.y, Color.WHITE)
 	_mm_tex.update(_mm_img)
+
+
+# --------------------------------------------------------------------------
+# multiplayer
+# --------------------------------------------------------------------------
+
+func net_state() -> Dictionary:
+	return {"scene": "dig", "room": "dig:" + cave_key, "label": "Digging in a cave",
+		"pos": Vector3(pod.position.x, pod.position.y, 0.0), "fwd": Vector3(pod._facing, 0.0, 0.0), "anim": "drill" if pod._drilling else ""}
+
+
+## A friend's drill: the rock goes, but the ore is theirs.
+func _clear_remote(p: Vector2i, fx: bool) -> bool:
+	if p.x < 0 or p.y < 0 or p.x >= W or p.y >= H or dug[idx(p.x, p.y)] or get_cell(p.x, p.y) == BEDROCK:
+		return false
+	cells[idx(p.x, p.y)] = AIR
+	dug[idx(p.x, p.y)] = 1
+	if fx:
+		redraw_cell(p)
+		_debris(cell_centre(p), palette[layer_of(p.y)])
+	return true
+
+
+func _on_room_event(_from: int, _name: String, kind: String, data: Dictionary) -> void:
+	match kind:
+		"dig":
+			if _clear_remote(Vector2i(int(data.get("x", -1)), int(data.get("y", -1))), true):
+				_mm_dirty = true
+		"mask":
+			# someone arrived: merge their tunnels into ours, and answer with ours
+			var raw := Marshalls.base64_to_raw(String(data.get("dug", "")))
+			var changed := 0
+			for i in mini(raw.size() * 8, W * H):
+				if raw[i >> 3] & (1 << (i & 7)) and _clear_remote(Vector2i(i % W, i / W), false):
+					changed += 1
+			if changed > 0:
+				for c in _chunks:
+					_chunks[c][0].queue_redraw()
+					_chunks[c][1].queue_redraw()
+				_mm_dirty = true
+				save_dug()
+			if not bool(data.get("reply", true)):
+				Net.send_event("mask", {"dug": _dug_b64(), "reply": true})

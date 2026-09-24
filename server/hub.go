@@ -14,7 +14,7 @@ import (
 )
 
 // ProtocolVersion is bumped when messages change incompatibly.
-const ProtocolVersion = "1"
+const ProtocolVersion = "2"
 
 // Msg is every message in both directions. Unused fields are omitted.
 type Msg struct {
@@ -36,6 +36,12 @@ type Msg struct {
 	Pos    []float64 `json:"pos,omitempty"`
 	Fwd    []float64 `json:"fwd,omitempty"`
 	Anim   string    `json:"anim,omitempty"`
+	// a shared space inside a scene: "planet:0:2", "space:0", "dig:<cave key>", "sea:<sea key>"
+	Room string `json:"room,omitempty"`
+
+	// room events (dig a tile, open a clam, a kill...): relayed to everyone in the same room
+	Kind string          `json:"kind,omitempty"`
+	Data json.RawMessage `json:"data,omitempty"`
 
 	// chat, gifts, drops
 	Text  string         `json:"text,omitempty"`
@@ -80,6 +86,7 @@ type Client struct {
 	drops   int
 	lastMsg time.Time
 	budget  float64 // token bucket against floods
+	room    string
 }
 
 type Config struct {
@@ -235,9 +242,9 @@ func (h *Hub) Handle(c *Client, m *Msg) bool {
 	if !h.clients[c] {
 		return false
 	}
-	// token bucket: 30 messages a second sustained, bursts of 40
+	// token bucket: 60 messages a second sustained, bursts of 80
 	now := time.Now()
-	c.budget = math.Min(40, c.budget+now.Sub(c.lastMsg).Seconds()*30)
+	c.budget = math.Min(80, c.budget+now.Sub(c.lastMsg).Seconds()*60)
 	c.lastMsg = now
 	if c.budget < 1 {
 		return true // ignore the flood, keep the connection
@@ -255,8 +262,9 @@ func (h *Hub) Handle(c *Client, m *Msg) bool {
 		if m.Pos != nil && !validVec(m.Pos) || m.Fwd != nil && !validVec(m.Fwd) {
 			return true
 		}
+		c.room = cleanText(m.Room, 80)
 		st := &Msg{T: "state", ID: c.info.ID, Scene: cleanText(m.Scene, 12), Star: m.Star, Planet: m.Planet,
-			Label: cleanText(m.Label, 40), Pos: m.Pos, Fwd: m.Fwd, Anim: cleanText(m.Anim, 12)}
+			Label: cleanText(m.Label, 40), Pos: m.Pos, Fwd: m.Fwd, Anim: cleanText(m.Anim, 12), Room: c.room}
 		c.info.State = st
 		h.broadcast(st, c, true)
 	case "chat":
@@ -273,6 +281,8 @@ func (h *Hub) Handle(c *Client, m *Msg) bool {
 		h.drop(c, m)
 	case "pickup":
 		h.pickup(c, m)
+	case "ev":
+		h.event(c, m)
 	case "ping":
 		h.reply(c, &Msg{T: "pong"})
 	}
@@ -321,6 +331,21 @@ func (h *Hub) hello(c *Client, m *Msg) bool {
 	info := c.info
 	h.broadcast(&Msg{T: "join", ID: info.ID, Name: info.Name, Robot: info.Robot, Look: info.Look}, c, false)
 	return true
+}
+
+// event relays a room event to everyone else currently in that room.
+func (h *Hub) event(c *Client, m *Msg) {
+	room := cleanText(m.Room, 80)
+	kind := cleanText(m.Kind, 20)
+	if room == "" || kind == "" || len(m.Data) > 8192 || (len(m.Data) > 0 && !json.Valid(m.Data)) {
+		return
+	}
+	b := encode(&Msg{T: "ev", ID: c.info.ID, Name: c.info.Name, Room: room, Kind: kind, Data: m.Data})
+	for o := range h.clients {
+		if o != c && o.joined && o.room == room {
+			h.queue(o, b, false)
+		}
+	}
 }
 
 func (h *Hub) find(id int) *Client {

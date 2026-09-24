@@ -123,6 +123,7 @@ func _ready() -> void:
 	net_view = NetView.new()
 	add_child(net_view)
 	net_view.setup(self, "planet")
+	Net.room_event.connect(_on_room_event)
 	UiKit.add_vignette(self)
 	weather = Weather.new()
 	add_child(weather)
@@ -632,6 +633,8 @@ func _spawn_enemy(t: String, lvl: int, d: Vector3, camp: int) -> Enemy:
 	var e := Enemy.new()
 	add_child(e)
 	e.setup(self, t, lvl, d, camp)
+	var q := Vector3i((d.normalized() * gen.radius).round())
+	e.nid = "%s:%d:%d,%d,%d" % [t, lvl, q.x, q.y, q.z]
 	enemies.append(e)
 	return e
 
@@ -1191,7 +1194,7 @@ func net_state() -> Dictionary:
 		anim = "work"
 	elif v.move_amount > 0.1:
 		anim = "run" if v.sprinting else "walk"
-	return {"scene": "planet", "pos": player.global_position, "fwd": player.heading, "anim": anim}
+	return {"scene": "planet", "room": "planet:%d:%d" % [Game.star_index, Game.planet_index], "pos": player.global_position, "fwd": player.heading, "anim": anim}
 
 
 ## Where a dropped crate lands: on the ground just in front of the robot.
@@ -1199,3 +1202,46 @@ func drop_point() -> Vector3:
 	var fwd: Vector3 = player.heading if player else Vector3.FORWARD
 	var p: Vector3 = (player.global_position if player else gen.surface_point(spawn_dir)) + fwd * 1.6
 	return gen.surface_point(p.normalized())
+
+
+## Friends this close to a kill share it: XP, their own loot roll and credits.
+const SHARE_RANGE := 80.0
+var _dead_nids := {} # enemy net id -> time it died (so a double kill only pays once)
+
+
+func share_kill(e: Enemy) -> void:
+	_dead_nids[e.nid] = Time.get_ticks_msec()
+	Net.send_event("kill", {"nid": e.nid, "type": e.type, "lvl": e.level, "elite": e.elite, "pos": Net._arr(e.global_position)})
+
+
+func _enemy_by_nid(nid: String) -> Enemy:
+	for e in enemies:
+		if is_instance_valid(e) and e.nid == nid and e.is_alive():
+			return e
+	return null
+
+
+func _on_room_event(_from: int, from_name: String, kind: String, data: Dictionary) -> void:
+	match kind:
+		"hits":
+			var h: Dictionary = data.get("h", {})
+			for nid in h:
+				var e := _enemy_by_nid(String(nid))
+				if e:
+					e.remote_hit(float(h[nid]))
+		"kill":
+			var nid := String(data.get("nid", ""))
+			var now := Time.get_ticks_msec()
+			var dup: bool = _dead_nids.has(nid) and now - int(_dead_nids[nid]) < 15000
+			_dead_nids[nid] = now
+			var e := _enemy_by_nid(nid)
+			if e:
+				e._die(true)
+			var t := String(data.get("type", ""))
+			if dup or not Db.ENEMIES.has(t) or player == null:
+				return
+			if player.global_position.distance_to(Net._vec(data.get("pos"))) > SHARE_RANGE:
+				return
+			var lvl := clampi(int(data.get("lvl", 1)), 1, 60)
+			Game.record_kill(t, lvl, bool(data.get("elite", false)))
+			Game.notify.emit("Shared kill with %s: %s (Lv %d)" % [from_name, Db.ENEMIES[t].name, lvl], Color("ffb86b"))

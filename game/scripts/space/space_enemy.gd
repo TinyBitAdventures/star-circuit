@@ -287,6 +287,8 @@ func _die(reward: bool) -> void:
 		var loot: Dictionary = Game.record_space_kill(type, level, elite)
 		for item in loot:
 			world.spawn_shards(global_position, item, loot[item], def.size)
+		if world.has_method("share_space_kill"):
+			world.share_space_kill(self)
 	world.on_space_enemy_killed(self)
 	if type == "heart" and reward:
 		world.on_heart_destroyed()

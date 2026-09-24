@@ -224,3 +224,34 @@ func TestDropsPersist(t *testing.T) {
 		t.Fatalf("drops after restart: %+v", w.Drops)
 	}
 }
+
+func TestRoomEvents(t *testing.T) {
+	_, srv := newServer(t, Config{})
+	a, _ := join(t, srv, "A")
+	b, _ := join(t, srv, "B")
+	c, _ := join(t, srv, "C")
+	a.send(Msg{T: "state", Scene: "dig", Room: "dig:0:0:7", Star: ip(0), Planet: ip(0)})
+	b.send(Msg{T: "state", Scene: "dig", Room: "dig:0:0:7", Star: ip(0), Planet: ip(0)})
+	c.send(Msg{T: "state", Scene: "planet", Room: "planet:0:0", Star: ip(0), Planet: ip(0)})
+	b.expect("state")
+	a.send(Msg{T: "ping"})
+	a.expect("pong")
+	a.send(Msg{T: "ev", Room: "dig:0:0:7", Kind: "dig", Data: json.RawMessage(`{"x":3,"y":40}`)})
+	e := b.expect("ev")
+	var d map[string]int
+	json.Unmarshal(e.Data, &d)
+	if e.Kind != "dig" || e.Name != "A" || d["y"] != 40 {
+		t.Fatalf("ev: %+v %v", e, d)
+	}
+	// C is in another room and never hears it; bad payloads are dropped
+	a.send(Msg{T: "ev", Room: "dig:0:0:7", Kind: "dig", Data: json.RawMessage(`{bad json`)})
+	c.send(Msg{T: "ping"})
+	for m := range c.in {
+		if m.T == "ev" {
+			t.Fatal("event leaked to another room")
+		}
+		if m.T == "pong" {
+			break
+		}
+	}
+}

@@ -50,6 +50,7 @@ func _ready() -> void:
 	net_view = NetView.new()
 	add_child(net_view)
 	net_view.setup(self, "space")
+	Net.room_event.connect(_on_room_event)
 	_place_player()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	Sound.loop_stop("ambience", 1.5)
@@ -847,7 +848,51 @@ func net_state() -> Dictionary:
 			anchor = int(p.data.index)
 			base = op
 	var fwd: Vector3 = -player.global_basis.z
-	return {"scene": "space", "planet": anchor, "pos": pos - base, "fwd": fwd, "anim": "boost" if player.visual.boost else "fly"}
+	return {"scene": "space", "room": "space:%d" % Game.star_index, "planet": anchor, "pos": pos - base, "fwd": fwd, "anim": "boost" if player.visual.boost else "fly"}
+
+
+## A position relative to the nearest planet: [anchor index, offset].
+func _rel(pos: Vector3) -> Array:
+	var anchor := -1
+	var base := Vector3.ZERO
+	var bd := INF
+	for p in planets:
+		var op: Vector3 = Galaxy.orbit_pos(p.data, Game.play_time)
+		if op.distance_to(pos) < bd:
+			bd = op.distance_to(pos)
+			anchor = int(p.data.index)
+			base = op
+	return [anchor, pos - base]
+
+
+func _abs(anchor: int, rel: Vector3) -> Vector3:
+	if anchor >= 0 and anchor < star.planets.size():
+		return Galaxy.orbit_pos(Galaxy.planet(Game.star_index, anchor), Game.play_time) + rel
+	return rel
+
+
+## Wingmates near a pirate kill share it: XP, credits and their own salvage.
+const SPACE_SHARE_RANGE := 600.0
+
+func share_space_kill(e: Node3D) -> void:
+	var r := _rel(e.global_position)
+	Net.send_event("skill", {"type": e.type, "lvl": e.level, "elite": e.elite, "anchor": r[0], "pos": Net._arr(r[1])})
+
+
+func _on_room_event(_from: int, from_name: String, kind: String, data: Dictionary) -> void:
+	if kind != "skill" or player == null:
+		return
+	var t := String(data.get("type", ""))
+	if not Db.SPACE_ENEMIES.has(t) or t == "heart":
+		return
+	var where := _abs(int(data.get("anchor", -1)), Net._vec(data.get("pos")))
+	if player.global_position.distance_to(where) > SPACE_SHARE_RANGE:
+		return
+	var lvl := clampi(int(data.get("lvl", 1)), 1, 60)
+	var loot: Dictionary = Game.record_space_kill(t, lvl, bool(data.get("elite", false)))
+	for item in loot:
+		Game.add_item(item, int(loot[item]), true, true)
+	Game.notify.emit("Shared kill with %s: %s" % [from_name, Db.SPACE_ENEMIES[t].name], Color("ffb86b"))
 
 
 func _classic_planet(root: Node3D, gen: PlanetGen, p: Dictionary, r: float) -> void:
