@@ -57,9 +57,9 @@
   },
   "counts": {
     "decor": 14,
-    "items": 66,
-    "milestones": 16,
-    "quests": 34,
+    "items": 72,
+    "milestones": 17,
+    "quests": 35,
     "recipes": 36,
     "stars": 48,
     "worlds": 217
@@ -1698,5 +1698,5 @@
       "z": -50.3
     }
   ],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

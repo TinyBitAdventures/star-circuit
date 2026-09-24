@@ -1729,8 +1729,9 @@ func _net_tour() -> void:
 	cave.open_cache()
 	await _wait(3.0)
 	var dw := _scene()
-	dw.pod.position = dw.cell_centre(Vector2i(22, dw.SURFACE + 3))
-	for i in 25:
+	dw.pod.position = dw.cell_centre(Vector2i(22, dw.SURFACE + 14))
+	# long enough for the title card to fade
+	for i in 50:
 		bob.poll()
 		bob.send_text(JSON.stringify({"t": "state", "scene": "dig", "room": "dig:" + dw.cave_key, "star": Game.star_index, "planet": Game.planet_index, "pos": [dw.pod.position.x + 90.0, dw.pod.position.y + 40.0, 0], "fwd": [-1, 0, 0], "anim": "drill"}))
 		await _wait(0.1)
@@ -1745,8 +1746,8 @@ func _net_tour() -> void:
 	Game.enter_sea(Vector3.UP, Galaxy.planet(Game.star_index, Game.planet_index))
 	await _wait(3.0)
 	var sw := _scene()
-	sw.diver.position = sw.cell_centre(Vector2i(30, sw.SURF + 14))
-	for i in 25:
+	sw.diver.position = sw.cell_centre(Vector2i(30, sw.SURF + 30))
+	for i in 50:
 		bob.poll()
 		bob.send_text(JSON.stringify({"t": "state", "scene": "sea", "room": "sea:" + skey, "star": Game.star_index, "planet": Game.planet_index, "pos": [sw.diver.position.x + 110.0, sw.diver.position.y - 30.0, 0], "fwd": [-1, 0, 0]}))
 		await _wait(0.1)
