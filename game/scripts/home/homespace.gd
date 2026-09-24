@@ -22,6 +22,7 @@ var _t := 0.0
 var _prev_mouse := Input.MOUSE_MODE_VISIBLE
 var _prev_music := ""
 var _leaving := false
+var _released := false # leave() has unpaused the world and cleared in_home
 var _fade: ColorRect
 var _motes: Array = []
 var _sel_mail := -1
@@ -84,6 +85,7 @@ func _use_spots() -> Array:
 func _ready() -> void:
 	layer = 50
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	add_to_group("homespace")
 	_prev_mouse = Input.mouse_mode
 	_prev_music = Sound._music_current
 	get_tree().paused = true
@@ -267,6 +269,7 @@ func leave() -> void:
 			AudioServer.set_bus_mute(i, false)
 	get_tree().paused = false
 	Game.in_home = false
+	_released = true
 	Input.mouse_mode = _prev_mouse
 	var sc := get_tree().current_scene
 	if sc and sc.has_method("refresh_music"):
@@ -281,7 +284,8 @@ func leave() -> void:
 
 
 func _exit_tree() -> void:
-	if Game.in_home:
+	# once leave() has handed the world back, a newer Homespace may own in_home
+	if Game.in_home and not _released:
 		# freed without leave() (scene change / quit): never leave the world paused
 		get_tree().paused = false
 		Game.in_home = false

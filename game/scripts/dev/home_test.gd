@@ -64,6 +64,7 @@ func _run() -> void:
 	Game._update_workers(301.0)
 	print("[home] gather done: state=", w.state, " vault ", v0, "->", Game.vault_used(), " xp=", w.xp, " report=", Game.inbox[0].subject, " | ", Game.inbox[0].body.replace("\n", " / "))
 	Game.vault["cobalt"] = 40
+	w.state = "idle" # the gather run can come back hurt (3%)
 	var cr2 := Game.credits
 	Game.job_start(int(w.id), "haul", "0:0", 5, "cobalt")
 	print("[home] haul out: vault cobalt=", Game.vault_count("cobalt"), " carrying=", w.job.qty)
@@ -72,6 +73,30 @@ func _run() -> void:
 	print("[home] haul done: credits ", cr2, "->", Game.credits, " (report credits attached=", Game.inbox[0].credits, ")")
 	Game.mail_claim(int(Game.inbox[0].id))
 	print("[home] after claim credits=", Game.credits)
+	# recall a hauler after the vault filled up behind it: never over the cap
+	var saved_vault: Dictionary = Game.vault.duplicate()
+	Game.vault["cobalt"] = 40
+	Game.job_start(int(w.id), "haul", "0:0", 5, "cobalt")
+	Game.vault["ferrite"] = Game.vault_count("ferrite") + Game.vault_room()
+	Game.job_recall(int(w.id))
+	var parcel: Dictionary = Game.inbox[0].items if Game.inbox[0].subject.begins_with("Recalled") else {}
+	print("[home] recall into full vault: used=", Game.vault_used(), " cap=", Game.vault_cap(), " room=", Game.vault_room(), " parcel=", parcel)
+	var hold_cobalt := Game.count("cobalt")
+	Game.mail_claim(int(Game.inbox[0].id), true)
+	print("[home] claim to full vault: used=", Game.vault_used(), " cap=", Game.vault_cap(), " hold cobalt ", hold_cobalt, "->", Game.count("cobalt"))
+	Game.vault = saved_vault
+	# a full inbox never throws away parcels you haven't opened
+	var ids := []
+	for i in 45:
+		Game.send_mail("Test", "Parcel %d" % i, "", {}, 1)
+		ids.append(Game._mail_seq)
+	var kept := 0
+	for id in ids:
+		if not Game.mail_by_id(id).is_empty():
+			kept += 1
+	print("[home] inbox cap: size=", Game.inbox.size(), " unclaimed parcels kept=", kept, "/45")
+	for id in ids:
+		Game.mail_delete(id)
 	Game.job_start(int(w.id), "survey", "0:0", 15)
 	w.job.risk = 100.0
 	Game._update_workers(901.0)
@@ -101,6 +126,9 @@ func _run() -> void:
 	home._open_panel("trophy")
 	await _wait(0.2)
 	home.leave()
+	await _wait(0.45)
+	Game.open_home() # pressed again while the exit fade plays
+	print("[home] reopen during fade: homespaces=", get_tree().get_nodes_in_group("homespace").size(), " in_home=", Game.in_home)
 	await _wait(1.5)
 	print("[home] after leave paused=", get_tree().paused, " in_home=", Game.in_home, " music=", Sound._music_current)
 	# the signal is weaker underground

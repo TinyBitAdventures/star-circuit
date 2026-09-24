@@ -229,6 +229,11 @@ func _reset_state() -> void:
 	boarded = []
 	space_spawn = Vector3.ZERO
 	waypoint = {}
+	warp = {}
+	interdictions = 0
+	volcano = {}
+	volcanoes = {}
+	volcano_runs = 0
 
 
 func new_game(robot: String, pname: String, slot_n := -1) -> void:
@@ -899,6 +904,22 @@ func delete_slot(n: int) -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(slot_path(n)))
 
 
+## The hold as saved. Mid Eruption Run the haul isn't yours until you're out,
+## so a save (or quitting) then leaves it behind in the volcano.
+func _saved_inventory() -> Dictionary:
+	var haul: Dictionary = volcano.get("haul", {})
+	if haul.is_empty():
+		return inventory
+	var inv := inventory.duplicate()
+	for it in haul:
+		var q := int(inv.get(it, 0)) - int(haul[it])
+		if q > 0:
+			inv[it] = q
+		else:
+			inv.erase(it)
+	return inv
+
+
 func save_game() -> void:
 	if not in_game:
 		return
@@ -915,7 +936,7 @@ func save_game() -> void:
 		"workers": workers, "home": home, "interdictions": interdictions, "volcanoes": volcanoes, "volcano_runs": volcano_runs, "lab": lab,
 		"vault": vault, "vault_level": vault_level, "inbox": inbox, "mail_seq": _mail_seq, "order_t": _order_t, "home_visits": home_visits, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
-		"inventory": inventory, "upgrades": upgrades, "skills": skills,
+		"inventory": _saved_inventory(), "upgrades": upgrades, "skills": skills,
 		"star_index": star_index, "planet_index": planet_index, "location": location,
 		"visited_planets": visited_planets, "visited_stars": visited_stars,
 		"scanned": scanned, "harvested": harvested,
@@ -1382,6 +1403,11 @@ func tip(id: String, text: String) -> void:
 ## "[E]" style label for an action's current key.
 func key(action: String) -> String:
 	return "[%s]" % Sound.key_name(action)
+
+
+## A quest's text with {home} filled in with the current key binding.
+func quest_text(q: Dictionary) -> String:
+	return (q.get("text", "") as String).replace("{home}", key("home"))
 
 
 func _cargo_full_warning() -> void:
@@ -1944,6 +1970,11 @@ func vault_used() -> int:
 	return n
 
 
+## Free vault space. Never negative, even if the vault has ended up over its cap.
+func vault_room() -> int:
+	return maxi(0, vault_cap() - vault_used())
+
+
 func vault_count(item: String) -> int:
 	return int(vault.get(item, 0))
 
@@ -1974,7 +2005,7 @@ func vault_deposit(item: String, qty: int) -> int:
 	if not can_vault(item):
 		return 0
 	qty = mini(qty, count(item))
-	qty = mini(qty, vault_cap() - vault_used())
+	qty = mini(qty, vault_room())
 	if qty <= 0:
 		if vault_used() >= vault_cap():
 			notify.emit("Vault full. Expand its memory in the Homespace.", Color("ff6b6b"))
@@ -2038,8 +2069,18 @@ func send_mail(from: String, subject: String, body: String, items := {}, cr := 0
 	_mail_seq += 1
 	inbox.push_front({"id": _mail_seq, "from": from, "subject": subject, "body": body, "items": items, "credits": cr,
 		"read": false, "claimed": items.is_empty() and cr == 0, "kind": kind, "order": order, "t": play_time})
+	# drop the oldest settled messages first; parcels still waiting are kept
 	while inbox.size() > 40:
-		inbox.pop_back()
+		var drop := -1
+		for i in range(inbox.size() - 1, -1, -1):
+			if inbox[i].claimed:
+				drop = i
+				break
+		if drop < 0:
+			if inbox.size() <= 80:
+				break
+			drop = inbox.size() - 1
+		inbox.remove_at(drop)
 	mail_changed.emit()
 	if home_visits > 0:
 		notify.emit("New message in your Homespace (%s)" % key("home"), Color("5ff7ff"))
@@ -2068,16 +2109,30 @@ func mail_claim(id: int, to_vault := false) -> void:
 		return
 	if int(m.credits) > 0:
 		add_credits(int(m.credits))
+		m.credits = 0
+	# whatever doesn't fit (vault full, hold full) stays attached for later
+	var left := {}
 	for it in m.items:
 		var q := int(m.items[it])
 		if to_vault and can_vault(it):
-			var room := vault_cap() - vault_used()
-			var put := mini(q, room)
-			vault[it] = vault_count(it) + put
-			q -= put
-		if q > 0:
+			var put := mini(q, vault_room())
+			if put > 0:
+				vault[it] = vault_count(it) + put
+				q -= put
+		if q > 0 and is_cargo(it):
+			var fit := mini(q, cargo_free())
+			if fit > 0:
+				add_item(it, fit, true, true)
+				q -= fit
+		elif q > 0:
 			add_item(it, q, true, true)
-	m.claimed = true
+			q = 0
+		if q > 0:
+			left[it] = q
+	m.items = left
+	m.claimed = left.is_empty()
+	if not left.is_empty():
+		notify.emit("No room for everything. The rest is still attached.", Color("ff6b6b"))
 	mail_changed.emit()
 
 
@@ -2168,6 +2223,9 @@ func _welcome_mail() -> void:
 
 func open_home() -> void:
 	if in_home or not in_game or ui_open or get_tree().paused:
+		return
+	# the last one is still fading out
+	if not get_tree().get_nodes_in_group("homespace").is_empty():
 		return
 	var sc := get_tree().current_scene
 	if sc == null or not sc.name in ["Planet", "Space", "Dig", "Sea", "Grotto", "Orbit"]:
@@ -2306,9 +2364,15 @@ func job_recall(id: int) -> void:
 	var w := worker_by_id(id)
 	if w.is_empty() or w.state != "job":
 		return
-	# hauled goods come back with it
+	# hauled goods come back with it: into the vault where they fit, the rest by parcel
 	if w.job.kind == "haul" and int(w.job.qty) > 0:
-		vault[w.job.item] = vault_count(w.job.item) + int(w.job.qty)
+		var it: String = w.job.item
+		var put := mini(int(w.job.qty), vault_room())
+		if put > 0:
+			vault[it] = vault_count(it) + put
+		if int(w.job.qty) - put > 0:
+			send_mail("%s (subroutine)" % w.name, "Recalled with %s" % Db.item_name(it),
+				"The vault was too full to take everything back. The rest is attached.", {it: int(w.job.qty) - put}, 0, "report")
 	w.state = "idle"
 	w.job = {}
 
@@ -2375,8 +2439,7 @@ func _job_done(w: Dictionary) -> void:
 	# deliver: resources into the vault where they fit, the rest (and credits) by parcel
 	var leftover := {}
 	for it in parcel:
-		var room := vault_cap() - vault_used()
-		var put := mini(int(parcel[it]), room)
+		var put := mini(int(parcel[it]), vault_room())
 		if put > 0:
 			vault[it] = vault_count(it) + put
 			lines.append("%d %s stored in the vault." % [put, Db.item_name(it)])
@@ -2547,6 +2610,7 @@ func leave_volcano(escaped: bool) -> void:
 	var d: Array = volcano.get("dir", [0, 1, 0])
 	land_dir = Vector3(d[0], d[1], d[2])
 	volcano = {}
+	hull = maxf(hull, 1.0)
 	go_to_planet(star_index, planet_index)
 
 

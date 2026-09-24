@@ -870,7 +870,7 @@ func _panel_quests() -> void:
 	else:
 		v.add_child(UiKit.label(q.title, 24, Color("ffd23f"), true))
 		v.add_child(UiKit.label("From: %s" % q.giver, 14, UiKit.MUTED))
-		var t := UiKit.label('"%s"' % q.text, 17)
+		var t := UiKit.label('"%s"' % Game.quest_text(q), 17)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD
 		v.add_child(t)
 		if Game.quest_accepted:
@@ -1155,7 +1155,7 @@ func _panel_dialog() -> void:
 	if q.is_empty():
 		text = "You have done it, Unit. Every star on my charts sings again. Go - wander. There is always another world over the horizon."
 	elif not Game.quest_accepted:
-		text = q.text
+		text = Game.quest_text(q)
 		accept = true
 	else:
 		text = "Still working on \"%s\"? %s\n\nMy comms reach you anywhere, so there is no need to return here to report." % [q.title, objective_text(q)]

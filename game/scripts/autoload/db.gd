@@ -486,7 +486,7 @@ const QUESTS := [
 		"text": "Volcanic worlds hide their best treasures under the craters. Find a Volcanic Vent, climb down before it erupts, and bring back a Fire Opal. Watch the magma: it only ever rises.",
 		"obj": {"type": "collect", "item": "fire_opal", "count": 1}, "xp": 700, "reward": {"repair_kit": 2}, "credits": 200},
 	{"id": "soup", "title": "Primordial Soup", "giver": "Archivist",
-		"text": "Your Homespace has grown a Micro Lab. Press Y, walk to the lab and grow a Medic Culture from Biofiber and Plasma. Down there it's all soup: steer your probe with WASD, zap a cell with the left mouse button, then zap a different strain to fuse them. Fused cells divide on their own. Reach critical mass before the culture goes off.",
+		"text": "Your Homespace has grown a Micro Lab. Press {home}, walk to the lab and grow a Medic Culture from Biofiber and Plasma. Down there it's all soup: steer your probe with WASD, zap a cell with the left mouse button, then zap a different strain to fuse them. Fused cells divide on their own. Reach critical mass before the culture goes off.",
 		"obj": {"type": "lab", "count": 1}, "xp": 650, "reward": {"energy_cell": 2}, "credits": 150},
 	{"id": "firstlight", "title": "First Light", "giver": "Archivist",
 		"text": "Every system has a dead relay beacon; the Circuit was a chain of them. To relight one you need a Resonance Crystal (derelict wrecks and deep Ancient Vaults still hold them) and a Relay Coupler from your fabricator. Pirates guard the dead relays. Open the system map (M) to find it.",
