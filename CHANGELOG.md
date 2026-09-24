@@ -2,6 +2,9 @@
 
 ## Unreleased (v0.3.0)
 
+### Windows
+- Star Circuit now ships for Windows too: one self-contained `StarCircuit.exe` (64-bit). Mac and Windows players can share a multiplayer server.
+
 ### Multiplayer
 - Press **P** (or pick Multiplayer in the pause menu) and join a server by LAN address (`192.168.1.20`), public IP or domain (`play.example.com`), or `wss://` behind HTTPS. An optional password keeps it private.
 - Everyone plays their own save. Other players' robots walk the same planet and fly in the same system, painted the way they styled them and with name tags. The player list shows where everyone is ("Diving the Deep Sea on Thalassa").

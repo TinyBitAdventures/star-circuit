@@ -19,6 +19,20 @@ What's new in each version: see [CHANGELOG.md](CHANGELOG.md).
 
 After that it opens normally. It runs natively on Apple Silicon and Intel Macs (macOS 11+).
 
+## Play it (Windows)
+
+1. Download **StarCircuit-Windows.zip** from the [latest release](https://github.com/austinginder/star-circuit/releases/latest) and unzip it.
+2. Run **StarCircuit.exe** (one file, 64-bit Windows 10/11).
+3. The game isn't code-signed, so Windows SmartScreen may say "Windows protected your PC". Click **More info**, then **Run anyway**.
+
+Mac and Windows players can play together on the same multiplayer server.
+
+## Host a multiplayer server
+
+Download the `star-circuit-server` for your machine from the release (macOS, Windows, Linux) and run it; friends press **P** in
+game and type your address. Details, options and HTTPS setup: [server/README.md](server/README.md). On Windows, allow it through
+the firewall when asked.
+
 ## Run from source (any OS Godot supports)
 
 No compiling needed: Godot runs the project directly.
@@ -31,10 +45,12 @@ No compiling needed: Godot runs the project directly.
 
 The generated models and audio are committed, so Blender and Python are only needed to *change* them (see below).
 
-### Build the macOS app yourself
+### Build the apps yourself
 
     # one-time: install export templates (Godot editor > Editor > Manage Export Templates > Download)
     godot --headless --path game --export-release "macOS" ../build/StarCircuit-macOS.zip
+    godot --headless --path game --export-release "Windows Desktop" ../build/StarCircuit-Windows/StarCircuit.exe
+    server/build.sh                                   # multiplayer server for macOS, Windows and Linux
 
 ### Regenerate assets
 
