@@ -308,6 +308,13 @@ func _spawn_mine(i: int) -> void:
 func _process(delta: float) -> void:
 	if ended:
 		return
+	# a panel (or the pause menu) is open: the whole fight waits
+	if Game.ui_open:
+		_was_ui = true
+		return
+	if _was_ui:
+		_was_ui = false
+		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN if interdicted else Input.MOUSE_MODE_CAPTURED
 	_t += delta
 	elapsed += delta
 	_alarm = move_toward(_alarm, 1.0 if (interdicted and not enemies.is_empty()) else 0.0, delta * 0.8)
@@ -340,6 +347,9 @@ func _process(delta: float) -> void:
 	camera.v_offset = randf_range(-1, 1) * _shake * _shake * 0.8
 	if elapsed >= duration:
 		_finish()
+
+
+var _was_ui := false
 
 
 func _fly(delta: float) -> void:
@@ -439,6 +449,7 @@ func _update_shots(delta: float) -> void:
 				s.vel = (s.vel as Vector3).lerp(want, clampf(delta * 4.0, 0.0, 1.0))
 			else:
 				s.homing = null
+		var prev: Vector3 = s.pos
 		s.pos += s.vel * delta
 		s.life -= delta
 		var node: MeshInstance3D = s.node
@@ -449,20 +460,20 @@ func _update_shots(delta: float) -> void:
 			node.rotate_object_local(Vector3.RIGHT, PI * 0.5)
 		var gone: bool = s.life <= 0.0
 		if s.hostile:
-			if (s.pos as Vector3).distance_to(player.position + Vector3(0, 0.6, 0)) < 1.8:
+			if _seg_dist(prev, s.pos, player.position + Vector3(0, 0.6, 0)) < 1.8:
 				_hurt(s.dmg)
 				gone = true
 			elif (s.pos as Vector3).z > 20.0:
 				gone = true
 		else:
 			for e in enemies:
-				if (s.pos as Vector3).distance_to(e.pos) < float(e.def.size) * 1.8 + 0.8:
+				if _seg_dist(prev, s.pos, e.pos) < float(e.def.size) * 1.8 + 0.8:
 					_hit_enemy(e, s.dmg)
 					gone = true
 					break
 			if not gone:
 				for mn in mines:
-					if (s.pos as Vector3).distance_to(mn.pos) < 2.6:
+					if _seg_dist(prev, s.pos, mn.pos) < 2.6:
 						mn.hp -= s.dmg
 						_burst(mn.pos, Color(1.0, 0.5, 0.3), 4)
 						gone = true
@@ -470,6 +481,17 @@ func _update_shots(delta: float) -> void:
 		if gone:
 			node.queue_free()
 			shots.erase(s)
+
+
+## Closest a bolt came to p this frame. Bolts cover several metres a frame,
+## so a point check lets them tunnel through small targets at low frame rates.
+func _seg_dist(a: Vector3, b: Vector3, p: Vector3) -> float:
+	var ab := b - a
+	var l2 := ab.length_squared()
+	if l2 < 0.0001:
+		return a.distance_to(p)
+	var t := clampf((p - a).dot(ab) / l2, 0.0, 1.0)
+	return (a + ab * t).distance_to(p)
 
 
 func _update_enemies(delta: float) -> void:

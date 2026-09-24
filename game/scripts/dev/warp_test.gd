@@ -39,6 +39,22 @@ func _run() -> void:
 	w._add_shot(w.player.position + Vector3(0, 0.6, -10), Vector3(0, 0, 60), 7.0, true, Color.RED)
 	await _wait(0.5)
 	print("[warp] hostile bolt: hull ", snappedf(h0, 0.1), "->", snappedf(Game.hull, 0.1))
+	# a fast bolt can't slip through a mine between frames
+	w._spawn_mine(0)
+	var mn: Dictionary = w.mines[-1]
+	mn.vel = Vector3.ZERO
+	var mhp: float = mn.hp
+	w._add_shot(mn.pos + Vector3(0, 0, 4.0), Vector3(0, 0, -400.0), 1.0, false, Color.CYAN)
+	w._update_shots(1.0 / 30.0)
+	print("[warp] fast bolt vs mine at 30fps: hp ", mhp, "->", mn.hp)
+	# an open panel freezes the fight
+	var e0: float = w.elapsed
+	Game.ui_open = true
+	await _wait(0.6)
+	var frozen: bool = is_equal_approx(w.elapsed, e0)
+	Game.ui_open = false
+	await _wait(0.1)
+	print("[warp] panel open: frozen=", frozen, " mouse after=", Input.mouse_mode)
 	# skip to the end, clearing later waves as they come
 	while not w.ended:
 		for e in w.enemies.duplicate():

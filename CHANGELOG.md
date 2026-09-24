@@ -21,6 +21,17 @@
 - **Shared fights:** players are one party. Anyone within 80 m of a drone kill (600 m of a pirate kill in space) gets the XP, credits and their own loot roll. Where you both have the same drone (like the camps around the Cradle), your shots and its death sync, so you wear it down together. A kill only ever pays once.
 
 ### Fixes
+- Recalling a hauler into a vault that had filled up behind it could push the vault over its limit, which then duplicated items on later worker reports and parcel claims. Whatever doesn't fit now comes back as a parcel.
+- Claiming a parcel into a full hold or vault leaves the rest attached instead of overfilling the hold.
+- A full inbox no longer deletes parcels you haven't opened; old read messages go first.
+- Quitting or saving in the middle of an Eruption Run no longer lets you keep the haul: it only becomes yours once you're out (or half of it, if the volcano blows).
+- Crystal spots in a volcano stay the same each time you go in, until you escape it.
+- Leaving a volcano at 0 hull after a hard landing on the way out could leave you unable to die or open the Homespace.
+- Pressing the Homespace key again during its exit fade could unpause the world while you were still inside.
+- Starting a new game no longer carries over the last save's volcano and hyperspace records (which could hand out Firewalker for free).
+- Opening a panel or the pause menu during a hyperspace interdiction now freezes the fight, and the crosshair works again when you close it.
+- Hyperspace shots no longer slip through mines and swarm drones at lower frame rates.
+- The Micro Lab quest shows your actual Homespace key if you've rebound it.
 - Volcanoes were impossible to enter: the cone had no collision (you walked straight through it) and its entry point sat at a fixed height that ended up buried in, or floating above, the surrounding hills. Volcanoes are now solid, their base sinks into the ground, and a glowing lava-tube doorway sits at the foot of the cone on the actual ground. You can also enter from the crater rim if you jetpack up. The quest star points at the doorway.
 
 ### Illustrated planets
