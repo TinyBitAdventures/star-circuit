@@ -228,6 +228,14 @@ func _generate() -> void:
 			# deeper pockets have lava pooled in part of their floor
 			if z >= 3:
 				for xx in range(px - rw + 1, px - rw + 4):
+					# never pool lava on or beside a crystal: it should be reachable without burning
+					var near_crystal := false
+					for d in deposits:
+						if int(d.zone) == z and absi(cell_at(d.pos - Vector2(0, CS * 0.5)).x - xx) <= 2 and absi(cell_at(d.pos - Vector2(0, CS * 0.5)).y - py) <= rh + 2:
+							near_crystal = true
+							break
+					if near_crystal:
+						continue
 					for yy in range(py + 1, py + rh + 1):
 						if get_cell(xx, yy) == AIR and is_solid(xx, yy + 1):
 							cells[idx(xx, yy)] = LAVA

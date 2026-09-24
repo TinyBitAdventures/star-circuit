@@ -116,6 +116,13 @@ func _run() -> void:
 	Input.action_press("interact")
 	await _wait(4.0)
 	Input.action_release("interact")
+	var lava_near := 0
+	for d in w.deposits:
+		var dc: Vector2i = w.cell_at(d.pos - Vector2(0, w.CS * 0.5))
+		for dx in range(-1, 2):
+			if w.get_cell(dc.x + dx, dc.y) == w.LAVA:
+				lava_near += 1
+	print("[vol] crystals with lava beside them=", lava_near)
 	print("[vol] mined ", deep.item, " taken=", deep.taken, " hold=", Game.count(deep.item), " heat=", snappedf(w.heat, 0.1))
 	# a geyser launches you
 	var g: Dictionary = w.geysers[0]
