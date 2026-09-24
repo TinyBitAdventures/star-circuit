@@ -23,9 +23,11 @@ func setup(pid: int, info: Dictionary, s: String, light_tex: Texture2D) -> void:
 	z_index = 5
 	var look: Dictionary = info.get("look", {}) if info.get("look") is Dictionary else {}
 	var r: Dictionary = Db.ROBOTS.get(String(info.get("robot", "")), {})
-	_shell = Color(look.shell) if look.has("shell") else Color("e6e8ec")
-	_accent = Color(look.accent) if look.has("accent") else (r.get("color", Color("18c2b0")) as Color)
-	_glow = Color(look.glow) if look.has("glow") else Color("5ff7ff")
+	var rc = r.get("color")
+	var stock: Color = rc if rc is Color else Color("18c2b0")
+	_shell = RobotVisual.look_color(look, "shell", Color("e6e8ec"))
+	_accent = RobotVisual.look_color(look, "accent", stock)
+	_glow = RobotVisual.look_color(look, "glow", Color("5ff7ff"))
 	var lamp := PointLight2D.new()
 	lamp.texture = light_tex
 	lamp.texture_scale = 2.6

@@ -17,6 +17,8 @@ const PROTOCOL := "3"
 const DEFAULT_PORT := 7777
 const SEND_RATE := 0.1 # seconds between position updates
 const CFG_PATH := "user://multiplayer.cfg"
+const MAX_QTY := 9999 # the most of one item a gift or crate can carry (the server's limit)
+const MAX_CRATE_KINDS := 20
 
 var status := "offline" # offline | connecting | online
 var address := ""
@@ -171,9 +173,24 @@ func _process(delta: float) -> void:
 		drops_changed.emit()
 
 
-func _send(m: Dictionary) -> void:
+func _send(m: Dictionary) -> bool:
 	if _ws and _ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		_ws.send_text(JSON.stringify(m))
+		return _ws.send_text(JSON.stringify(m)) == OK
+	return false
+
+
+func _socket_open() -> bool:
+	return _ws != null and _ws.get_ready_state() == WebSocketPeer.STATE_OPEN
+
+
+## Another player's look, kept only if it's the shape we expect.
+static func _look(v) -> Dictionary:
+	var out := {}
+	if v is Dictionary:
+		for k in v:
+			if k is String and v[k] is String and (v[k] as String).length() <= 40:
+				out[k] = v[k]
+	return out
 
 
 static func _vec(a) -> Vector3:
@@ -228,7 +245,7 @@ func _on_msg(m: Dictionary) -> void:
 		"look":
 			var id := int(m.id)
 			if players.has(id):
-				players[id].look = m.get("look", {})
+				players[id].look = _look(m.get("look"))
 				look_changed.emit(id)
 		"chat":
 			var line := {"name": String(m.name), "text": String(m.text), "color": Color("e6f1ff") if int(m.id) != my_id else Color("9bd1ff")}
@@ -250,9 +267,11 @@ func _on_msg(m: Dictionary) -> void:
 			Game.notify.emit("Sent %d %s to %s" % [int(m.qty), Db.item_name(String(m.item)), m.name], Color("6ee06a"))
 			_system("You gave %s %d %s." % [m.name, int(m.qty), Db.item_name(String(m.item))])
 		"give_fail":
-			var item := String(m.item)
-			if can_share(item):
-				Game.add_item(item, clampi(int(m.qty), 1, 9999), true, true)
+			# the server refused the gift: the items come back
+			var item := String(m.get("item", ""))
+			var q := int(m.get("qty", 0))
+			if can_share(item) and q >= 1:
+				Game.add_item(item, mini(q, 9999), true, true)
 			Game.notify.emit(String(m.get("text", "The gift couldn't be delivered.")), Color("ff8a6b"))
 		"drop_add":
 			_add_drop(m.get("drop", {}))
@@ -288,7 +307,7 @@ func _add_player(p: Dictionary) -> void:
 	var id := int(p.get("id", 0))
 	if id == 0 or id == my_id:
 		return
-	players[id] = {"name": String(p.get("name", "Unit")), "robot": String(p.get("robot", "scout")), "look": p.get("look", {}), "state": {}, "t": 0.0}
+	players[id] = {"name": String(p.get("name", "Unit")), "robot": String(p.get("robot", "scout")), "look": _look(p.get("look")), "state": {}, "t": 0.0}
 
 
 func _set_state(id: int, m: Dictionary) -> void:
@@ -360,14 +379,18 @@ func say(text: String) -> void:
 		_send({"t": "chat", "text": text})
 
 
+## Items leave the hold only once the message is on its way; the server
+## answers give_fail (items back) for anything it won't deliver.
 func give(to_id: int, item: String, qty: int) -> bool:
 	if not is_online() or not players.has(to_id) or not can_share(item):
 		return false
-	qty = mini(qty, Game.count(item))
+	qty = mini(mini(qty, Game.count(item)), MAX_QTY)
 	if qty <= 0:
 		return false
+	if not _socket_open() or not _send({"t": "give", "to": to_id, "item": item, "qty": qty}):
+		Game.notify.emit("Not connected to the server. Nothing was sent.", Color("ff8a6b"))
+		return false
 	Game.remove_item(item, qty)
-	_send({"t": "give", "to": to_id, "item": item, "qty": qty})
 	return true
 
 
@@ -378,15 +401,17 @@ func drop_here(items: Dictionary) -> bool:
 		return false
 	var clean := {}
 	for k in items:
-		var q := mini(int(items[k]), Game.count(k))
-		if can_share(k) and q > 0:
+		var q := mini(mini(int(items[k]), Game.count(k)), MAX_QTY)
+		if can_share(k) and q > 0 and clean.size() < MAX_CRATE_KINDS:
 			clean[k] = q
 	if clean.is_empty():
 		return false
+	var p: Vector3 = sc.drop_point()
+	if not _socket_open() or not _send({"t": "drop", "star": Game.star_index, "planet": Game.planet_index, "pos": _arr(p), "items": clean}):
+		Game.notify.emit("Not connected to the server. Nothing was dropped.", Color("ff8a6b"))
+		return false
 	for k in clean:
 		Game.remove_item(k, clean[k])
-	var p: Vector3 = sc.drop_point()
-	_send({"t": "drop", "star": Game.star_index, "planet": Game.planet_index, "pos": _arr(p), "items": clean})
 	Sound.ui("craft", -6.0)
 	return true
 
@@ -401,10 +426,13 @@ func send_look() -> void:
 		_send({"t": "look", "look": Game.appearance})
 
 
-func _restore(items: Dictionary) -> void:
+func _restore(items) -> void:
+	if not items is Dictionary:
+		return
 	for k in items:
-		if can_share(k):
-			Game.add_item(k, clampi(int(items[k]), 1, 9999), true, true)
+		var q := int(items[k]) if (items[k] is int or items[k] is float) else 0
+		if k is String and can_share(k) and q >= 1:
+			Game.add_item(k, mini(q, MAX_QTY), true, true)
 
 
 ## Where am I? Scenes that host other players provide net_state(); everything

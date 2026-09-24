@@ -203,23 +203,40 @@ func apply_look(look: Dictionary) -> void:
 	setup(robot_id)
 	# remember the robot's factory colours so new parts match when unpainted
 	var base := {"Shell": _find_color("Shell", Color("e6e8ec")), "Accent": _find_color("Accent", Color("18c2b0"))}
-	var head_id: String = look.get("head", "default")
+	# looks can come from other players: anything malformed falls back to stock
+	var head_id := look_id(look, "head", "default")
 	if head_id != "default":
 		_swap_part("Head", Game.cosmetic("head", head_id).model)
-	var top_id: String = look.get("top", "none")
+	var top_id := look_id(look, "top", "none")
 	if top_id != "none":
 		_add_topper(Game.cosmetic("top", top_id).model)
-	var pack_id: String = look.get("pack", "default")
+	var pack_id := look_id(look, "pack", "default")
 	if pack_id != "default":
 		_swap_part("Thruster", Game.cosmetic("pack", pack_id).model)
-	var shell: Color = Color(look.shell) if look.has("shell") else base.Shell
-	var accent: Color = Color(look.accent) if look.has("accent") else base.Accent
-	var glow: Color = Color(look.glow) if look.has("glow") else Color(-1, 0, 0)
-	var flame: Color = Color(look.flame) if look.has("flame") else Color(-1, 0, 0)
-	_paint(shell, accent, glow, look.get("finish", "standard"))
+	var shell := look_color(look, "shell", base.Shell)
+	var accent := look_color(look, "accent", base.Accent)
+	var glow := look_color(look, "glow", Color(-1, 0, 0))
+	var flame := look_color(look, "flame", Color(-1, 0, 0))
+	_paint(shell, accent, glow, look_id(look, "finish", "standard"))
 	if flame.r >= 0.0:
 		_tint_flames(flame)
 	ModelUtil.add_rim(model, 0.35)
+
+
+## A cosmetic id from a look, or the fallback if it isn't a short string.
+static func look_id(look: Dictionary, key: String, fallback: String) -> String:
+	var v = look.get(key)
+	if v is String and (v as String).length() <= 40:
+		return v
+	return fallback
+
+
+## A paint colour from a look, or the fallback if it isn't a valid html colour.
+static func look_color(look: Dictionary, key: String, fallback: Color) -> Color:
+	var v = look.get(key)
+	if v is String and Color.html_is_valid(v):
+		return Color.html(v)
+	return fallback
 
 
 func _find_color(mat_name: String, fallback: Color) -> Color:

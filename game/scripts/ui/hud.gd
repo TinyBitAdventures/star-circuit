@@ -2417,7 +2417,7 @@ func _mp_fill_items() -> void:
 
 func _mp_clamp_qty() -> void:
 	var item := _mp_selected_item()
-	_mp_qty.max_value = maxi(1, Game.count(item)) if item != "" else 1
+	_mp_qty.max_value = clampi(Game.count(item), 1, Net.MAX_QTY) if item != "" else 1
 	_mp_qty.value = clampf(_mp_qty.value, 1, _mp_qty.max_value)
 
 
