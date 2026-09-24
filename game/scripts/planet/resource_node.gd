@@ -64,9 +64,9 @@ func reveal(duration: float) -> void:
 		_label.no_depth_test = true
 		_label.fixed_size = true
 		_label.pixel_size = 0.0012
-		_label.font_size = 22
-		_label.outline_size = 8
-		_label.position = Vector3(0, 3.2, 0)
+		_label.font_size = 19
+		_label.outline_size = 7
+		_label.position = Vector3(0, 2.8, 0)
 		_label.font = load("res://assets/fonts/Exo2.ttf")
 		add_child(_label)
 		_beam = MeshInstance3D.new()
@@ -85,7 +85,7 @@ func reveal(duration: float) -> void:
 		_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(_beam)
 	var sk: int = Game.skill_level(def.skill)
-	_label.text = "%s\n%s %d" % [def.name, Db.SKILLS[def.skill].name, def.req]
+	_label.text = "%s  L%d" % [def.name, def.req]
 	_label.modulate = CombatFx.hdr(Db.difficulty_color(def.req, sk))
 	_label.visible = true
 	_beam.visible = true

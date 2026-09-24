@@ -43,6 +43,10 @@ var _hits := {} # enemy net id -> damage not yet sent (batched with the state ti
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS # keeps talking while the Homespace pauses the world
 	Game.appearance_changed.connect(send_look)
+	# the server knows us by the name we joined with: rejoin under the new one
+	Game.name_changed.connect(func():
+		if is_online():
+			join(address, _password))
 	var cfg := ConfigFile.new()
 	if cfg.load(CFG_PATH) == OK:
 		saved_address = String(cfg.get_value("server", "address", ""))

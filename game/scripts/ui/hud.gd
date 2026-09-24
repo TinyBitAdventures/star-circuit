@@ -126,6 +126,7 @@ func _build_status() -> void:
 	var r: Dictionary = Game.robot()
 	top.add_child(UiKit.swatch(r.color, 18))
 	var name_l := UiKit.label("%s" % Game.player_name, 20, Color.WHITE, true)
+	Game.name_changed.connect(func(): name_l.text = Game.player_name)
 	top.add_child(name_l)
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -554,6 +555,8 @@ func close_panel(recapture := true) -> void:
 func _refresh_open_panel() -> void:
 	if current_panel in ["inventory", "crafting", "skills"]:
 		var keep := current_panel
+		var scrolls := _scroll_offsets(_panel)
+		_restore_scrolls.call_deferred(scrolls)
 		if _panel:
 			_panel.queue_free()
 			_panel = null
@@ -652,6 +655,23 @@ func _panel_inventory() -> void:
 	var r: Dictionary = Game.robot()
 	side.add_child(UiKit.label("FRAME", 13, UiKit.MUTED, true))
 	side.add_child(UiKit.rich("[b]%s[/b] the %s  ·  Level %d\n[color=#8ea3bf]%s[/color]" % [Game.player_name, r.title, Game.level, r.name]))
+	var rn := HBoxContainer.new()
+	rn.add_theme_constant_override("separation", 8)
+	side.add_child(rn)
+	var name_edit := LineEdit.new()
+	name_edit.text = Game.player_name
+	name_edit.max_length = 20
+	name_edit.placeholder_text = "Your robot's name"
+	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rn.add_child(name_edit)
+	var do_rename := func(_t = ""):
+		var why := Game.rename(name_edit.text)
+		if why != "":
+			toast(why, Color("ff8a6b"))
+		else:
+			_refresh_open_panel()
+	name_edit.text_submitted.connect(do_rename)
+	rn.add_child(UiKit.button("Rename", do_rename))
 	for perk in r.perks:
 		side.add_child(UiKit.label("•  " + perk, 14, r.color.lightened(0.2)))
 	side.add_child(HSeparator.new())
@@ -1489,11 +1509,39 @@ func open_town_panel(kind: String, planet: Dictionary) -> void:
 
 func _rebuild_town_panel() -> void:
 	var keep := current_panel
+	var scrolls := _scroll_offsets(_panel)
 	if _panel:
 		_panel.queue_free()
 		_panel = null
 	current_panel = keep
 	_build_panel()
+	_restore_scrolls(scrolls)
+
+
+## Every ScrollContainer's position in a panel, in tree order.
+func _scroll_offsets(n: Node) -> Array:
+	var out := []
+	if n == null:
+		return out
+	for sc in n.find_children("*", "ScrollContainer", true, false):
+		out.append([(sc as ScrollContainer).scroll_vertical, (sc as ScrollContainer).scroll_horizontal])
+	return out
+
+
+## Put a rebuilt panel's lists back where they were (so selling 1 at a time
+## doesn't jump the list to the top). Waits for layout so the offsets stick.
+func _restore_scrolls(offsets: Array) -> void:
+	if offsets.is_empty() or _panel == null:
+		return
+	var panel := _panel
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_instance_valid(panel):
+		return
+	var list := panel.find_children("*", "ScrollContainer", true, false)
+	for i in mini(list.size(), offsets.size()):
+		(list[i] as ScrollContainer).scroll_vertical = int(offsets[i][0])
+		(list[i] as ScrollContainer).scroll_horizontal = int(offsets[i][1])
 
 
 func _panel_trade() -> void:

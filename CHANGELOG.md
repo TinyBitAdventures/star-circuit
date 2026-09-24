@@ -2,6 +2,11 @@
 
 ## Unreleased (v0.3.0)
 
+### Quality of life
+- Scanned resource labels are one short line: "Cobalt Vein  L15" (still coloured by how hard they are for you).
+- Rename your robot any time from Cargo & Systems (I). In multiplayer you rejoin under the new name.
+- Selling (or buying) one at a time no longer jumps the trade list back to the top.
+
 ### Windows
 - Star Circuit now ships for Windows too: one self-contained `StarCircuit.exe` (64-bit). Mac and Windows players can share a multiplayer server.
 

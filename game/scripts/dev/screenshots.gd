@@ -65,6 +65,22 @@ func _run() -> void:
 		await _warp_tour()
 		get_tree().quit()
 		return
+	if which == "ui":
+		Sound.show_tips = false
+		Game.new_game("scout", "S")
+		await _wait(4.0)
+		Game.play_time = 40.0
+		var pw := _scene()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		pw.scan(pw.player.global_position, 120.0)
+		pw.player.spring.spring_length = 9.0
+		await _wait(1.0)
+		await shot("ui_labels")
+		pw.hud.toggle_panel("inventory")
+		await _wait(0.6)
+		await shot("ui_rename")
+		get_tree().quit()
+		return
 	if which == "net":
 		await _net_tour()
 		get_tree().quit()

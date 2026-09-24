@@ -14,6 +14,7 @@ signal notify(text: String, color: Color)
 signal big_notify(title: String, subtitle: String, color: Color)
 signal tip_requested(id: String, text: String)
 signal mail_changed
+signal name_changed
 
 const SAVE_PATH := "user://star_circuit_save.json" # legacy single save (migrated to slot 1)
 const SLOTS := 3
@@ -2666,3 +2667,20 @@ func upgrades_changed() -> void:
 	energy_changed.emit(energy, max_energy())
 	hull_changed.emit()
 	inventory_changed.emit()
+
+
+## Rename your robot (1-20 characters). Returns the reason it failed, or "".
+func rename(new_name: String) -> String:
+	new_name = new_name.strip_edges()
+	new_name = "".join(Array(new_name.split("")).filter(func(ch: String) -> bool: return ch.unicode_at(0) >= 32))
+	if new_name.length() < 1:
+		return "Give your robot a name."
+	if new_name.length() > 20:
+		return "Names can be up to 20 characters."
+	if new_name == player_name:
+		return ""
+	player_name = new_name
+	save_game()
+	name_changed.emit()
+	notify.emit("You're now %s." % new_name, Color("6ee06a"))
+	return ""
