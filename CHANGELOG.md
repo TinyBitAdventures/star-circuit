@@ -44,6 +44,10 @@
 - A new quest, "Primordial Soup", after "Into the Fire", the "Cell Biologist" milestone, a bubbling lab theme and eleven new sounds.
 
 ### Volcanoes
+- The Eruption Run starts with a briefing, and the clock waits until you press a key: dive for crystals, mine them, climb back out the rim before it blows. If it erupts while you're inside you're blasted out with 40% hull and lose half of what you mined.
+- You can drill now: push into rock to cut through it, hold S to drill down, jetpack into a ceiling to drill up. Deeper rock is tougher, black basalt won't budge, and deep rock sometimes gives Obsidian.
+- The lava tube can no longer pinch into a corner you can't squeeze past.
+- Under the timer: what you're carrying and how far up the rim is, flashing "GET OUT!" in the last 45 seconds.
 - Volcanic worlds and moons now have three Volcanic Vents (one within walking distance of the landing, all on the compass) leading into the **Eruption Run**: a 2D cutaway of the volcano from the crater down through the Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle to the glowing core.
 - Magma rises the whole time and the volcano erupts after 2.5 minutes. Dive for crystals in the side pockets, ride geysers back up, and climb out at the rim in time. Getting caught in the eruption costs half your haul.
 - A heat meter and jetpack fuel, plus new materials: Obsidian, Fire Opal and Core Ember.

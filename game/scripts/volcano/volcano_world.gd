@@ -60,6 +60,10 @@ var _heat_bar: ProgressBar
 var _fuel_bar: ProgressBar
 var _warned := {}
 var _mine_target := -1
+var _goal_label: Label
+var _briefing := true # the clock waits until you've read what to do
+var _brief_t := 0.0
+var _brief: CanvasLayer
 var _mine_p := 0.0
 
 
@@ -92,11 +96,7 @@ func _ready() -> void:
 	Sound.play_music("ember", 2.0)
 	Sound.loop_start("rumble", "volcano_rumble_loop", -14.0, "Ambience")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	hud.show_location_banner("Eruption Run", "Inside a volcano on %s  ·  it blows in %d:%02d" % [planet.name, int(DURATION) / 60, int(DURATION) % 60])
-	get_tree().create_timer(3.0).timeout.connect(func():
-		if is_instance_valid(self):
-			Game.tip("first_volcano", "The magma is rising and the volcano erupts when the timer hits zero. Dive down the tube, hold %s at glowing crystals to mine them, ride geysers upward, and get back to the crater rim to climb out (%s) before it blows. Heat builds the deeper you go." % [Game.key("interact"), Game.key("interact")])
-	)
+	_show_briefing()
 
 
 # --------------------------------------------------------------------------
@@ -165,12 +165,24 @@ func _generate() -> void:
 				c = BASALT
 			cells[idx(x, y)] = c
 	# the main lava tube, winding from the crater to the mantle
+	var pa := -1
+	var pb := -1
 	for y in range(PEAK, ZONES[5].top - 3):
 		var cx := tube_x(y)
 		var w := 2.2 + 1.2 * sin(y * 0.13) + (1.5 if y < PEAK + 6 else 0.0)
-		for x in range(int(cx - w), int(cx + w) + 1):
-			if x > 0 and x < W - 1:
-				cells[idx(x, y)] = AIR
+		var a := int(cx - w)
+		var b := int(cx + w)
+		# every row overlaps the one above by at least two tiles, so the tube
+		# never pinches to a corner the runner can't squeeze through
+		if pa >= 0:
+			a = mini(a, pb - 1)
+			b = maxi(b, pa + 1)
+		a = clampi(a, 1, W - 2)
+		b = clampi(b, 1, W - 2)
+		for x in range(a, b + 1):
+			cells[idx(x, y)] = AIR
+		pa = a
+		pb = b
 	# pockets off the tube: 3 per zone below the crater
 	var id := 0
 	for z in range(1, 5):
@@ -248,6 +260,12 @@ func _process(delta: float) -> void:
 	if ended:
 		_update_fx(delta)
 		return
+	if _briefing:
+		_update_fx(delta)
+		if _brief_t > 0.4 and _any_input():
+			start_run()
+		_brief_t += delta
+		return
 	_t += delta
 	elapsed += delta
 	# magma rises slowly at first, then faster
@@ -289,11 +307,69 @@ func _process(delta: float) -> void:
 	elif _mine_target >= 0:
 		var d: Dictionary = deposits[_mine_target]
 		prompt = "[E] Hold to mine %s" % Db.item_name(d.item)
-	hud.set_prompt(prompt, Color("ffb86b"), _mine_p)
+	elif drill_p > 0.0:
+		prompt = "Drilling..."
+	elif drill_msg != "":
+		prompt = drill_msg
+	hud.set_prompt(prompt, Color("ffb86b"), _mine_p if _mine_target >= 0 else drill_p)
+	var up_m := int(maxf(0.0, row - PEAK) * 4)
+	if left < 45.0 and row > PEAK + 1:
+		_goal_label.text = "GET OUT!  The rim is %d m up" % up_m
+		_goal_label.modulate = Color("ff6b6b") if int(_t * 3.0) % 2 == 0 else Color("ffb86b")
+	else:
+		_goal_label.text = "Haul: %d item%s  ·  Rim: %d m up" % [_run_count(), "" if _run_count() == 1 else "s", up_m]
+		_goal_label.modulate = Color("ffd98a")
 	if Input.is_action_just_pressed("takeoff") and not Game.ui_open:
 		Game.notify.emit("No emergency lift in a volcano: the heat fries the winch. Climb!", Color("ff6b6b"))
 	if elapsed >= DURATION:
 		_erupt()
+
+
+## Drilling: rock breaks if you push into it long enough (deeper rock is
+## tougher); basalt and the core don't. Returns progress 0..1, or -1 if the
+## cell can't be drilled.
+var _drill_cell := Vector2i(-99, -99)
+var drill_p := 0.0
+var drill_msg := ""
+
+func drill(c: Vector2i, delta: float) -> float:
+	var t := get_cell(c.x, c.y)
+	if t == BASALT or t == CORE or c.y >= ZONES[5].top:
+		drill_msg = "Basalt. Too hard to drill." if t == BASALT else ""
+		return -1.0
+	if t != ROCK:
+		return -1.0
+	drill_msg = ""
+	if c != _drill_cell:
+		_drill_cell = c
+		drill_p = 0.0
+	var z := zone_of(c.y)
+	drill_p += delta * sqrt(Game.harvest_speed("mining")) / (0.35 + 0.12 * z)
+	if randf() < delta * 14.0:
+		_fx.append({"pos": cell_centre(c) + Vector2(randf_range(-10, 10), randf_range(-10, 10)), "vel": Vector2(randf_range(-80, 80), -randf_range(20, 120)), "t": 0.35, "col": ZONES[z].col.lightened(0.4)})
+	Sound.loop_start("dig", "drill_loop", -12.0)
+	if drill_p >= 1.0:
+		drill_p = 0.0
+		_drill_cell = Vector2i(-99, -99)
+		cells[idx(c.x, c.y)] = AIR
+		_rock.queue_redraw()
+		Game.drain_energy(0.4)
+		Sound.play("rock_break", -6.0, 0.1)
+		for i in 8:
+			_fx.append({"pos": cell_centre(c), "vel": Vector2(randf_range(-140, 140), -randf_range(60, 200)), "t": 0.5, "col": ZONES[z].col.lightened(0.3)})
+		# the deep rock is shot through with volcanic glass
+		if z >= 2 and randf() < 0.2:
+			var got := Game.add_item("obsidian", 1)
+			_run_items["obsidian"] = int(_run_items.get("obsidian", 0)) + got
+		Sound.loop_stop("dig", 0.1)
+	return drill_p
+
+
+func stop_drill() -> void:
+	if drill_p > 0.0 or _drill_cell != Vector2i(-99, -99):
+		Sound.loop_stop("dig", 0.1)
+	drill_p = 0.0
+	_drill_cell = Vector2i(-99, -99)
 
 
 func _run_count() -> int:
@@ -702,9 +778,14 @@ func _build_meter() -> void:
 	top.theme = UiKit.theme()
 	top.add_theme_stylebox_override("panel", UiKit.box(Color(0.1, 0.03, 0.02, 0.85), Color(1.0, 0.45, 0.2, 0.6), 8, 1, 8))
 	layer.add_child(top)
-	_timer_label = UiKit.label("", 26, Color.WHITE, true)
+	var tv := VBoxContainer.new()
+	top.add_child(tv)
+	_timer_label = UiKit.label("ERUPTION IN %d:%02d" % [int(DURATION) / 60, int(DURATION) % 60], 26, Color.WHITE, true)
 	_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	top.add_child(_timer_label)
+	tv.add_child(_timer_label)
+	_goal_label = UiKit.label("Dive for crystals, then climb back out the rim", 14, Color("ffd98a"))
+	_goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tv.add_child(_goal_label)
 	var pc := PanelContainer.new()
 	pc.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
 	pc.position = Vector2(-200, 100)
@@ -732,3 +813,55 @@ func _build_meter() -> void:
 	_fuel_bar.custom_minimum_size = Vector2(0, 10)
 	_fuel_bar.add_theme_stylebox_override("fill", UiKit.box(Color("5ff7ff"), Color("5ff7ff"), 3, 0, 0))
 	v.add_child(_fuel_bar)
+
+
+# --------------------------------------------------------------------------
+# the briefing
+# --------------------------------------------------------------------------
+
+func _show_briefing() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 12
+	add_child(layer)
+	var pc := PanelContainer.new()
+	pc.theme = UiKit.theme()
+	pc.set_anchors_preset(Control.PRESET_CENTER)
+	pc.custom_minimum_size = Vector2(640, 0)
+	pc.position = Vector2(-320, -200)
+	pc.add_theme_stylebox_override("panel", UiKit.box(Color(0.1, 0.03, 0.02, 0.94), Color(1.0, 0.45, 0.2, 0.8), 12, 2, 22))
+	layer.add_child(pc)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	pc.add_child(v)
+	v.add_child(UiKit.label("ERUPTION RUN", 30, Color("ffb86b"), true))
+	v.add_child(UiKit.label("%s's volcano blows in %d:%02d. Get in, grab what you can, get out." % [planet.name, int(DURATION) / 60, int(DURATION) % 60], 16, Color.WHITE))
+	for line in [
+		["Dive", "Run and jetpack down the lava tube. Glowing crystals get richer the deeper you go: Fire Opals from the Obsidian Galleries down, Core Embers in the Deep Mantle."],
+		["Mine", "Hold %s at a crystal. Push into rock to drill through it, hold %s to drill down, and jetpack into a ceiling to drill up. Black basalt won't budge." % [Game.key("interact"), Game.key("move_back")]],
+		["Escape", "Climb back to the crater rim and press %s before the timer runs out. Geysers throw you upward." % Game.key("interact")],
+		["Eruption", "If it blows while you're inside, you're blasted out with 40% hull and half of what you mined is lost in the ash. Heat and lava hurt too, so watch the heat bar."],
+	]:
+		var r := UiKit.rich("[b][color=#ffb86b]%s[/color][/b]   %s" % [line[0], line[1]], 15)
+		r.fit_content = true
+		v.add_child(r)
+	var go := UiKit.label("Press any key to start the clock", 15, Color("9bd1ff"), true)
+	go.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(go)
+	_brief = layer
+
+
+func _any_input() -> bool:
+	for a in ["move_left", "move_right", "move_forward", "move_back", "jump", "interact", "fire"]:
+		if Input.is_action_just_pressed(a):
+			return true
+	return Input.is_action_just_pressed("ui_accept")
+
+
+## Start the eruption clock (called when the briefing is dismissed).
+func start_run() -> void:
+	if not _briefing:
+		return
+	_briefing = false
+	if is_instance_valid(_brief):
+		_brief.queue_free()
+	Sound.play("klaxon", -14.0, 0.0)

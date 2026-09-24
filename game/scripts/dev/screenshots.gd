@@ -1547,6 +1547,8 @@ func _volcano_tour() -> void:
 	vent.open_cache()
 	await _wait(3.5)
 	var w := _scene()
+	await shot("vol_briefing")
+	w.start_run()
 	var r: VolcanoRunner = w.runner
 	await shot("vol_crater")
 	for z in [1, 2, 3, 4]:

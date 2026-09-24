@@ -163,8 +163,8 @@ fullscreen, graphics quality and volume.
   - Below about 200 m the Abyss crushes an unprotected hull, so fabricate a **Pressure Hull** first. Kelp presses into Bio-Polymer.
     Quest "Into the Blue", milestone "Deep Diver" (250 m).
 - **Volcanoes: the Eruption Run**: volcanic worlds (and volcanic moons) have three smoking Volcanic Vents, one always a short walk from where you land, all marked on the compass. Climb down into a 2D cutaway of the volcano:
-  the Crater, Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle, with the planet's core glowing below. Magma rises the whole
-  time and the volcano erupts after 2.5 minutes. Run, jump and jetpack down the winding tube, mine crystals in the side pockets
+  the Crater, Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle, with the planet's core glowing below. A briefing explains the run and the clock starts when you're ready. Magma rises the whole
+  time and the volcano erupts after 2.5 minutes. Run, jump, jetpack and drill (push into rock, S to drill down) down the winding tube, mine crystals in the side pockets
   (Obsidian, Fire Opals, Core Embers and rare ores, richer the deeper you go), ride geysers back up, and climb out at the rim before it blows.
   Heat builds with depth and near lava (Heat Plating halves it). Get caught in the eruption and you lose half of what you mined.
   Quest "Into the Fire", milestone "Firewalker", and a new Obsidian recipe for Heat Plating.

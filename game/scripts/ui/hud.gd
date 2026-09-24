@@ -444,7 +444,7 @@ func _build_hints() -> void:
 	elif mode == "sea":
 		l.text = "WASD swim · Space up · Ctrl down · Shift boost · push into rock to cut · E harvest / open / surface · Q scan · T emergency ascent · R energy · G repair · I C K J panels"
 	elif mode == "volcano":
-		l.text = "A/D run · W/Space jump, hold for jetpack · E mine / climb out at the rim · R energy · G repair · I C K J panels"
+		l.text = "A/D run · W/Space jump, hold for jetpack · push into rock to drill · S drill down · E mine / climb out at the rim · R energy · G repair · I C K J panels"
 	elif mode == "warp":
 		l.text = "WASD steer · Mouse aim · LMB cannons · RMB homing missiles · G repair · R energy · Space skip (calm jumps)"
 	elif mode == "orbit":

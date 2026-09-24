@@ -108,10 +108,17 @@ func _physics_process(delta: float) -> void:
 		Sound.loop_start("jet", "jet_loop", -12.0)
 	else:
 		Sound.loop_stop("jet", 0.2)
+	var drilling := false
 	position.x += velocity.x * delta
 	if _collides():
 		position.x -= velocity.x * delta
 		velocity.x = 0.0
+		# pushing into rock drills it: the tile level with the body, else the one at the feet
+		if ix != 0.0 and not world._briefing:
+			var mid: Vector2i = world.cell_at(position + Vector2(_facing * (HALF.x + 4.0), 0.0))
+			var feet: Vector2i = world.cell_at(position + Vector2(_facing * (HALF.x + 4.0), HALF.y - 4.0))
+			var tgt := mid if world.is_solid(mid.x, mid.y) else feet
+			drilling = world.drill(tgt, delta) >= 0.0
 	var vy := velocity.y
 	position.y += vy * delta
 	var was_ground := on_ground
@@ -130,6 +137,15 @@ func _physics_process(delta: float) -> void:
 		position.y += 1.0
 		on_ground = _collides()
 		position.y -= 1.0
+	# drill down (S) standing on rock, or up by jetting into a ceiling
+	var down := not ui and Input.is_action_pressed("move_back")
+	if not drilling and not world._briefing:
+		if down and on_ground:
+			drilling = world.drill(world.cell_at(position + Vector2(0.0, HALF.y + 4.0)), delta) >= 0.0
+		elif _jetting and vy < 0.0 and velocity.y == 0.0:
+			drilling = world.drill(world.cell_at(position - Vector2(0.0, HALF.y + 4.0)), delta) >= 0.0
+	if not drilling:
+		world.stop_drill()
 	shake = maxf(0.0, shake - delta * 1.5)
 	_cam.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * (shake * shake * 16.0 + world.rumble * 3.0)
 	_lamp.position = Vector2(_facing * 10.0, -4.0)

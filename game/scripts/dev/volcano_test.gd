@@ -69,6 +69,43 @@ func _run() -> void:
 	var w := get_tree().current_scene
 	print("[vol] scene=", w.name, " deposits=", w.deposits.size(), " geysers=", w.geysers.size(), " by zone=", _zones(w))
 	var r: VolcanoRunner = w.runner
+	# the clock waits for the briefing
+	await _wait(1.5)
+	print("[vol] briefing up=", w._briefing, " clock held=", w.elapsed == 0.0)
+	w.start_run()
+	# the tube never pinches: each row shares at least 2 open tiles with the next
+	var worst := 99
+	for y in range(w.PEAK, w.ZONES[5].top - 4):
+		var cx := int(w.tube_x(y))
+		var shared := 0
+		for x in range(cx - 8, cx + 9):
+			if not w.is_solid(x, y) and not w.is_solid(x, y + 1):
+				shared += 1
+		worst = mini(worst, shared)
+	print("[vol] tube: narrowest row-to-row opening=", worst, " tiles")
+	# drilling: push right into rock in the Lava Tubes
+	var rock_c := Vector2i(-1, -1)
+	for y in range(w.ZONES[1].top + 2, w.ZONES[2].top):
+		for x in range(3, w.W - 4):
+			if w.get_cell(x, y) == w.ROCK and not w.is_solid(x - 1, y) and not w.is_solid(x - 1, y - 1) and w.is_solid(x - 1, y + 1):
+				rock_c = Vector2i(x, y)
+				break
+		if rock_c.x >= 0:
+			break
+	r.position = w.cell_centre(Vector2i(rock_c.x - 1, rock_c.y)) + Vector2(-2, 2)
+	r.velocity = Vector2.ZERO
+	Input.action_press("move_right")
+	await _wait(2.0)
+	Input.action_release("move_right")
+	print("[vol] drill sideways at ", rock_c, ": rock gone=", not w.is_solid(rock_c.x, rock_c.y))
+	# and straight down
+	await _wait(0.3)
+	var below: Vector2i = w.cell_at(r.position + Vector2(0, VolcanoRunner.HALF.y + 4.0))
+	var was_solid: bool = w.is_solid(below.x, below.y)
+	Input.action_press("move_back")
+	await _wait(2.0)
+	Input.action_release("move_back")
+	print("[vol] drill down at ", below, ": was solid=", was_solid, " now open=", not w.is_solid(below.x, below.y), " basalt refused=", w.drill(Vector2i(0, 40), 0.1) < 0.0)
 	# mine a deep deposit
 	var deep := {}
 	for d in w.deposits:
@@ -106,6 +143,7 @@ func _run() -> void:
 			p.open_cache()
 	await _wait(3.0)
 	var w2 := get_tree().current_scene
+	w2.start_run()
 	for d in w2.deposits:
 		if not d.taken:
 			w2.runner.position = d.pos + Vector2(0, -16)
