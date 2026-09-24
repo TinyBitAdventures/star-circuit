@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (v0.3.0)
+## v0.3.0 — 2026-09-24
 
 Star Circuit goes multiplayer and comes to Windows. Join a friend's server to explore, dig, dive and fight together.
 Step into your Homespace from anywhere, fight through pirate ambushes in hyperspace, race an erupting volcano and grow
