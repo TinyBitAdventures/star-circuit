@@ -2385,7 +2385,7 @@ func _mp_join_view(v: VBoxContainer) -> void:
 	for a in IP.get_local_addresses():
 		if a.begins_with("192.168.") or a.begins_with("10.") or (a.begins_with("172.") and a.split(".").size() == 4 and int(a.split(".")[1]) >= 16 and int(a.split(".")[1]) <= 31):
 			lan.append(a)
-	var host := UiKit.rich("[b]Hosting a game[/b]\nRun the server that ships with Star Circuit ([color=#9bd1ff]star-circuit-server[/color], see server/README.md). Friends on your network join with your address%s. Over the internet, open port 7777 on your router and share your public address or domain name, or put the server behind a web server with HTTPS and share [color=#9bd1ff]wss://your.domain[/color]." % (" ([color=#9bd1ff]%s[/color])" % ", ".join(lan) if not lan.is_empty() else ""), 14)
+	var host := UiKit.rich("[b]Hosting a game[/b]\nDownload and run the Star Circuit server from [color=#9bd1ff]github.com/TinyBitAdventures/star-circuit-server[/color] (its release has builds for Mac, Windows and Linux; the game and server versions must match). Friends on your network join with your address%s. Over the internet, open port 7777 on your router and share your public address or domain name, or put the server behind a web server with HTTPS and share [color=#9bd1ff]wss://your.domain[/color]." % (" ([color=#9bd1ff]%s[/color])" % ", ".join(lan) if not lan.is_empty() else ""), 14)
 	host.fit_content = true
 	v.add_child(host)
 

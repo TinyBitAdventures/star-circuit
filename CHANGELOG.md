@@ -2,13 +2,9 @@
 
 ## Unreleased (v0.3.0)
 
-### Quality of life
-- Scanned resource labels are one short line: "Cobalt Vein  L15" (still coloured by how hard they are for you).
-- Rename your robot any time from Cargo & Systems (I). In multiplayer you rejoin under the new name.
-- Selling (or buying) one at a time no longer jumps the trade list back to the top.
-
-### Windows
-- Star Circuit now ships for Windows too: one self-contained `StarCircuit.exe` (64-bit). Mac and Windows players can share a multiplayer server.
+Star Circuit goes multiplayer and comes to Windows. Join a friend's server to explore, dig, dive and fight together.
+Step into your Homespace from anywhere, fight through pirate ambushes in hyperspace, race an erupting volcano and grow
+cultures in the Micro Lab. Whole planets now look hand-drawn from afar. Saves from v0.2.0 carry over.
 
 ### Multiplayer
 - Press **P** (or pick Multiplayer in the pause menu) and join a server by LAN address (`192.168.1.20`), public IP or domain (`play.example.com`), or `wss://` behind HTTPS. An optional password keeps it private.
@@ -23,21 +19,46 @@
 - When you and a friend finish off a drone together with your shots, you both still get the kill.
 - Clams a friend opens stay open next time you dive there, and friends' pirate kills in space can't pay twice.
 - Safer servers: a friend's cave map can only open tunnels that connect to ones you can reach, oversized or garbled robot styles are ignored, chat and style changes are rate limited, idle and excess connections are dropped, repeated wrong passwords make that address wait, names can't hide invisible characters, and a password-protected server doesn't list who's online. Game and server must both be this version.
-- The server README covers running it on macOS, Windows and Linux (including a systemd unit).
+- The game and the server must be the same version to play together; this release pairs with server v0.1.0. Open `http://your-server:7777/` to see how many are online.
 
-### Fixes
-- Recalling a hauler into a vault that had filled up behind it could push the vault over its limit, which then duplicated items on later worker reports and parcel claims. Whatever doesn't fit now comes back as a parcel.
-- Claiming a parcel into a full hold or vault leaves the rest attached instead of overfilling the hold.
-- A full inbox no longer deletes parcels you haven't opened; old read messages go first.
-- Quitting or saving in the middle of an Eruption Run no longer lets you keep the haul: it only becomes yours once you're out (or half of it, if the volcano blows).
-- Crystal spots in a volcano stay the same each time you go in, until you escape it.
-- Leaving a volcano at 0 hull after a hard landing on the way out could leave you unable to die or open the Homespace.
-- Pressing the Homespace key again during its exit fade could unpause the world while you were still inside.
-- Starting a new game no longer carries over the last save's volcano and hyperspace records (which could hand out Firewalker for free).
-- Opening a panel or the pause menu during a hyperspace interdiction now freezes the fight, and the crosshair works again when you close it.
-- Hyperspace shots no longer slip through mines and swarm drones at lower frame rates.
-- The Micro Lab quest shows your actual Homespace key if you've rebound it.
-- Volcanoes were impossible to enter: the cone had no collision (you walked straight through it) and its entry point sat at a fixed height that ended up buried in, or floating above, the surrounding hills. Volcanoes are now solid, their base sinks into the ground, and a glowing lava-tube doorway sits at the foot of the cone on the actual ground. You can also enter from the crater rim if you jetpack up. The quest star points at the doorway.
+### Windows
+- Star Circuit now ships for Windows too: one self-contained `StarCircuit.exe` (64-bit). Mac and Windows players can share a multiplayer server.
+
+### The Homespace
+- Press **Y** anywhere to step into a small 2D digital home inside your robot. The world pauses, and you step back out exactly where you were.
+- **Vault:** 300 units of cloud storage (expandable to 1500). Moving items costs energy based on your uplink: cheap where a relay is lit, weaker in unlit systems, and weaker again underground or underwater.
+- **Inbox:** letters and parcels, including a welcome from the Archivist, and trader orders from towns you've visited. Fill orders remotely from the vault for 30-70% over market before they expire.
+- **Trophy Wall:** gems, relics, species holograms, milestone badges and the Crown pedestal. A window shows where you are right now.
+- **Dispatch Bay:** compile up to three subroutine workers (the first is free, then ⌬ 900 and ⌬ 2800). Send them to visited worlds to Gather, Survey, or Haul & Sell goods from your vault, on 5, 15 or 30 minute play-time jobs. The risk of coming back damaged depends on the world's danger and the worker's level (1-10). Reports and payments arrive in the Inbox.
+- **Decor:** 14 pieces to buy and arrange in wall and floor spots, 5 room themes, and two wings to expand into: the Observatory, showing your lit relays as a constellation, and the Garden. The Defrag Pod fully restores you once per in-game day.
+- An unread count on the HUD when mail arrives, and the room scrolls as you add wings.
+- A cozy lo-fi home theme, plus enter and exit sounds.
+
+### The Micro Lab
+- A new station in the Homespace. Load ingredients from your hold or vault and drop into a bowl of primordial soup under the microscope: a warm, swirling broth with fat droplets, flecks and bubbles, tinted by what went in.
+- Every ingredient becomes a strain of cells with its own habits: some drift, some dart about, some blink from place to place, some swarm, and some wear shells you have to crack first.
+- Steer a tiny probe with WASD, aim with the mouse and zap a cell to tag it, then zap a different strain to fuse the two. Fused cells divide on their own, but red corruption phages drift in to eat them, so zap those on sight. Now and then the soup gets stirred and everything swirls.
+- Reach critical mass before the culture goes off. The faster you get there, the better the grade: Stable, Refined or Pristine. A lost culture gives back half its ingredients.
+- Eight formulas finally give the rare finds a use: Medic and Warp cultures (more Repair Kits or Warp Cells at better grades), plus six graded upgrades: Mycelium Mesh (cargo), Living Hull Graft (hull), Ember Heart (energy), Growth Lattice (harvest speed), Lustre Symbiote (sell prices) and Void Symbiont (energy and hull). Grow an upgrade again to improve its grade. The top formulas need Engineering 70 and 85, which gives Expert and Artisan training a purpose.
+- A new quest, "Primordial Soup", after "Into the Fire", the "Cell Biologist" milestone, a bubbling lab theme and eleven new sounds.
+
+### Hyperspace
+- Warps and relay jumps now fly you down a hyperspace tunnel. Calm jumps last a few seconds and can be skipped.
+- Pirate interdictions: swarm drones that telegraph and dive, raiders and gunships firing from ahead, and mine fields. Aim with the mouse, fire cannons and homing missiles, and dodge with WASD. Clearing every wave pays a salvage bounty; getting knocked out drops you at the destination with some cargo lost.
+- Getting knocked out drops you at the destination with 25% hull. Quitting mid-jump is safe: you load in at the destination.
+- The first warp always shows you an interdiction; relit Circuit jumps are rarely attacked.
+- A driving hyperspace combat track and a rushing tunnel ambience.
+
+### Volcanoes
+- Volcanic worlds and moons now have three Volcanic Vents (one within walking distance of the landing, all on the compass) leading into the **Eruption Run**: a 2D cutaway of the volcano from the crater down through the Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle to the glowing core.
+- Volcanoes are solid mountains with a glowing lava-tube doorway at the foot of the cone (or jetpack up and drop in from the rim). What you mine only becomes yours once you're out: quit mid-run and it stays in the volcano.
+- The Eruption Run starts with a briefing, and the clock waits until you press a key: dive for crystals, mine them, climb back out the rim before it blows. If it erupts while you're inside you're blasted out with 40% hull and lose half of what you mined.
+- Once the clock starts, magma rises and the volcano erupts after 2.5 minutes. Dive for crystals in the side pockets, ride geysers back up, and climb out at the rim in time.
+- You can drill now: push into rock to cut through it, hold S to drill down, jetpack into a ceiling to drill up. Deeper rock is tougher, black basalt won't budge, and deep rock sometimes gives Obsidian.
+- Under the timer: what you're carrying and how far up the rim is, flashing "GET OUT!" in the last 45 seconds.
+- A heat meter and jetpack fuel, plus new materials: Obsidian, Fire Opal and Core Ember.
+- "Into the Fire" points the quest star at the nearest vent (and at the volcanic planet from space), and names the nearest volcanic world when you accept it.
+- The "Into the Fire" quest, the "Firewalker" milestone, an Obsidian Heat Plating recipe, and a rumbling ambience.
 
 ### Illustrated planets
 - Whole planets now look hand-drawn wherever you see them in full: the title screen, flying through a star system, and sister worlds hanging in the sky. Each is drawn from the world's real terrain: inked coastlines, a shallow-water band with a dashed wave line offshore, contour lines up the hills, flat painted land colours, a single crisp sun glint on the sea, halftone dots across the terminator, a violet night side and a clean two-step halo. Clouds become separate puffs with inked edges, lit on top. Lava worlds glow with a cracked crust.
@@ -51,43 +72,13 @@
 - The ground drifts between dry and lush patches with darker soil, and dunes, snowfields and storm worlds show wind ripples.
 - Low quality now shows a lighter layer of grass and stones instead of none.
 
-### The Micro Lab
-- A new station in the Homespace. Load ingredients from your hold or vault and drop into a bowl of primordial soup under the microscope: a warm, swirling broth with fat droplets, flecks and bubbles, tinted by what went in.
-- Every ingredient becomes a strain of cells with its own habits: some drift, some dart about, some blink from place to place, some swarm, and some wear shells you have to crack first.
-- Steer a tiny probe with WASD, aim with the mouse and zap a cell to tag it, then zap a different strain to fuse the two. Fused cells divide on their own, but red corruption phages drift in to eat them, so zap those on sight. Now and then the soup gets stirred and everything swirls.
-- Reach critical mass before the culture goes off. The faster you get there, the better the grade: Stable, Refined or Pristine. A lost culture gives back half its ingredients.
-- Eight formulas finally give the rare finds a use: Medic and Warp cultures (more Repair Kits or Warp Cells at better grades), plus six graded upgrades: Mycelium Mesh (cargo), Living Hull Graft (hull), Ember Heart (energy), Growth Lattice (harvest speed), Lustre Symbiote (sell prices) and Void Symbiont (energy and hull). Grow an upgrade again to improve its grade. The top formulas need Engineering 70 and 85, which gives Expert and Artisan training a purpose.
-- A new quest, "Primordial Soup", after "Into the Fire", the "Cell Biologist" milestone, a bubbling lab theme and eleven new sounds.
-
-### Volcanoes
-- The Eruption Run starts with a briefing, and the clock waits until you press a key: dive for crystals, mine them, climb back out the rim before it blows. If it erupts while you're inside you're blasted out with 40% hull and lose half of what you mined.
-- You can drill now: push into rock to cut through it, hold S to drill down, jetpack into a ceiling to drill up. Deeper rock is tougher, black basalt won't budge, and deep rock sometimes gives Obsidian.
-- The lava tube can no longer pinch into a corner you can't squeeze past.
-- Crystals deep in the volcano are never sitting in (or right beside) a lava pool any more.
-- Under the timer: what you're carrying and how far up the rim is, flashing "GET OUT!" in the last 45 seconds.
-- Volcanic worlds and moons now have three Volcanic Vents (one within walking distance of the landing, all on the compass) leading into the **Eruption Run**: a 2D cutaway of the volcano from the crater down through the Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle to the glowing core.
-- Magma rises the whole time and the volcano erupts after 2.5 minutes. Dive for crystals in the side pockets, ride geysers back up, and climb out at the rim in time. Getting caught in the eruption costs half your haul.
-- A heat meter and jetpack fuel, plus new materials: Obsidian, Fire Opal and Core Ember.
-- "Into the Fire" points the quest star at the nearest vent (and at the volcanic planet from space), and names the nearest volcanic world when you accept it.
-- The "Into the Fire" quest, the "Firewalker" milestone, an Obsidian Heat Plating recipe, and a rumbling ambience.
-
 ### Art style (preview)
 - Settings → Display → Art style: **Classic** (default), **Illustrative** (banded light, cool shade, warm rims, painted terrain) or **Storybook** (Illustrative plus ink outlines). Planets only for now.
 
-### Hyperspace
-- Warps and relay jumps now fly you down a hyperspace tunnel. Calm jumps last a few seconds and can be skipped.
-- Pirate interdictions: swarm drones that telegraph and dive, raiders and gunships firing from ahead, and mine fields. Aim with the mouse, fire cannons and homing missiles, and dodge with WASD. Clearing every wave pays a salvage bounty; getting knocked out drops you at the destination with some cargo lost.
-- The first warp always shows you an interdiction; relit Circuit jumps are rarely attacked.
-- A driving hyperspace combat track and a rushing tunnel ambience.
-
-### The Homespace
-- Press **Y** anywhere to step into a small 2D digital home inside your robot. The world pauses, and you step back out exactly where you were.
-- **Vault:** 300 units of cloud storage (expandable to 1500). Moving items costs energy based on your uplink: cheap where a relay is lit, weaker in unlit systems, and weaker again underground or underwater.
-- **Inbox:** letters and parcels, including a welcome from the Archivist, and trader orders from towns you've visited. Fill orders remotely from the vault for 30-70% over market before they expire.
-- **Trophy Wall:** gems, relics, species holograms, milestone badges and the Crown pedestal. A window shows where you are right now.
-- A cozy lo-fi home theme, plus enter and exit sounds.
-- **Dispatch Bay:** compile up to three subroutine workers (the first is free, then ⌬ 900 and ⌬ 2800). Send them to visited worlds to Gather, Survey, or Haul & Sell goods from your vault, on 5, 15 or 30 minute play-time jobs. The risk of coming back damaged depends on the world's danger and the worker's level (1-10). Reports and payments arrive in the Inbox.
-- **Decor:** 14 pieces to buy and arrange in wall and floor spots, 5 room themes, and two wings to expand into: the Observatory, showing your lit relays as a constellation, and the Garden. The Defrag Pod fully restores you once per in-game day.
+### Quality of life
+- Scanned resource labels are one short line: "Cobalt Vein  L15" (still coloured by how hard they are for you).
+- Rename your robot any time from Cargo & Systems (I). In multiplayer you rejoin under the new name.
+- Selling (or buying) one at a time no longer jumps the trade list back to the top.
 
 ## v0.2.0 — 2026-09-23
 

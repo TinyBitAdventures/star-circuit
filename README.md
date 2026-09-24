@@ -313,7 +313,8 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     SHOTS=volcano godot --path game res://scenes/dev_shots.tscn # the vent, each zone, a geyser, the full cutaway
     godot --headless --path game res://scenes/dev_warp.tscn    # hyperspace: interdiction waves, kills, hits, arrival, relay jump
     SHOTS=warp godot --path game res://scenes/dev_shots.tscn   # hyperspace tunnel, firefight, mines, relay colours
-    godot --headless --path game res://scenes/dev_home.tscn    # Homespace: vault uplink costs, inbox, trader orders, pause/resume
+    godot --headless --path game res://scenes/dev_home.tscn    # Homespace: vault uplink + cap, inbox, orders, workers, recall, decor, wings, pod, exit fade, pause/resume
+    godot --headless --path game res://scenes/dev_ui.tscn      # compact node labels, robot rename, trade list keeps its scroll
     godot --headless --path game res://scenes/dev_net.tscn     # multiplayer against the real Go server (built from ../star-circuit-server or $STAR_CIRCUIT_SERVER_DIR)
     SHOTS=net godot --path game res://scenes/dev_shots.tscn    # another robot + crate, the Multiplayer panel, the join screen
     godot --headless --path game res://scenes/dev_lab.tscn     # Micro Lab: hold+vault draw, autoplay to critical mass (60/15 fps), idle failure, graded upgrade, save, balance sweep

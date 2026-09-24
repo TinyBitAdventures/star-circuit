@@ -1677,7 +1677,10 @@ func _net_tour() -> void:
 	Sound.show_tips = false
 	var port := 17500 + randi() % 400
 	var bin := OS.get_cache_dir().path_join("star-circuit-server-test")
-	OS.execute("go", ["-C", ProjectSettings.globalize_path("res://").path_join("../server").simplify_path(), "build", "-o", bin, "."])
+	var sdir := OS.get_environment("STAR_CIRCUIT_SERVER_DIR")
+	if sdir == "":
+		sdir = ProjectSettings.globalize_path("res://").path_join("../../star-circuit-server").simplify_path()
+	OS.execute("go", ["-C", sdir, "build", "-o", bin, "."])
 	var pid := OS.create_process(bin, ["-addr", "127.0.0.1:%d" % port, "-data", ""])
 	Game.new_game("scout", "Austin")
 	await _wait(4.0)

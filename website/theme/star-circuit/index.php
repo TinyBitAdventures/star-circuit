@@ -7,10 +7,11 @@ defined( 'ABSPATH' ) || exit;
 
 $data     = star_circuit_data();
 $counts   = $data['counts'] ?? [];
-$version  = $data['version'] ?? '0.2.0';
+$version  = $data['version'] ?? '0.3.0';
 $img      = get_template_directory_uri() . '/assets/img/';
 $release  = 'https://github.com/TinyBitAdventures/star-circuit/releases/latest';
 $repo     = 'https://github.com/TinyBitAdventures/star-circuit';
+$server   = 'https://github.com/TinyBitAdventures/star-circuit-server/releases/latest';
 
 $modes = [
 	[
@@ -61,6 +62,22 @@ $modes = [
 		'bullets' => [ 'Send subroutine workers to gather, survey and haul', 'Decor, themes, and Observatory and Garden wings', 'A Defrag Pod, a Trophy Wall and a lo-fi home theme' ],
 		'shots' => [ [ 'home-room', 'The Dispatch Bay' ], [ 'home-dispatch', 'Planning a job' ], [ 'home-observatory', 'The Observatory wing' ] ],
 	],
+	[
+		'id'    => 'lab',
+		'name'  => 'Grow a culture',
+		'kicker'=> 'The Micro Lab',
+		'text'  => 'A microscope in the Homespace. Drop your rare finds into a bowl of primordial soup, where each one becomes a strain of cells with habits of its own. Zap two strains to fuse them, fight off the corruption phages, and reach critical mass before the culture goes off.',
+		'bullets' => [ 'Eight formulas, from Repair Kits to living hull grafts', 'Stable, Refined and Pristine grades for speed', 'The top formulas need Expert and Artisan Engineering' ],
+		'shots' => [ [ 'lab-soup', 'Fusing strains in the soup' ], [ 'lab-station', 'The lab station' ], [ 'lab-result', 'A graded culture' ] ],
+	],
+	[
+		'id'    => 'net',
+		'name'  => 'Play together',
+		'kicker'=> 'Multiplayer',
+		'text'  => 'Join a friend\'s server by address and you share the galaxy while keeping your own save. See each other\'s robots on the same planet, chat, trade gifts and drop crates. Dig the same cave, dive the same sea, and wear down the same drones together.',
+		'bullets' => [ 'Mac and Windows players on the same server', 'Shared caves, Deep Sea dives and fights', 'A small server for Mac, Windows and Linux' ],
+		'shots' => [ [ 'net-planet', 'A friend and a dropped crate' ], [ 'net-cave', 'Digging the same cave' ], [ 'net-sea', 'Diving together' ] ],
+	],
 ];
 
 $tracks = [
@@ -77,6 +94,7 @@ $tracks = [
 	[ 'underground', 'The Deep', 'Caves, tunnels and sealed chambers.' ],
 	[ 'hyperspace', 'Interdiction', 'Driving synthwave for pirate fights in hyperspace.' ],
 	[ 'home', 'Homespace', 'A lo-fi loop for the room inside your robot.' ],
+	[ 'lab', 'The Micro Lab', 'Bubbling, curious synths under the microscope.' ],
 	[ 'combat', 'Combat Layer', 'The track that crossfades in when drones give chase.' ],
 ];
 ?><!doctype html>
@@ -108,7 +126,7 @@ $tracks = [
 		<h1 class="title">STAR<br>CIRCUIT</h1>
 		<p class="lede">The Circuit went dark long ago. Pick a robot, walk tiny planets, dive oceans, outrun eruptions, and relight the galaxy one relay at a time.</p>
 		<div class="hero-actions">
-			<a class="btn btn-primary" href="#download">Download for macOS</a>
+			<a class="btn btn-primary" href="#download">Download for Mac and Windows</a>
 			<button class="btn btn-ghost" id="warp-btn" type="button">Engage warp <span class="key">hold</span></button>
 		</div>
 	</div>
@@ -254,8 +272,18 @@ $tracks = [
 	<div class="dl-grid">
 		<div class="dl-card">
 			<h3>macOS</h3>
-			<p>Apple Silicon and Intel, macOS 11+. Download the zip from the latest release and unzip it. The first launch needs a right-click and Open, because the app isn't notarized.</p>
+			<p>Apple Silicon and Intel, macOS 11+. Download <code>StarCircuit-macOS.zip</code> from the latest release and unzip it. The first launch needs a right-click and Open, because the app isn't notarized.</p>
 			<a class="btn btn-primary" href="<?php echo esc_url( $release ); ?>">Latest release</a>
+		</div>
+		<div class="dl-card">
+			<h3>Windows</h3>
+			<p>64-bit Windows 10 and 11. Download <code>StarCircuit-Windows.zip</code>, unzip it and run <code>StarCircuit.exe</code>. If SmartScreen warns you, choose More info, then Run anyway.</p>
+			<a class="btn btn-primary" href="<?php echo esc_url( $release ); ?>">Latest release</a>
+		</div>
+		<div class="dl-card">
+			<h3>Multiplayer server</h3>
+			<p>Host your own game for friends: one small program for Mac, Windows and Linux. Run it, then everyone presses P in the game and types your address.</p>
+			<a class="btn btn-ghost" href="<?php echo esc_url( $server ); ?>">Server releases</a>
 		</div>
 		<div class="dl-card">
 			<h3>From source</h3>
