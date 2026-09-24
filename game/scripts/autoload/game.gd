@@ -70,6 +70,7 @@ var interdictions := 0 # pirate ambushes survived in hyperspace
 var volcano := {} # the volcano we're in (not saved: runs always resume on the surface)
 var volcanoes := {} # poi key -> {"escapes": n}
 var volcano_runs := 0
+var lab := {} # Micro Lab: {"grades": {item: grade}, "runs": n, "pristine": n}
 var orbit := {} # the world we're orbiting (not saved: orbit always resumes in space)
 var species_names := {} # species key -> display name (species log)
 var world_species := {} # planet key -> species on that world (for the log)
@@ -212,6 +213,7 @@ func _reset_state() -> void:
 	home_visits = 0
 	workers = []
 	home = {}
+	lab = {}
 	crafted_once = []
 	gems_taken = {}
 	orbit = {}
@@ -758,7 +760,7 @@ func _quest_event(kind: String, what: String, amount := 1) -> void:
 		"skill":
 			if o.skill == what:
 				quest_progress = mini(o.count, skill_level(what))
-		"gem", "sea_scan":
+		"gem", "sea_scan", "lab":
 			quest_progress = mini(o.count, quest_progress + 1)
 		"gem_types":
 			quest_progress = mini(o.count, gem_types())
@@ -909,7 +911,7 @@ func save_game() -> void:
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
 		"milestones": milestones, "crafted_once": crafted_once,
-		"workers": workers, "home": home, "interdictions": interdictions, "volcanoes": volcanoes, "volcano_runs": volcano_runs,
+		"workers": workers, "home": home, "interdictions": interdictions, "volcanoes": volcanoes, "volcano_runs": volcano_runs, "lab": lab,
 		"vault": vault, "vault_level": vault_level, "inbox": inbox, "mail_seq": _mail_seq, "order_t": _order_t, "home_visits": home_visits, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": inventory, "upgrades": upgrades, "skills": skills,
@@ -982,6 +984,7 @@ func load_game(n := -1) -> bool:
 	interdictions = int(d.get("interdictions", 0))
 	volcanoes = d.get("volcanoes", {})
 	volcano_runs = int(d.get("volcano_runs", 0))
+	lab = d.get("lab", {})
 	home = d.get("home", {})
 	if home_visits == 0 and inbox.is_empty():
 		_welcome_mail()
@@ -1736,6 +1739,7 @@ func metric(m: String) -> int:
 		"gem_types": return gem_types()
 		"sea_depth": return max_sea_depth
 		"volcano_runs": return volcano_runs
+		"lab_pristine": return int(lab_state().pristine)
 		"relays": return lit_relays.size() - 1 # Solace's relay starts lit
 		"best_skill":
 			var b := 0
@@ -1752,7 +1756,7 @@ func milestone_bonus(kind: String) -> float:
 	for m in Db.MILESTONES:
 		if milestones.has(m.id):
 			t += float(m.bonus.get(kind, 0.0))
-	return t
+	return t + lab_bonus(kind)
 
 
 static func bonus_text(b: Dictionary) -> String:
@@ -2552,3 +2556,109 @@ func nearest_volcanic_world() -> Dictionary:
 				if best.is_empty() or d < float(best.dist):
 					best = {"name": p.name, "star": s, "index": p.index, "star_name": Galaxy.star(s).name, "dist": d}
 	return best
+
+
+# --------------------------------------------------------------------------
+# Micro Lab: cultures grown in the Homespace soup
+# --------------------------------------------------------------------------
+
+func lab_state() -> Dictionary:
+	if lab.is_empty():
+		lab = {"grades": {}, "runs": 0, "pristine": 0}
+	return lab
+
+
+## The best grade grown for a lab upgrade, or -1 if never grown.
+func lab_grade(item: String) -> int:
+	return int(lab_state().grades.get(item, -1))
+
+
+func lab_bonus(kind: String) -> float:
+	var t := 0.0
+	var g: Dictionary = lab_state().grades
+	for r in Db.LAB_RECIPES:
+		if r.has("bonus") and g.has(r.out) and has_upgrade(r.out):
+			t += float(r.bonus[clampi(int(g[r.out]), 0, 2)].get(kind, 0.0))
+	return t
+
+
+## In the Homespace the lab can draw on the hold and the vault together.
+func lab_have(item: String) -> int:
+	return count(item) + vault_count(item)
+
+
+## Why a culture can't start yet, or "" if it can.
+func lab_block(r: Dictionary) -> String:
+	if skill_level(r.skill) < int(r.req):
+		return "Requires %s %d" % [Db.SKILLS[r.skill].name, int(r.req)]
+	if r.has("bonus") and lab_grade(r.out) >= 2:
+		return "Already Pristine"
+	for k in r.in:
+		if lab_have(k) < int(r.in[k]):
+			return "Missing ingredients"
+	return ""
+
+
+## Load the ingredients into the dish (from the hold first, then the vault).
+func lab_start(id: String) -> bool:
+	var r := Db.lab_recipe(id)
+	if r.is_empty() or lab_block(r) != "":
+		return false
+	for k in r.in:
+		var need := int(r.in[k])
+		var from_hold := mini(count(k), need)
+		if from_hold > 0:
+			remove_item(k, from_hold)
+		if need > from_hold:
+			vault[k] = vault_count(k) - (need - from_hold)
+			if int(vault[k]) <= 0:
+				vault.erase(k)
+	return true
+
+
+## Finish a culture. grade 0-2 on success, -1 if it went off (half the
+## ingredients are recovered). Returns {"ok", "grade", "text"}.
+func lab_finish(id: String, grade: int) -> Dictionary:
+	var r := Db.lab_recipe(id)
+	var st := lab_state()
+	if r.is_empty():
+		return {"ok": false, "grade": -1, "text": ""}
+	if grade < 0:
+		var back: Array[String] = []
+		for k in r.in:
+			var q := int(r.in[k]) >> 1
+			if q > 0:
+				add_item(k, q, true, true)
+				back.append("%d %s" % [q, Db.item_name(k)])
+		return {"ok": false, "grade": -1, "text": "The culture went off. Recovered " + (", ".join(back) if not back.is_empty() else "nothing") + "."}
+	grade = clampi(grade, 0, 2)
+	st.runs = int(st.runs) + 1
+	if grade == 2:
+		st.pristine = int(st.pristine) + 1
+	var text := ""
+	if r.has("bonus"):
+		var prev := lab_grade(r.out)
+		if grade > prev:
+			st.grades[r.out] = grade
+		if not has_upgrade(r.out):
+			add_item(r.out, 1, true, true)
+		upgrades_changed()
+		var best := lab_grade(r.out)
+		text = "%s %s: %s" % [Db.LAB_GRADES[best], Db.item_name(r.out), bonus_text(r.bonus[best])]
+		if prev >= 0 and grade <= prev:
+			text = "No better than your %s culture. %s" % [Db.LAB_GRADES[prev], text]
+	else:
+		var q: int = r.qty[grade]
+		add_item(r.out, q, true, true)
+		text = "+%d %s" % [q, Db.item_name(r.out)]
+	gain_skill_xp(r.skill, float(r.xp) * (1.0 + 0.5 * grade))
+	_quest_event("lab", id)
+	check_milestones()
+	return {"ok": true, "grade": grade, "text": text}
+
+
+## Bonus-carrying upgrades change caps: tell the HUD.
+func upgrades_changed() -> void:
+	energy_changed.emit(energy, max_energy())
+	hull_changed.emit()
+	inventory_changed.emit()

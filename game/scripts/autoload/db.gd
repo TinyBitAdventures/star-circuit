@@ -146,6 +146,13 @@ const ITEMS := {
 	"pressure_hull": {"name": "Pressure Hull", "kind": "upgrade", "color": Color("5fa8ff"), "desc": "Lets you dive into the Abyss without the sea crushing your plating."},
 	"crown_of_worlds": {"name": "Crown of Worlds", "kind": "upgrade", "color": Color("ffe9a8"), "desc": "Ten world gems set in one circlet. +50 energy, +50 hull, +20% harvest speed, +10% sell prices, and the galaxy knows your name."},
 	"lava_plating": {"name": "Heat Plating", "kind": "upgrade", "color": Color("ff7a3d"), "desc": "Immune to lava and heat drain."},
+	# grown in the Micro Lab: the culture's grade (Stable, Refined, Pristine) sets the bonus
+	"mycelium_mesh": {"name": "Mycelium Mesh", "kind": "upgrade", "color": Color("7ef0d8"), "desc": "A living net of glowcap threads woven through your hold. More cargo, and more again for a better culture."},
+	"hull_graft": {"name": "Living Hull Graft", "kind": "upgrade", "color": Color("f3eef8"), "desc": "Pearl-shell cells that knit into your plating. More maximum hull."},
+	"ember_heart": {"name": "Ember Heart", "kind": "upgrade", "color": Color("ff9a4a"), "desc": "A culture that never stops burning. More maximum energy."},
+	"growth_lattice": {"name": "Growth Lattice", "kind": "upgrade", "color": Color("6ee06a"), "desc": "Kelp-and-stardust tendrils along your tools. Faster harvesting."},
+	"lustre_symbiote": {"name": "Lustre Symbiote", "kind": "upgrade", "color": Color("ffe9a8"), "desc": "A shimmer that makes everything you carry look finer. Better sell prices."},
+	"void_symbiont": {"name": "Void Symbiont", "kind": "upgrade", "color": Color("ff7ae6"), "desc": "Something from the Void that decided to live with you. More energy and hull."},
 }
 
 # --------------------------------------------------------------------------
@@ -209,6 +216,57 @@ const RECIPES := [
 # --------------------------------------------------------------------------
 # Biomes / planet types
 # --------------------------------------------------------------------------
+# --------------------------------------------------------------------------
+# Micro Lab (Homespace): grow cultures in the soup
+# --------------------------------------------------------------------------
+const LAB_GRADES := ["Stable", "Refined", "Pristine"]
+const LAB_GRADE_COLORS := [Color("9bd1ff"), Color("6ee06a"), Color("ffd23f")]
+## mass: merged cells needed for critical mass. time: seconds of culture stability.
+## qty (consumables) or bonus (upgrades) is indexed by grade.
+const LAB_RECIPES := [
+	{"id": "medic_culture", "name": "Medic Culture", "out": "repair_kit", "qty": [2, 3, 4], "in": {"biofiber": 4, "plasma": 3}, "skill": "botany", "req": 1, "mass": 24, "time": 100.0, "xp": 60},
+	{"id": "warp_culture", "name": "Warp Culture", "out": "warp_cell", "qty": [1, 2, 3], "in": {"cryo_ice": 4, "stardust": 2}, "skill": "engineering", "req": 25, "mass": 28, "time": 100.0, "xp": 90},
+	{"id": "mycelium_mesh", "name": "Mycelium Mesh", "out": "mycelium_mesh", "bonus": [{"cargo": 40}, {"cargo": 70}, {"cargo": 100}], "in": {"glowcap": 4, "sporegel": 3, "biofiber": 4}, "skill": "botany", "req": 30, "mass": 32, "time": 110.0, "xp": 160},
+	{"id": "hull_graft", "name": "Living Hull Graft", "out": "hull_graft", "bonus": [{"hull": 20}, {"hull": 35}, {"hull": 50}], "in": {"sea_pearl": 2, "fossil": 1, "polymer": 2}, "skill": "engineering", "req": 40, "mass": 36, "time": 110.0, "xp": 210},
+	{"id": "ember_heart", "name": "Ember Heart", "out": "ember_heart", "bonus": [{"energy": 20}, {"energy": 35}, {"energy": 50}], "in": {"fire_opal": 2, "core_ember": 1, "plasma": 4}, "skill": "engineering", "req": 50, "mass": 40, "time": 110.0, "xp": 260},
+	{"id": "growth_lattice", "name": "Growth Lattice", "out": "growth_lattice", "bonus": [{"harvest": 0.06}, {"harvest": 0.1}, {"harvest": 0.15}], "in": {"kelp": 6, "glowcap": 3, "stardust": 2}, "skill": "botany", "req": 60, "mass": 44, "time": 115.0, "xp": 300},
+	{"id": "lustre_symbiote", "name": "Lustre Symbiote", "out": "lustre_symbiote", "bonus": [{"sell": 0.03}, {"sell": 0.05}, {"sell": 0.08}], "in": {"sea_pearl": 2, "obsidian": 4, "ancient_relic": 1}, "skill": "engineering", "req": 70, "mass": 48, "time": 115.0, "xp": 360},
+	{"id": "void_symbiont", "name": "Void Symbiont", "out": "void_symbiont", "bonus": [{"energy": 15, "hull": 15}, {"energy": 25, "hull": 25}, {"energy": 40, "hull": 40}], "in": {"exotic": 3, "voidshard": 3, "core_ember": 1}, "skill": "engineering", "req": 85, "mass": 54, "time": 120.0, "xp": 450},
+]
+
+## How each ingredient behaves as a strain in the soup.
+## move: drift (wanders), dart (sudden dashes), blink (jumps about), swarm (small, in clumps), armor (two hits to tag).
+const LAB_STRAINS := {
+	"biofiber": {"move": "drift", "speed": 75.0, "r": 28.6},
+	"plasma": {"move": "dart", "speed": 150.0, "r": 23.4},
+	"cryo_ice": {"move": "drift", "speed": 60.0, "r": 31.2},
+	"stardust": {"move": "swarm", "speed": 115.0, "r": 16.9},
+	"glowcap": {"move": "drift", "speed": 70.0, "r": 26.0},
+	"sporegel": {"move": "dart", "speed": 120.0, "r": 26.0},
+	"sea_pearl": {"move": "armor", "speed": 80.0, "r": 33.8},
+	"fossil": {"move": "armor", "speed": 60.0, "r": 33.8},
+	"polymer": {"move": "drift", "speed": 85.0, "r": 28.6},
+	"fire_opal": {"move": "dart", "speed": 185.0, "r": 23.4},
+	"core_ember": {"move": "dart", "speed": 210.0, "r": 20.8},
+	"kelp": {"move": "drift", "speed": 60.0, "r": 31.2},
+	"obsidian": {"move": "armor", "speed": 95.0, "r": 28.6},
+	"ancient_relic": {"move": "blink", "speed": 90.0, "r": 28.6},
+	"exotic": {"move": "blink", "speed": 130.0, "r": 23.4},
+	"voidshard": {"move": "blink", "speed": 110.0, "r": 26.0},
+}
+
+
+func lab_recipe(id: String) -> Dictionary:
+	for r in LAB_RECIPES:
+		if r.id == id:
+			return r
+	return {}
+
+
+func lab_strain(item: String) -> Dictionary:
+	return LAB_STRAINS.get(item, {"move": "drift", "speed": 90.0, "r": 26.0})
+
+
 const BIOMES := {
 	"verdant": {
 		"name": "Verdant", "sea": 0.0, "amp": 0.055, "ridge": 0.03,
@@ -305,6 +363,7 @@ const MILESTONES := [
 	{"id": "lamplighter", "name": "Lamplighter", "desc": "Light 4 Circuit relays", "metric": "relays", "n": 4, "bonus": {"energy": 20, "hull": 20}},
 	{"id": "deep_diver", "name": "Deep Diver", "desc": "Reach 250 m in the Deep Sea", "metric": "sea_depth", "n": 250, "bonus": {"hull": 20}},
 	{"id": "firewalker", "name": "Firewalker", "desc": "Escape 5 volcanoes before they erupt", "metric": "volcano_runs", "n": 5, "bonus": {"energy": 15}},
+	{"id": "cell_biologist", "name": "Cell Biologist", "desc": "Grow 3 Pristine cultures in the Micro Lab", "metric": "lab_pristine", "n": 3, "bonus": {"harvest": 0.05}},
 	{"id": "gem_hunter", "name": "Gem Hunter", "desc": "Hold 5 different world gems", "metric": "gem_types", "n": 5, "bonus": {"cargo": 30, "sell": 0.05}},
 	{"id": "master", "name": "Master of a Craft", "desc": "Reach level 50 in any profession", "metric": "best_skill", "n": 50, "bonus": {"harvest": 0.1}},
 ]
@@ -426,6 +485,9 @@ const QUESTS := [
 	{"id": "fire", "title": "Into the Fire", "giver": "Archivist",
 		"text": "Volcanic worlds hide their best treasures under the craters. Find a Volcanic Vent, climb down before it erupts, and bring back a Fire Opal. Watch the magma: it only ever rises.",
 		"obj": {"type": "collect", "item": "fire_opal", "count": 1}, "xp": 700, "reward": {"repair_kit": 2}, "credits": 200},
+	{"id": "soup", "title": "Primordial Soup", "giver": "Archivist",
+		"text": "Your Homespace has grown a Micro Lab. Press Y, walk to the lab and grow a Medic Culture from Biofiber and Plasma. Down there it's all soup: steer your probe with WASD, zap a cell with the left mouse button, then zap a different strain to fuse them. Fused cells divide on their own. Reach critical mass before the culture goes off.",
+		"obj": {"type": "lab", "count": 1}, "xp": 650, "reward": {"energy_cell": 2}, "credits": 150},
 	{"id": "firstlight", "title": "First Light", "giver": "Archivist",
 		"text": "Every system has a dead relay beacon; the Circuit was a chain of them. To relight one you need a Resonance Crystal (derelict wrecks and deep Ancient Vaults still hold them) and a Relay Coupler from your fabricator. Pirates guard the dead relays. Open the system map (M) to find it.",
 		"obj": {"type": "relay", "count": 1}, "xp": 900, "reward": {"warp_cell": 1}, "credits": 250},

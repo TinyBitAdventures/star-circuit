@@ -400,6 +400,22 @@ def track_hyperspace():
     return t.render(0.13)
 
 
+def inst_bloop(m, vel=1.0):
+    """A bubble that sings: a short sine whose pitch rises into the note."""
+    n = S.n_samples(0.22)
+    f = S.midi_hz(m)
+    sweep = f * (0.72 + 0.28 * (1 - np.exp(-np.arange(n) / (S.SR * 0.025))))
+    return S.sine(sweep, n) * S.exp_decay(n, 0.09) * vel * 0.45
+
+
+def track_lab():
+    """The Micro Lab: a playful, bubbling groove, like something simmering."""
+    return ambient("lab", 141, 94, 50, "dorian", [0, 3, 5, 3], 24, pad_cut=900, pad_voice="tri",
+                   arp_inst=inst_bloop, arp_step=0.25, arp_pattern=(0, 4, 2, 5, 1, 4, 3, 6),
+                   mel_inst=lambda m, v: inst_marimba(m, v), mel_oct=1, verb_sec=2.4,
+                   texture=(150, 800, 0.03), mel_density=0.5, mel_gain=1.1, bars_per_chord=2, perc=True, arp_gain=0.55)
+
+
 TRACKS = {
     "menu": lambda: ambient("menu", 11, 72, 50, "lydian", [0, 1, 5, 4], 24, pad_cut=1500, arp_step=0.5,
                             arp_pattern=(0, 2, 4, 3, 5, 4, 2, 1), mel_inst=inst_bell, verb_sec=5.0,
@@ -439,6 +455,7 @@ TRACKS = {
                             mel_inst=lambda m, v: inst_pluck(m, v, 0.7, 1.2, 1.0), verb_sec=2.6, mel_density=0.55,
                             mel_gain=1.2, bars_per_chord=2, perc=True, arp_gain=0.6),
     "combat": track_combat,
+    "lab": track_lab,
 }
 
 

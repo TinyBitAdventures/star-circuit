@@ -31,14 +31,15 @@ var _glow := Color.WHITE
 
 var stations: Array = [] # {id, x, label} in room pixels
 var slots: Array = [] # decor slots: {id, kind: floor|wall, x}
-var room_w := 2400.0
+var room_w := 2800.0
+var _lab: Control = null
 var scroll := 0.0
 var _sel_worker := -1
 var _job_kind := "gather"
 var _job_target := ""
 var _job_min := 15
 var _job_item := ""
-const BASE_W := 2400.0
+const BASE_W := 2800.0
 const WING_W := 1000.0
 
 
@@ -51,6 +52,7 @@ func _build_layout() -> void:
 		{"id": "window", "x": 1480.0, "label": "Window"},
 		{"id": "trophy", "x": 1930.0, "label": "Trophy Wall"},
 		{"id": "decor", "x": 2300.0, "label": "Decor Console"},
+		{"id": "lab", "x": 2580.0, "label": "Micro Lab"},
 	]
 	slots = []
 	for p in [["f0", 470.0], ["f1", 800.0], ["f2", 1255.0], ["f3", 1712.0], ["f4", 2150.0]]:
@@ -173,7 +175,7 @@ func _process(delta: float) -> void:
 	if _leaving:
 		room.queue_redraw()
 		return
-	var busy := _panel != null
+	var busy := _panel != null or _lab != null
 	var ix := 0.0 if busy else Input.get_axis("move_left", "move_right")
 	if ix != 0.0:
 		_facing = signf(ix)
@@ -205,6 +207,8 @@ func _process(delta: float) -> void:
 				txt = "The Circuit: %d relays lit" % Game.lit_relays.size()
 			"garden":
 				txt = "The Garden"
+			"lab":
+				txt = "[E] Micro Lab: grow a culture"
 		_prompt.text = txt
 		_prompt.position = Vector2(_avatar_x - scroll - 150.0, _floor_y() + 26.0)
 		if not busy and Input.is_action_just_pressed("interact"):
@@ -213,7 +217,7 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey) or not event.pressed or event.echo or _leaving:
+	if not (event is InputEventKey) or not event.pressed or event.echo or _leaving or _lab:
 		return
 	if event.is_action("pause"):
 		if _panel:
@@ -238,6 +242,8 @@ func _use(id: String) -> void:
 			_open_panel("dispatch")
 		"decor":
 			_open_panel("decor")
+		"lab":
+			_open_panel("lab")
 		"pod":
 			if Game.charge_use():
 				Sound.play("respawn", -4.0, 0.0, "UI")
@@ -340,6 +346,8 @@ func _rebuild() -> void:
 			_panel = _panel_dispatch()
 		"decor":
 			_panel = _panel_decor()
+		"lab":
+			_panel = _panel_lab()
 		_:
 			return
 	panel_root.add_child(_panel)
@@ -1009,6 +1017,8 @@ func _draw_room() -> void:
 				_draw_trophy(x, fy)
 			"decor":
 				_draw_decor_console(x, fy)
+			"lab":
+				_draw_lab(x, fy)
 			"exit":
 				_draw_exit(x, fy)
 			"observatory":
@@ -1074,6 +1084,133 @@ func _draw_decor_console(x: float, fy: float) -> void:
 		var c := Color.from_hsv(fmod(k * 0.2 + _t * 0.05, 1.0), 0.6, 1.0)
 		room.draw_circle(r.position + Vector2(22 + (k % 3) * 33, 40 + (k / 3) * 34), 11.0, c)
 	_label_at(Vector2(x, r.position.y - 16), "DECOR", Color("ffb86b"))
+
+
+# --------------------------------------------------------------------------
+# the Micro Lab
+# --------------------------------------------------------------------------
+
+func _panel_lab() -> Control:
+	var v := _frame("MICRO LAB", Vector2(900, 640))
+	var intro := UiKit.label("Load ingredients from your hold or vault and grow a culture in the soup. Fuse cells of different strains; fused cells divide on their own. Reach critical mass before the culture goes off. The faster you get there, the better the grade: Stable, Refined or Pristine. Grow an upgrade again to improve its grade.", 14, UiKit.MUTED)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD
+	v.add_child(intro)
+	var sc := ScrollContainer.new()
+	sc.custom_minimum_size = Vector2(0, 470)
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(sc)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 8)
+	sc.add_child(list)
+	for r in Db.LAB_RECIPES:
+		list.add_child(_lab_row(r))
+	return _panel_holder
+
+
+func _lab_row(r: Dictionary) -> Control:
+	var pc := PanelContainer.new()
+	pc.add_theme_stylebox_override("panel", UiKit.box(Color(0.05, 0.08, 0.14, 0.9), Color(1, 1, 1, 0.12), 8, 1, 10))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	pc.add_child(h)
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(col)
+	var out: String = r.out
+	var head := String(r.name)
+	var best := Game.lab_grade(out) if r.has("bonus") else -1
+	if best >= 0:
+		head += "   ·   %s" % Db.LAB_GRADES[best]
+	col.add_child(UiKit.label(head, 18, Db.item_color(out), true))
+	var what := ""
+	if r.has("bonus"):
+		var parts: Array[String] = []
+		for g in 3:
+			parts.append("%s %s" % [Db.LAB_GRADES[g], Game.bonus_text(r.bonus[g])])
+		what = "Upgrade: " + "  /  ".join(parts)
+	else:
+		what = "%s x%d / x%d / x%d by grade" % [Db.item_name(out), int(r.qty[0]), int(r.qty[1]), int(r.qty[2])]
+	var wl := UiKit.label(what, 13, UiKit.TEXT)
+	wl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	col.add_child(wl)
+	var ing: Array[String] = []
+	for k in r.in:
+		var have := Game.lab_have(k)
+		var need := int(r.in[k])
+		ing.append("[color=%s]%s %d/%d[/color]" % ["#6ee06a" if have >= need else "#ff6b6b", Db.item_name(k), have, need])
+	var sk := "[color=%s]%s %d[/color]" % ["#8ea3bf" if Game.skill_level(r.skill) >= int(r.req) else "#ff6b6b", Db.SKILLS[r.skill].name, int(r.req)]
+	var il := UiKit.rich("  ·  ".join(ing) + "   ·   " + sk, 13)
+	il.fit_content = true
+	il.custom_minimum_size = Vector2(620, 0)
+	col.add_child(il)
+	var block := Game.lab_block(r)
+	var b := UiKit.button("Grow" if block == "" else block, func() -> void: _start_lab(String(r.id)))
+	b.disabled = block != ""
+	b.custom_minimum_size = Vector2(170, 44)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(b)
+	return pc
+
+
+func _start_lab(id: String) -> void:
+	if not Game.lab_start(id):
+		return
+	_close_panel()
+	Sound.play("home_enter", -6.0, 0.0, "UI")
+	var lab := preload("res://scripts/home/micro_lab.gd").new()
+	lab.setup(id)
+	lab.closed.connect(_on_lab_closed)
+	_lab = lab
+	add_child(lab)
+	Sound.play_music("lab", 1.0)
+
+
+func _on_lab_closed(result: Dictionary) -> void:
+	if _lab:
+		_lab.queue_free()
+		_lab = null
+	Sound.play_music("home", 1.2)
+	Sound.play("home_exit", -8.0, 0.0, "UI")
+	var ok: bool = result.get("ok", false)
+	_toast(String(result.get("text", "")), Color("ffd23f") if ok else Color("ff8a6b"))
+	_open_panel("lab")
+
+
+func _draw_lab(x: float, fy: float) -> void:
+	# a bench with a big microscope and a steaming bowl of culture soup
+	var bench := Rect2(x - 150, fy - 90, 300, 90)
+	_neon_rect(bench, Color("ffd23f"), Color("241e10"))
+	# microscope
+	var mb := Vector2(x - 60, fy - 90)
+	room.draw_rect(Rect2(mb + Vector2(-40, -14), Vector2(80, 14)), Color("3a4150"))
+	room.draw_line(mb + Vector2(20, -14), mb + Vector2(20, -120), Color("5a6478"), 12.0)
+	var tube_a := mb + Vector2(18, -130)
+	var tube_b := mb + Vector2(-18, -190)
+	room.draw_line(tube_a, tube_b, Color("c9ced6"), 16.0)
+	room.draw_line(tube_b, tube_b + Vector2(-8, -18), Color("1b1f29"), 10.0)
+	room.draw_line(mb + Vector2(20, -60), mb + Vector2(-4, -60), Color("5a6478"), 8.0)
+	room.draw_circle(tube_a + Vector2(0, 8), 7.0, Color(1.0, 0.85, 0.3, 0.6 + 0.4 * sin(_t * 2.0)))
+	# the soup bowl, bubbling
+	var bc := Vector2(x + 70, fy - 104)
+	var bowl := PackedVector2Array()
+	for k in 17:
+		var a := PI * k / 16.0
+		bowl.append(bc + Vector2(cos(a) * 58.0, sin(a) * 40.0))
+	room.draw_colored_polygon(bowl, Color("d8d0c0"))
+	room.draw_colored_polygon(_ellipse(bc, 58.0, 12.0), Color("a8702a"))
+	for k in 5:
+		var ph := fmod(_t * 0.6 + k * 0.37, 1.0)
+		var bp := bc + Vector2(-40 + k * 20, -ph * 60.0)
+		room.draw_arc(bp, 3.0 + ph * 3.0, 0, TAU, 10, Color(1.0, 0.95, 0.8, 0.5 * (1.0 - ph)), 1.5)
+	for k in 3:
+		var sx := bc.x - 20 + k * 20
+		var wv := PackedVector2Array()
+		for j in 8:
+			var u := j / 7.0
+			wv.append(Vector2(sx + sin(u * 6.0 + _t * 2.0 + k) * 5.0, bc.y - 20 - u * 70.0))
+		room.draw_polyline(wv, Color(1, 1, 1, 0.12), 2.0)
+	_label_at(Vector2(x, fy - 330), "MICRO LAB", Color("ffd23f"))
 
 
 func _draw_observatory(x: float, fy: float) -> void:

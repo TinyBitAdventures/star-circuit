@@ -608,7 +608,99 @@ def volcano_rumble_loop():
     return S.crossfade_loop(sub + grind, 1.2)
 
 
+# ---------------------------------------------------------------- Micro Lab (the soup)
+
+def _bloop(f0, f1, dur, vel=1.0, tau=0.08):
+    # a bubble: a sine whose pitch rises as it closes
+    n = N(dur)
+    return S.sine(chirp(f0, f1, n, 0.5), n) * S.exp_decay(n, tau) * vel
+
+
+def lab_zap():
+    # a thin probe ray: a fast falling buzz with a fizz on top
+    n = N(0.13)
+    buzz = S.square(chirp(2400, 700, n, 0.6), n, 0.3) * S.exp_decay(n, 0.05) * 0.35
+    fizz = S.bandpass(S.noise(n), 3000, 9000) * S.exp_decay(n, 0.03) * 0.25
+    return fade_out(buzz + fizz, 0.02)
+
+
+def lab_tag():
+    parts = [(0.0, S.sine(S.midi_hz(84), N(0.08)) * S.exp_decay(N(0.08), 0.03) * 0.4),
+             (0.05, S.sine(S.midi_hz(91), N(0.1)) * S.exp_decay(N(0.1), 0.04) * 0.35)]
+    return small_room(fade_out(seq(parts), 0.02), 0.4, 0.2)
+
+
+def lab_fuse():
+    # two cells squelch into one: a low gloop, a bubble and a warm chime
+    gloop = _bloop(90, 260, 0.35, 0.9, 0.12)
+    wet = S.lowpass(S.noise(N(0.3)), 900) * S.exp_decay(N(0.3), 0.06) * 0.3
+    chime = seq([(0.12, bell(m, 0.5, 2.0, 0.8) * 0.18) for m in (76, 83)])
+    return small_room(fade_out(seq([(0, gloop), (0, wet), (0.1, _bloop(500, 1300, 0.08, 0.35, 0.02)), (0, chime)]), 0.1), 0.8, 0.3)
+
+
+def lab_divide():
+    # a cell pinching in two: a stretchy rise and a soft pop
+    stretch = _bloop(180, 420, 0.25, 0.6, 0.1)
+    pop = _bloop(700, 1600, 0.06, 0.5, 0.015)
+    return small_room(fade_out(seq([(0, stretch), (0.2, pop)]), 0.05), 0.5, 0.25)
+
+
+def lab_pop():
+    # a phage zapped: a wet crunchy splat
+    n = N(0.22)
+    crunch = S.bandpass(S.noise(n), 600, 4000) * S.exp_decay(n, 0.04) * 0.6
+    thud = S.sine(chirp(220, 80, n), n) * S.exp_decay(n, 0.05) * 0.5
+    return fade_out(seq([(0, crunch + thud), (0.02, _bloop(900, 2000, 0.05, 0.3, 0.012))]), 0.03)
+
+
+def lab_armor():
+    return fade_out(seq([(0, metal(1900, 0.08) * 0.5), (0, metal(2600, 0.05) * 0.3)]), 0.02)
+
+
+def lab_infect():
+    # a cell lost to a phage: a sinking, gurgling wobble
+    n = N(0.6)
+    t = t_axis(n)
+    f = chirp(420, 110, n, 0.7) * (1 + 0.08 * np.sin(2 * np.pi * 18 * t))
+    return small_room(fade_out(S.sine(f, n) * S.exp_decay(n, 0.25) * 0.6 + S.lowpass(S.noise(n), 700) * S.exp_decay(n, 0.1) * 0.2, 0.1), 0.6, 0.3)
+
+
+def lab_phage():
+    # a phage drifting in: a small sour two-note sting
+    parts = [(0.0, S.saw(S.midi_hz(62), N(0.12)) * S.exp_decay(N(0.12), 0.05) * 0.2),
+             (0.08, S.saw(S.midi_hz(63), N(0.16)) * S.exp_decay(N(0.16), 0.06) * 0.2)]
+    return small_room(fade_out(S.lowpass(seq(parts), 2200), 0.03), 0.5, 0.25)
+
+
+def lab_stir():
+    # a ladle through the broth: a slow sloshing swell with bubbles
+    S.seed(77)
+    r = S.rng()
+    n = N(1.6)
+    t = t_axis(n)
+    slosh = S.bandpass(S.noise(n), 200, 1200) * np.sin(np.pi * t / 1.6) ** 2 * (0.7 + 0.3 * np.sin(2 * np.pi * 2.2 * t)) * 0.5
+    bubbles = seq([(r.uniform(0.2, 1.3), _bloop(r.uniform(300, 700), r.uniform(900, 1600), 0.07, 0.25, 0.02)) for _ in range(6)])
+    return fade_out(seq([(0, slosh), (0, bubbles)]), 0.2)
+
+
+def lab_success():
+    # critical mass: a bubbling rise into a bright chord
+    rise = seq([(i * 0.07, _bloop(S.midi_hz(60 + i * 3), S.midi_hz(64 + i * 3), 0.12, 0.35, 0.05)) for i in range(8)])
+    chord = seq([(0.55 + i * 0.03, bell(m, 1.2, 2.0, 1.0) * 0.22) for i, m in enumerate((72, 76, 79, 84))])
+    return small_room(fade_out(seq([(0, rise), (0, chord)]), 0.3), 1.4, 0.35)
+
+
+def lab_fail():
+    n = N(1.0)
+    sink = S.sine(chirp(300, 70, n, 0.6), n) * S.exp_decay(n, 0.45) * 0.5
+    gurgle = seq([(0.1 + i * 0.12, _bloop(260 - i * 30, 180 - i * 20, 0.1, 0.3, 0.04)) for i in range(5)])
+    return small_room(fade_out(seq([(0, sink), (0, gurgle)]), 0.2), 1.0, 0.3)
+
+
 SFX = {
+    "lab_zap": lab_zap, "lab_tag": lab_tag, "lab_fuse": lab_fuse, "lab_divide": lab_divide, "lab_pop": lab_pop,
+    "lab_armor": lab_armor, "lab_infect": lab_infect, "lab_phage": lab_phage, "lab_stir": lab_stir,
+    "lab_success": lab_success, "lab_fail": lab_fail,
     "klaxon": klaxon,
     "hyper_loop": hyper_loop, "volcano_rumble_loop": volcano_rumble_loop,
     "home_enter": home_enter, "home_exit": home_exit,

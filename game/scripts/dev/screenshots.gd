@@ -65,6 +65,10 @@ func _run() -> void:
 		await _warp_tour()
 		get_tree().quit()
 		return
+	if which == "lab":
+		await _lab_tour()
+		get_tree().quit()
+		return
 	if which == "home":
 		await _home_tour()
 		get_tree().quit()
@@ -1533,3 +1537,55 @@ func _style_tour() -> void:
 			if OS.get_environment("DBG") != "":
 				get_tree().quit()
 				return
+
+
+func _lab_tour() -> void:
+	Sound.show_tips = false
+	Game.new_game("scout", "Tester")
+	await _wait(4.0)
+	Game.skills["engineering"].level = 90
+	Game.skills["botany"].level = 60
+	Game.add_item("biofiber", 20, true)
+	Game.add_item("plasma", 12, true)
+	Game.vault = {"sea_pearl": 4, "fossil": 2, "polymer": 3, "exotic": 3, "voidshard": 3, "core_ember": 1, "glowcap": 5, "sporegel": 4}
+	Game.open_home()
+	await _wait(1.5)
+	var home: Node = null
+	for c in get_tree().root.get_children():
+		if c.has_method("leave"):
+			home = c
+	home._avatar_x = 2470.0
+	await _wait(1.2)
+	await shot("lab_station")
+	home._open_panel("lab")
+	await _wait(0.6)
+	await shot("lab_panel")
+	home._start_lab("medic_culture")
+	await _wait(0.8)
+	var lab = home._lab
+	lab.autoplay = true
+	lab.bot_rate = 0.45
+	await _wait(0.6)
+	await shot("lab_soup_start")
+	await _wait(5.0)
+	await shot("lab_soup_fusing")
+	await _wait(10.0)
+	await shot("lab_soup_phages")
+	while lab.phase == "play":
+		await _wait(0.5)
+	await _wait(1.2)
+	await shot("lab_result")
+	lab._close()
+	await _wait(0.8)
+	for id in ["hull_graft", "void_symbiont"]:
+		home._start_lab(id)
+		await _wait(0.8)
+		lab = home._lab
+		lab.autoplay = true
+		lab.bot_rate = 0.45
+		await _wait(9.0)
+		await shot("lab_soup_" + id)
+		lab._end(-1)
+		await _wait(1.5)
+		lab._close()
+		await _wait(0.6)

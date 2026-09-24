@@ -2,6 +2,14 @@
 
 ## Unreleased (v0.3.0)
 
+### The Micro Lab
+- A new station in the Homespace. Load ingredients from your hold or vault and drop into a bowl of primordial soup under the microscope: a warm, swirling broth with fat droplets, flecks and bubbles, tinted by what went in.
+- Every ingredient becomes a strain of cells with its own habits: some drift, some dart about, some blink from place to place, some swarm, and some wear shells you have to crack first.
+- Steer a tiny probe with WASD, aim with the mouse and zap a cell to tag it, then zap a different strain to fuse the two. Fused cells divide on their own, but red corruption phages drift in to eat them, so zap those on sight. Now and then the soup gets stirred and everything swirls.
+- Reach critical mass before the culture goes off. The faster you get there, the better the grade: Stable, Refined or Pristine. A lost culture gives back half its ingredients.
+- Eight formulas finally give the rare finds a use: Medic and Warp cultures (more Repair Kits or Warp Cells at better grades), plus six graded upgrades: Mycelium Mesh (cargo), Living Hull Graft (hull), Ember Heart (energy), Growth Lattice (harvest speed), Lustre Symbiote (sell prices) and Void Symbiont (energy and hull). Grow an upgrade again to improve its grade. The top formulas need Engineering 70 and 85, which gives Expert and Artisan training a purpose.
+- A new quest, "Primordial Soup", after "Into the Fire", the "Cell Biologist" milestone, a bubbling lab theme and eleven new sounds.
+
 ### Volcanoes
 - Volcanic worlds and moons now have three Volcanic Vents (one within walking distance of the landing, all on the compass) leading into the **Eruption Run**: a 2D cutaway of the volcano from the crater down through the Lava Tubes, Obsidian Galleries, Magma Chamber and Deep Mantle to the glowing core.
 - Magma rises the whole time and the volcano erupts after 2.5 minutes. Dive for crystals in the side pockets, ride geysers back up, and climb out at the rim in time. Getting caught in the eruption costs half your haul.

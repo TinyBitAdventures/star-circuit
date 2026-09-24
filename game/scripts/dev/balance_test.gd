@@ -33,6 +33,11 @@ func _ready() -> void:
 				_need_craft("relay_coupler", gates, reward_items)
 			"gem", "gem_types":
 				_need_craft("deep_probe", gates, reward_items)
+			"lab":
+				var lr := Db.lab_recipe("medic_culture")
+				gates[lr.skill] = maxi(int(gates.get(lr.skill, 0)), int(lr.req))
+				for k in lr.in:
+					_need_item(k, gates, reward_items)
 			"sea_scan", "dig", "chamber":
 				pass
 		var notes: Array[String] = []
@@ -56,6 +61,17 @@ func _ready() -> void:
 		for k in q.reward:
 			reward_items[k] = true
 		i += 1
+	# every Micro Lab ingredient must come from somewhere
+	for lr in Db.LAB_RECIPES:
+		for k in lr.in:
+			var crafted := false
+			for rr in Db.RECIPES:
+				if rr.out == k:
+					crafted = true
+			if not sources.has(k) and not crafted:
+				fails += 1
+				print("[bal] FAIL lab %s: no source for %s" % [lr.id, k])
+	print("[bal] lab formulas=%d checked" % Db.LAB_RECIPES.size())
 	print("[bal] done, fails=%d" % fails)
 	get_tree().quit()
 

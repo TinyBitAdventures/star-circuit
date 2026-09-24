@@ -275,6 +275,8 @@ static func objective_text(q: Dictionary) -> String:
 			return "Probe a world from orbit (O) and extract a gem: %d / %d" % [p, o.count]
 		"gem_types":
 			return "Different world gems held: %d / %d" % [p, o.count]
+		"lab":
+			return "Grow a culture in the Micro Lab (%s, walk right to the lab): %d / %d" % [Sound.key_name("home"), p, o.count]
 		"chamber":
 			return "Discover a sealed chamber: %d / %d" % [p, o.count]
 		"sell":

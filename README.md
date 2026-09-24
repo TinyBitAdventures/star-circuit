@@ -163,6 +163,13 @@ fullscreen, graphics quality and volume.
   - **Decor:** buy furniture and wall pieces (lamps, a home globe, a sea tank of the species you've logged, an arcade, neon signs,
     an uptime clock, a star chart of your lit relays...) and arrange them in wall and floor spots. Pick a room theme, and compile
     two wings: an **Observatory** onto your relay Circuit and a **Garden**. The **Defrag Pod** fully restores hull and energy once per in-game day.
+  - **Micro Lab:** load ingredients (from the hold or the vault) and drop into a bowl of primordial soup under the microscope.
+    Each ingredient is a strain of cells with its own habits: drifters, darters, blinkers, swarms and armoured shells. Steer a tiny probe
+    with WASD, zap a cell with the left mouse button, then zap a different strain to fuse them. Fused cells divide on their own (slower as
+    the dish fills), and red corruption phages hunt them. Reach critical mass before the culture goes off: the faster, the better the grade
+    (Stable, Refined, Pristine). Eight formulas turn Fire Opals, Core Embers, Sea Pearls, Glowcaps, Fossils, Relics, Kelp, Stardust and
+    Exotic Matter into Repair Kits, Warp Cells and six graded upgrades (cargo, hull, energy, harvest speed, sell prices), gated up to
+    Engineering 85 and Botany 60. Grow an upgrade again to improve its grade. Quest "Primordial Soup", milestone "Cell Biologist".
 - **Orbit & Deep Probes**:
   - Near any planet, moon or gas giant, press O to hold orbit. The view cuts the world open: surface, clouds and atmosphere on the rim,
     then crust strata, a convecting mantle, a molten outer core and a white-hot inner core, all turning slowly under your ship.
@@ -228,7 +235,7 @@ fullscreen, graphics quality and volume.
   - **Bounty Boards** post three daily contracts (deliver goods, cull drones, survey species, salvage sites). You can hold 3 at once
     and turn them in at any board.
   - **Credits** come from selling, contracts, drone kills, landmark caches and story quests.
-- **Audio**: 11 looping music tracks and 61 sound effects, all synthesised from code (`audio/`).
+- **Audio**: 15 looping music tracks and 79 sound effects, all synthesised from code (`audio/`).
   Music follows context: menu, a cozy town theme, one theme per world type (bright, arid, crystal, volcanic), deep-space,
   a hovering orbit theme, and a Deep Sea score that darkens from sunlit dorian into a low phrygian abyss with whale-song leads,
   plus a combat layer that crossfades in while drones are chasing you. Effects cover footsteps, jetpack, gathering loops,
@@ -274,6 +281,8 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     godot --headless --path game res://scenes/dev_warp.tscn    # hyperspace: interdiction waves, kills, hits, arrival, relay jump
     SHOTS=warp godot --path game res://scenes/dev_shots.tscn   # hyperspace tunnel, firefight, mines, relay colours
     godot --headless --path game res://scenes/dev_home.tscn    # Homespace: vault uplink costs, inbox, trader orders, pause/resume
+    godot --headless --path game res://scenes/dev_lab.tscn     # Micro Lab: hold+vault draw, autoplay to critical mass (60/15 fps), idle failure, graded upgrade, save, balance sweep
+    SHOTS=lab godot --path game res://scenes/dev_shots.tscn    # lab bench, formula panel, the soup mid-culture, phages, result card
     SHOTS=home godot --path game res://scenes/dev_shots.tscn   # Homespace room, vault, inbox, trophy wall
     godot --headless --path game res://scenes/dev_balance.tscn # quest-line audit: sources, skill gates, training costs
     godot --path game res://scenes/dev_shots.tscn              # renders a screenshot tour into shots/
