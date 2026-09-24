@@ -874,20 +874,37 @@ func _abs(anchor: int, rel: Vector3) -> Vector3:
 ## Wingmates near a pirate kill share it: XP, credits and their own salvage.
 const SPACE_SHARE_RANGE := 600.0
 
+var _skill_seen := {} # "sender:id" -> time, so a repeated kill message only pays once
+var _skill_times := {} # sender -> recent shared-kill times (a flood pays a few, not hundreds)
+const SKILL_BURST := 8 # most shared kills from one wingmate in 10 seconds
+
 func share_space_kill(e: Node3D) -> void:
 	var r := _rel(e.global_position)
-	Net.send_event("skill", {"type": e.type, "lvl": e.level, "elite": e.elite, "anchor": r[0], "pos": Net._arr(r[1])})
+	Net.send_event("skill", {"id": "%d" % e.get_instance_id(), "type": e.type, "lvl": e.level, "elite": e.elite, "anchor": r[0], "pos": Net._arr(r[1])})
 
 
-func _on_room_event(_from: int, from_name: String, kind: String, data: Dictionary) -> void:
+func _on_room_event(from: int, from_name: String, kind: String, data: Dictionary) -> void:
 	if kind != "skill" or player == null:
 		return
 	var t := String(data.get("type", ""))
 	if not Db.SPACE_ENEMIES.has(t) or t == "heart":
 		return
+	var sid := String(data.get("id", ""))
+	if sid == "":
+		return
+	var now := Time.get_ticks_msec()
+	var key := "%d:%s" % [from, sid.left(24)]
+	if _skill_seen.has(key) and now - int(_skill_seen[key]) < 60000:
+		return
+	var recent: Array = (_skill_times.get(from, []) as Array).filter(func(at): return now - int(at) < 10000)
+	if recent.size() >= SKILL_BURST:
+		return
 	var where := _abs(int(data.get("anchor", -1)), Net._vec(data.get("pos")))
 	if player.global_position.distance_to(where) > SPACE_SHARE_RANGE:
 		return
+	_skill_seen[key] = now
+	recent.append(now)
+	_skill_times[from] = recent
 	var lvl := clampi(int(data.get("lvl", 1)), 1, 60)
 	var loot: Dictionary = Game.record_space_kill(t, lvl, bool(data.get("elite", false)))
 	for item in loot:

@@ -1041,7 +1041,7 @@ func net_state() -> Dictionary:
 
 
 func _clear_remote(p: Vector2i, fx: bool) -> bool:
-	if p.x < 0 or p.y < 0 or p.x >= W or p.y >= H or dug[idx(p.x, p.y)] or not is_solid(p.x, p.y):
+	if p.x < 0 or p.y < 0 or p.x >= W or p.y >= H or dug[idx(p.x, p.y)] or not is_solid(p.x, p.y) or get_cell(p.x, p.y) == BEDROCK:
 		return false
 	cells[idx(p.x, p.y)] = WATER
 	dug[idx(p.x, p.y)] = 1
@@ -1058,7 +1058,55 @@ func _object(id: int) -> Dictionary:
 	return {}
 
 
-func _on_room_event(_from: int, from_name: String, kind: String, data: Dictionary) -> void:
+## Most tiles one friend's tunnels can clear here per visit. A long dig is a
+## few hundred; a mask asking to clear more rock than this is made up and ignored.
+const MASK_MAX := 2500
+var _mask_taken := {} # peer id -> tiles their masks have cleared this visit
+
+## Merge a friend's dug tiles, but only tunnels that join open water here:
+## flood out from our open cells through theirs, so a made-up mask can't
+## hollow out rock nobody could have reached.
+func _merge_mask(raw: PackedByteArray, from: int) -> int:
+	var n := mini(raw.size() * 8, W * H)
+	var want := PackedByteArray()
+	want.resize(W * H)
+	var bits := 0
+	for i in n:
+		if raw[i >> 3] & (1 << (i & 7)) and not dug[i] and is_solid(i % W, i / W):
+			bits += 1
+			want[i] = 1
+	var limit := MASK_MAX - int(_mask_taken.get(from, 0))
+	if bits > MASK_MAX or limit <= 0:
+		return 0
+	var queue: Array[int] = []
+	for i in W * H:
+		if want[i] and _opens_onto(i % W, i / W):
+			queue.append(i)
+	var changed := 0
+	var head := 0
+	while head < queue.size() and changed < limit:
+		var i := queue[head]
+		head += 1
+		if not want[i]:
+			continue
+		want[i] = 0
+		var p := Vector2i(i % W, i / W)
+		if not _clear_remote(p, false):
+			continue
+		changed += 1
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var q: Vector2i = p + d
+			if q.x >= 0 and q.y >= 0 and q.x < W and q.y < H and want[idx(q.x, q.y)]:
+				queue.append(idx(q.x, q.y))
+	_mask_taken[from] = int(_mask_taken.get(from, 0)) + changed
+	return changed
+
+
+func _opens_onto(x: int, y: int) -> bool:
+	return not is_solid(x + 1, y) or not is_solid(x - 1, y) or not is_solid(x, y + 1) or not is_solid(x, y - 1)
+
+
+func _on_room_event(from: int, from_name: String, kind: String, data: Dictionary) -> void:
 	match kind:
 		"dig":
 			_clear_remote(Vector2i(int(data.get("x", -1)), int(data.get("y", -1))), true)
@@ -1069,8 +1117,11 @@ func _on_room_event(_from: int, from_name: String, kind: String, data: Dictionar
 		"clam":
 			# it opens for you to see; the pearl (if any) was theirs
 			var o := _object(int(data.get("id", -1)))
-			if not o.is_empty() and not o.get("open", false):
+			if not o.is_empty() and o.kind == "clam" and not o.get("open", false):
 				o.open = true
+				var opened: Array = Game.sea_state(key).opened
+				if not opened.has(o.id):
+					opened.append(o.id)
 				_burst(o.pos, Color("f3eef8"), 8)
 		"wreck":
 			# a salvage crew shares the haul
@@ -1086,11 +1137,7 @@ func _on_room_event(_from: int, from_name: String, kind: String, data: Dictionar
 				hud.big("WRECK SALVAGED", "%s cut it open  ·  your share: +%d credits, Ancient Relic, Deep Probe" % [from_name, cr], Color("ffd98a"))
 				Sound.play("quest_complete", -4.0, 0.0, "UI")
 		"mask":
-			var raw := Marshalls.base64_to_raw(String(data.get("dug", "")))
-			var changed := 0
-			for i in mini(raw.size() * 8, W * H):
-				if raw[i >> 3] & (1 << (i & 7)) and _clear_remote(Vector2i(i % W, i / W), false):
-					changed += 1
+			var changed := _merge_mask(Marshalls.base64_to_raw(String(data.get("dug", ""))), from)
 			if changed > 0:
 				for c in _chunks:
 					_chunks[c].queue_redraw()

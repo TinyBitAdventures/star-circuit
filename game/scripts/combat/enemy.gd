@@ -361,6 +361,33 @@ func remote_hit(amount: float) -> void:
 	_update_plate()
 	if hp <= 0.0:
 		_die(true)
+		# normally the friend's kill message follows and pays the shared kill;
+		# if both of us finished it off with hits, nobody sends one: share it anyway
+		var w := world
+		var args := [nid, type, level, elite]
+		get_tree().create_timer(SHARED_KILL_WAIT).timeout.connect(func(): Enemy._shared_kill_fallback(w, args))
+
+
+const SHARED_KILL_WAIT := 0.5
+
+## Pays a drone our hits and a friend's killed together, unless a kill message
+## for it already paid (the planet's _dead_nids).
+static func _shared_kill_fallback(w: Node, args: Array) -> void:
+	if not is_instance_valid(w):
+		return
+	var dead = w.get("_dead_nids")
+	var id := String(args[0])
+	if not dead is Dictionary or id == "":
+		return
+	var now := Time.get_ticks_msec()
+	if dead.has(id) and now - int(dead[id]) < 15000:
+		return
+	dead[id] = now
+	var t := String(args[1])
+	if not Db.ENEMIES.has(t):
+		return
+	Game.record_kill(t, int(args[2]), bool(args[3]))
+	Game.notify.emit("Shared kill: %s (Lv %d)" % [Db.ENEMIES[t].name, int(args[2])], Color("ffb86b"))
 
 
 ## remote: a friend landed the killing blow (their kill message carries the shared reward).

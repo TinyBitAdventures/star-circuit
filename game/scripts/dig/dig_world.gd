@@ -839,7 +839,10 @@ func net_state() -> Dictionary:
 
 ## A friend's drill: the rock goes, but the ore is theirs.
 func _clear_remote(p: Vector2i, fx: bool) -> bool:
-	if p.x < 0 or p.y < 0 or p.x >= W or p.y >= H or dug[idx(p.x, p.y)] or get_cell(p.x, p.y) == BEDROCK:
+	if p.x < 0 or p.y < 0 or p.x >= W or p.y >= H or dug[idx(p.x, p.y)]:
+		return false
+	var c := get_cell(p.x, p.y)
+	if c == BEDROCK or c == LAVA:
 		return false
 	cells[idx(p.x, p.y)] = AIR
 	dug[idx(p.x, p.y)] = 1
@@ -849,18 +852,62 @@ func _clear_remote(p: Vector2i, fx: bool) -> bool:
 	return true
 
 
-func _on_room_event(_from: int, _name: String, kind: String, data: Dictionary) -> void:
+## Most tiles one friend's tunnels can clear here per visit. A long dig is a
+## few hundred; a mask asking to clear more rock than this is made up and ignored.
+const MASK_MAX := 1500
+var _mask_taken := {} # peer id -> tiles their masks have cleared this visit
+
+## Merge a friend's dug tiles, but only tunnels that join space already open
+## here: flood out from our open cells through theirs. A made-up mask can't
+## hollow out rock nobody could have reached.
+func _merge_mask(raw: PackedByteArray, from: int) -> int:
+	var n := mini(raw.size() * 8, W * H)
+	var want := PackedByteArray()
+	want.resize(W * H)
+	var bits := 0
+	for i in n:
+		if raw[i >> 3] & (1 << (i & 7)) and not dug[i] and is_solid(i % W, i / W):
+			bits += 1
+			want[i] = 1
+	var limit := MASK_MAX - int(_mask_taken.get(from, 0))
+	if bits > MASK_MAX or limit <= 0:
+		return 0
+	var queue: Array[int] = []
+	for i in W * H:
+		if want[i] and _opens_onto(i % W, i / W):
+			queue.append(i)
+	var changed := 0
+	var head := 0
+	while head < queue.size() and changed < limit:
+		var i := queue[head]
+		head += 1
+		if not want[i]:
+			continue
+		want[i] = 0
+		var p := Vector2i(i % W, i / W)
+		if not _clear_remote(p, false):
+			continue
+		changed += 1
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var q: Vector2i = p + d
+			if q.x >= 0 and q.y >= 0 and q.x < W and q.y < H and want[idx(q.x, q.y)]:
+				queue.append(idx(q.x, q.y))
+	_mask_taken[from] = int(_mask_taken.get(from, 0)) + changed
+	return changed
+
+
+func _opens_onto(x: int, y: int) -> bool:
+	return not is_solid(x + 1, y) or not is_solid(x - 1, y) or not is_solid(x, y + 1) or not is_solid(x, y - 1)
+
+
+func _on_room_event(from: int, _name: String, kind: String, data: Dictionary) -> void:
 	match kind:
 		"dig":
 			if _clear_remote(Vector2i(int(data.get("x", -1)), int(data.get("y", -1))), true):
 				_mm_dirty = true
 		"mask":
 			# someone arrived: merge their tunnels into ours, and answer with ours
-			var raw := Marshalls.base64_to_raw(String(data.get("dug", "")))
-			var changed := 0
-			for i in mini(raw.size() * 8, W * H):
-				if raw[i >> 3] & (1 << (i & 7)) and _clear_remote(Vector2i(i % W, i / W), false):
-					changed += 1
+			var changed := _merge_mask(Marshalls.base64_to_raw(String(data.get("dug", ""))), from)
 			if changed > 0:
 				for c in _chunks:
 					_chunks[c][0].queue_redraw()

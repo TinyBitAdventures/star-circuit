@@ -125,6 +125,20 @@ func _run() -> void:
 	print("[net] give to bob: ok=", ok, " bob got ", g.get("qty", 0), " ", g.get("item", ""), " from ", g.get("name", ""), "; ferrite now ", Game.count("ferrite"))
 	Game.add_item("drill_mk2", 1, true)
 	print("[net] give an upgrade refused=", not Net.give(bob_id, "drill_mk2", 1))
+	# giving faster than the server allows: the refused gifts come back
+	await _wait(2.5)
+	Game.add_item("ferrite", 20, true)
+	var fe1 := Game.count("ferrite")
+	for i in 12:
+		Net.give(bob_id, "ferrite", 1)
+	var removed := fe1 - Game.count("ferrite")
+	await _wait(0.6)
+	var bob_gifts := 0
+	for m in bob_in:
+		if m.t == "gift":
+			bob_gifts += 1
+	bob_in = bob_in.filter(func(m): return m.t != "gift")
+	print("[net] give flood: sent 12, removed ", removed, ", bob got ", bob_gifts, ", refunded ", Game.count("ferrite") - (fe1 - removed), " ferrite ", fe1, " -> ", Game.count("ferrite"), " kept=", Game.count("ferrite") == fe1 - bob_gifts)
 	# we drop a crate; Bob grabs it
 	Game.add_item("biofiber", 5, true)
 	var dropped := Net.drop_here({"biofiber": 2})
@@ -170,16 +184,31 @@ func _run() -> void:
 	_bob_send({"t": "ev", "room": room, "kind": "kill", "data": kill})
 	await _wait(0.3)
 	print("[net] duplicate kill paid again=", Game.kills != k0 + 1)
+	# our hits and Bob's finish a drone off together and nobody sends a kill: it still pays, once
+	var foe3: Enemy = null
+	for e in pw.enemies:
+		if is_instance_valid(e) and e.is_alive() and e != foe:
+			foe3 = e
+			break
+	var k1 := Game.kills
+	var kill3 := {"nid": foe3.nid, "type": foe3.type, "lvl": foe3.level, "elite": foe3.elite, "pos": Net._arr(pw.player.global_position)}
+	foe3.take_hit(1.0)
+	_bob_send({"t": "ev", "room": room, "kind": "hits", "data": {"h": {kill3.nid: 999999.0}}})
+	await _wait(1.0)
+	_bob_send({"t": "ev", "room": room, "kind": "kill", "data": kill3})
+	await _wait(0.3)
+	print("[net] hit-kill with no kill message: kills ", k1, " -> ", Game.kills, " (want +1)")
+	var kf := Game.kills
 	var far := kill.duplicate()
 	far.nid = "x:far"
 	far.pos = Net._arr(pw.player.global_position + up * 500.0)
 	_bob_send({"t": "ev", "room": room, "kind": "kill", "data": far})
 	await _wait(0.3)
-	print("[net] far kill shared=", Game.kills != k0 + 1)
+	print("[net] far kill shared=", Game.kills != kf)
 	# our hits and kills reach Bob
 	var foe2: Enemy = null
 	for e in pw.enemies:
-		if e.is_alive() and e != foe:
+		if is_instance_valid(e) and e.is_alive() and e != foe:
 			foe2 = e
 			break
 	bob_in.clear()
@@ -209,12 +238,38 @@ func _run() -> void:
 	bob_in.clear()
 	var bob_raw := PackedByteArray()
 	bob_raw.resize((dw.W * dw.H + 7) / 8)
+	# a shaft from the sky down to (20, SURFACE+8), plus a pocket nobody could reach
+	for y in range(dw.SURFACE, dw.SURFACE + 9):
+		var si: int = dw.idx(20, y)
+		bob_raw[si >> 3] |= (1 << (si & 7))
 	var bcell := Vector2i(20, dw.SURFACE + 8)
 	var bi: int = dw.idx(bcell.x, bcell.y)
-	bob_raw[bi >> 3] |= (1 << (bi & 7))
+	var lone := Vector2i(-1, -1)
+	for y in range(dw.H - 30, dw.SURFACE + 20, -1):
+		for x in range(2, dw.W - 2):
+			if dw.is_solid(x, y) and dw.get_cell(x, y) != dw.BEDROCK and dw._opens_onto(x, y) == false and not dw._opens_onto(x + 1, y) and not dw._opens_onto(x - 1, y):
+				lone = Vector2i(x, y)
+				break
+		if lone.x >= 0:
+			break
+	var li: int = dw.idx(lone.x, lone.y)
+	bob_raw[li >> 3] |= (1 << (li & 7))
 	_bob_send({"t": "ev", "room": croom, "kind": "mask", "data": {"dug": Marshalls.raw_to_base64(bob_raw), "reply": false}})
 	var mask := await _bob_wait("ev", 2.0)
-	print("[net] cave: bob's tunnel merged=", dw.dug[bi] == 1, " we replied with ours=", mask.get("kind", "") == "mask" and not bool(mask.get("data", {}).get("reply", false)) == false)
+	print("[net] cave: bob's tunnel merged=", dw.dug[bi] == 1, " sealed pocket kept=", dw.dug[li] == 0, " we replied with ours=", mask.get("kind", "") == "mask" and not bool(mask.get("data", {}).get("reply", false)) == false)
+	# a made-up mask of every tile hollows nothing
+	var solid0 := 0
+	for i in dw.W * dw.H:
+		solid0 += 1 if dw.is_solid(i % dw.W, i / dw.W) else 0
+	var all_ones := PackedByteArray()
+	all_ones.resize((dw.W * dw.H + 7) / 8)
+	all_ones.fill(255)
+	_bob_send({"t": "ev", "room": croom, "kind": "mask", "data": {"dug": Marshalls.raw_to_base64(all_ones), "reply": true}})
+	await _wait(0.4)
+	var solid1 := 0
+	for i in dw.W * dw.H:
+		solid1 += 1 if dw.is_solid(i % dw.W, i / dw.W) else 0
+	print("[net] cave: all-ones mask cleared ", solid0 - solid1, " tiles (want 0)")
 	var nv2: NetView2D = null
 	for c in dw.get_children():
 		if c is NetView2D:
@@ -242,6 +297,14 @@ func _run() -> void:
 	_bob_send({"t": "ev", "room": "sea:" + sea_key, "kind": "wreck", "data": {"id": 9999}})
 	await _wait(0.4)
 	print("[net] sea: joined friend's sea=", Game.sea.get("key", "") == sea_key, " scene=", sw0.name, " wreck share credits ", cr0, " -> ", Game.credits)
+	var clam_id := -1
+	for o in sw0.objects:
+		if o.kind == "clam" and not o.get("open", false):
+			clam_id = int(o.id)
+			break
+	_bob_send({"t": "ev", "room": "sea:" + sea_key, "kind": "clam", "data": {"id": clam_id}})
+	await _wait(0.4)
+	print("[net] sea: friend's clam saved as opened=", (Game.sea_state(sea_key).opened as Array).has(clam_id))
 	Game.leave_sea()
 	await _wait(4.0)
 	# fly: both in space, Bob 30 m off the first planet
@@ -255,9 +318,12 @@ func _run() -> void:
 	await _wait(0.6)
 	var sav: RemotePlayer = sw.net_view.avatars.get(bob_id)
 	var sk0 := Game.space_kills
-	_bob_send({"t": "ev", "room": "space:%d" % Game.star_index, "kind": "skill", "data": {"type": "raider", "lvl": 3, "elite": false, "anchor": 0, "pos": Net._arr(sw.player.global_position - Galaxy.orbit_pos(Galaxy.planet(Game.star_index, 0), Game.play_time))}})
+	var skill := {"id": "77", "type": "raider", "lvl": 3, "elite": false, "anchor": 0, "pos": Net._arr(sw.player.global_position - Galaxy.orbit_pos(Galaxy.planet(Game.star_index, 0), Game.play_time))}
+	_bob_send({"t": "ev", "room": "space:%d" % Game.star_index, "kind": "skill", "data": skill})
 	await _wait(0.4)
-	print("[net] space shared kill: ", sk0, " -> ", Game.space_kills)
+	_bob_send({"t": "ev", "room": "space:%d" % Game.star_index, "kind": "skill", "data": skill})
+	await _wait(0.4)
+	print("[net] space shared kill: ", sk0, " -> ", Game.space_kills, " (repeat ignored)")
 	var expect := Galaxy.orbit_pos(Galaxy.planet(Game.star_index, 0), Game.play_time) + rel
 	print("[net] space: scene=", sw.name, " bob flying=", sav != null, " off by ", snappedf(sav.global_position.distance_to(expect), 0.1) if sav else -1.0, " where=", Net.where_text(bob_id))
 	# Bob leaves, then we do
