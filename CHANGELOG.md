@@ -19,6 +19,11 @@
 - **Shared caves:** go down the same Cave Mouth as a friend and you're in the same dig: you see each other's drill pods, every tile either of you cuts disappears for both, and tunnels you dug on your own visits merge when you meet.
 - **Shared Deep Sea:** dive anywhere on a world where a friend is already diving and you join their sea. Cut rock, kelp and opened clams show up for both, and salvaging the wreck pays everyone.
 - **Shared fights:** players are one party. Anyone within 80 m of a drone kill (600 m of a pirate kill in space) gets the XP, credits and their own loot roll. Where you both have the same drone (like the camps around the Cradle), your shots and its death sync, so you wear it down together. A kill only ever pays once.
+- Gifts and crates can't lose items any more: anything the server turns down (more than 9999 at once, more than 20 kinds in a crate, sending too fast, the other player just left) comes straight back with a reason, and nothing leaves your hold if the connection has dropped.
+- When you and a friend finish off a drone together with your shots, you both still get the kill.
+- Clams a friend opens stay open next time you dive there, and friends' pirate kills in space can't pay twice.
+- Safer servers: a friend's cave map can only open tunnels that connect to ones you can reach, oversized or garbled robot styles are ignored, chat and style changes are rate limited, idle and excess connections are dropped, repeated wrong passwords make that address wait, names can't hide invisible characters, and a password-protected server doesn't list who's online. Game and server must both be this version.
+- The server README covers running it on macOS, Windows and Linux (including a systemd unit).
 
 ### Fixes
 - Recalling a hauler into a vault that had filled up behind it could push the vault over its limit, which then duplicated items on later worker reports and parcel claims. Whatever doesn't fit now comes back as a parcel.
