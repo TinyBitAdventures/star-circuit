@@ -7,7 +7,8 @@
 //	star-circuit-server -addr :7777 -password hunter2 -data drops.json
 //	star-circuit-server -addr :443 -tls-cert fullchain.pem -tls-key privkey.pem
 //
-// Clients connect to ws://host:7777/ws (or wss:// behind TLS).
+// Clients connect to ws://host:7777/ws (or wss:// behind TLS). The game
+// trusts its players' clients: run it for friends, not strangers.
 package main
 
 import (
@@ -16,7 +17,11 @@ import (
 	"errors"
 	"flag"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
@@ -32,9 +37,16 @@ func main() {
 	ttl := flag.Duration("drop-ttl", 72*time.Hour, "how long an untouched crate lasts")
 	cert := flag.String("tls-cert", "", "TLS certificate (serve wss:// directly)")
 	key := flag.String("tls-key", "", "TLS private key")
+	origins := flag.String("allow-origin", "", "comma-separated browser origins allowed to connect (e.g. example.com, *.example.com, or *); the game itself sends none")
 	flag.Parse()
 
-	hub := NewHub(Config{Name: *name, Password: *password, Motd: *motd, MaxPlayers: *maxPlayers, DataFile: *data, DropTTL: *ttl})
+	var allow []string
+	for _, o := range strings.Split(*origins, ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			allow = append(allow, o)
+		}
+	}
+	hub := NewHub(Config{Name: *name, Password: *password, Motd: *motd, MaxPlayers: *maxPlayers, DataFile: *data, DropTTL: *ttl, AllowOrigins: allow})
 	go func() {
 		for range time.Tick(10 * time.Second) {
 			hub.Sweep()
@@ -64,19 +76,68 @@ func NewMux(hub *Hub) *http.ServeMux {
 		json.NewEncoder(w).Encode(hub.Status())
 	})
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		// game clients send no Origin; browsers are welcome too
-		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+		// the game sends no Origin; a web page does, and isn't let in unless allowed
+		if o := r.Header.Get("Origin"); o != "" && !originAllowed(o, hub.cfg.AllowOrigins) {
+			http.Error(w, "Browser connections aren't allowed on this server.", http.StatusForbidden)
+			return
+		}
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true}) // origin checked above
 		if err != nil {
 			return
 		}
-		serve(r.Context(), hub, conn, r.RemoteAddr)
+		serve(r.Context(), hub, conn, clientIP(r))
 	})
 	return mux
 }
 
+// originAllowed matches an Origin header's host against -allow-origin patterns.
+func originAllowed(origin string, patterns []string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	host := strings.ToLower(u.Host)
+	for _, p := range patterns {
+		p = strings.ToLower(p)
+		if p == "*" {
+			return true
+		}
+		if ok, _ := path.Match(p, host); ok {
+			return true
+		}
+		if ok, _ := path.Match(p, u.Hostname()); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// clientIP is the connecting address. Behind a reverse proxy on the same
+// machine, the proxy's X-Forwarded-For entry (the last one) is used.
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			parts := strings.Split(xff, ",")
+			if last := strings.TrimSpace(parts[len(parts)-1]); net.ParseIP(last) != nil {
+				return last
+			}
+		}
+	}
+	return host
+}
+
 func serve(ctx context.Context, hub *Hub, conn *websocket.Conn, remote string) {
-	conn.SetReadLimit(64 * 1024)
-	c := hub.Register()
+	conn.SetReadLimit(16 * 1024)
+	c := hub.Register(remote)
+	if c == nil {
+		log.Printf("%s refused: too many connections", remote)
+		conn.Close(websocket.StatusTryAgainLater, "The server is busy.")
+		return
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -253,5 +255,264 @@ func TestRoomEvents(t *testing.T) {
 		if m.T == "pong" {
 			break
 		}
+	}
+}
+
+// expectNone checks no message of type typ arrives before a pong.
+func (c *tclient) expectNone(typ string) {
+	c.t.Helper()
+	c.send(Msg{T: "ping"})
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case m, ok := <-c.in:
+			if !ok {
+				c.t.Fatalf("connection closed waiting for pong")
+			}
+			if m.T == typ {
+				c.t.Fatalf("unexpected %q: %+v", typ, m)
+			}
+			if m.T == "pong" {
+				return
+			}
+		case <-deadline:
+			c.t.Fatal("timed out waiting for pong")
+		}
+	}
+}
+
+// closed reports whether the server closed the connection within d.
+func (c *tclient) closed(d time.Duration) bool {
+	deadline := time.After(d)
+	for {
+		select {
+		case _, ok := <-c.in:
+			if !ok {
+				return true
+			}
+		case <-deadline:
+			return false
+		}
+	}
+}
+
+func TestLookCleanedAndRateLimited(t *testing.T) {
+	_, srv := newServer(t, Config{})
+	a, _ := join(t, srv, "A")
+	b, _ := join(t, srv, "B")
+	huge := strings.Repeat("x", 5000)
+	a.send(Msg{T: "look", Look: map[string]any{"shell": "#ff8a5b", "head": "visor", "evil": "x", "top": huge,
+		"glow": map[string]any{"nested": 1}, "accent": "<script>"}})
+	l := b.expect("look")
+	if len(l.Look) != 2 || l.Look["shell"] != "#ff8a5b" || l.Look["head"] != "visor" {
+		t.Fatalf("look not cleaned: %+v", l.Look)
+	}
+	// a burst of looks: only a few get through
+	for i := 0; i < 30; i++ {
+		a.send(Msg{T: "look", Look: map[string]any{"shell": "#000000"}})
+	}
+	b.send(Msg{T: "ping"})
+	time.Sleep(300 * time.Millisecond)
+	n := 0
+	for len(b.in) > 0 {
+		if m := <-b.in; m.T == "look" {
+			n++
+		}
+	}
+	if n == 0 || n > 5 {
+		t.Fatalf("%d looks relayed from a burst of 30, want 1..5", n)
+	}
+	// hello looks are cleaned too
+	_, w := join(t, srv, "C")
+	for _, p := range w.Players {
+		if p.Name == "A" && len(p.Look) > 2 {
+			t.Fatalf("stored look: %+v", p.Look)
+		}
+	}
+}
+
+func TestChatRateLimited(t *testing.T) {
+	_, srv := newServer(t, Config{})
+	a, _ := join(t, srv, "A")
+	b, _ := join(t, srv, "B")
+	for i := 0; i < 30; i++ {
+		a.send(Msg{T: "chat", Text: "spam"})
+	}
+	time.Sleep(300 * time.Millisecond)
+	n := 0
+	for len(b.in) > 0 {
+		if m := <-b.in; m.T == "chat" {
+			n++
+		}
+	}
+	if n == 0 || n > 6 {
+		t.Fatalf("%d chats relayed from a burst of 30, want 1..6", n)
+	}
+}
+
+func TestOversizeMessageDisconnects(t *testing.T) {
+	_, srv := newServer(t, Config{})
+	a, _ := join(t, srv, "A")
+	a.send(Msg{T: "chat", Text: strings.Repeat("y", 20*1024)})
+	if !a.closed(3 * time.Second) {
+		t.Fatal("a 20 KB message was accepted")
+	}
+}
+
+func TestConnectionCapAndHelloTimeout(t *testing.T) {
+	_, srv := newServer(t, Config{MaxPlayers: 1, MaxConns: 3, HelloTimeout: 300 * time.Millisecond})
+	idle := []*tclient{dial(t, srv), dial(t, srv), dial(t, srv)}
+	extra := dial(t, srv)
+	if !extra.closed(2 * time.Second) {
+		t.Fatal("a fourth socket was kept open over the cap of 3")
+	}
+	for _, c := range idle {
+		if !c.closed(2 * time.Second) {
+			t.Fatal("a socket that never said hello was kept open")
+		}
+	}
+	// room again once they're gone
+	join(t, srv, "A")
+}
+
+func TestPasswordBackoff(t *testing.T) {
+	_, srv := newServer(t, Config{Password: "hunter2"})
+	for i := 0; i < failFree; i++ {
+		c := dial(t, srv)
+		c.send(Msg{T: "hello", Name: "X", Version: ProtocolVersion, Password: "nope"})
+		if e := c.expect("error"); !strings.Contains(e.Text, "Wrong") {
+			t.Fatalf("attempt %d: %+v", i, e)
+		}
+	}
+	// now even the right password waits
+	c := dial(t, srv)
+	c.send(Msg{T: "hello", Name: "X", Version: ProtocolVersion, Password: "hunter2"})
+	if e := c.expect("error"); !strings.Contains(e.Text, "Too many") {
+		t.Fatalf("backoff: %+v", e)
+	}
+	time.Sleep(1100 * time.Millisecond)
+	c2 := dial(t, srv)
+	c2.send(Msg{T: "hello", Name: "X", Version: ProtocolVersion, Password: "hunter2"})
+	c2.expect("welcome")
+}
+
+func TestItemRefusalsAlwaysAnswer(t *testing.T) {
+	_, srv := newServer(t, Config{})
+	a, _ := join(t, srv, "A")
+	_, wb := join(t, srv, "B")
+	for _, m := range []Msg{
+		{T: "give", To: wb.ID, Item: "ferrite", Qty: 10000},
+		{T: "give", To: wb.ID, Item: "ferrite", Qty: 0},
+		{T: "give", To: wb.ID, Item: "Bad Item!", Qty: 3},
+		{T: "give", To: 999, Item: "ferrite", Qty: 3},
+	} {
+		a.send(m)
+		f := a.expect("give_fail")
+		if f.Text == "" || f.Item != m.Item || f.Qty != m.Qty {
+			t.Fatalf("give_fail for %+v: %+v", m, f)
+		}
+	}
+	many := map[string]int{}
+	for i := 0; i < 21; i++ {
+		many[fmt.Sprintf("item_%d", i)] = 1
+	}
+	for _, m := range []Msg{
+		{T: "drop", Star: ip(0), Planet: ip(0), Pos: []float64{1, 2, 3}, Items: map[string]int{"lumen": 10000}},
+		{T: "drop", Star: ip(0), Planet: ip(0), Pos: []float64{1, 2, 3}, Items: many},
+		{T: "drop", Star: ip(0), Planet: ip(0), Pos: []float64{1, 2}, Items: map[string]int{"lumen": 1}},
+		{T: "drop", Planet: ip(0), Pos: []float64{1, 2, 3}, Items: map[string]int{"lumen": 1}},
+	} {
+		a.send(m)
+		f := a.expect("drop_fail")
+		if f.Text == "" || len(f.Items) != len(m.Items) {
+			t.Fatalf("drop_fail for %+v: %+v", m, f)
+		}
+	}
+	// giving too fast: every one is answered, some refused
+	time.Sleep(2100 * time.Millisecond) // the refusals above used up the burst
+	ok, fail := 0, 0
+	for i := 0; i < 20; i++ {
+		a.send(Msg{T: "give", To: wb.ID, Item: "ferrite", Qty: 1})
+	}
+	for ok+fail < 20 {
+		select {
+		case m := <-a.in:
+			switch m.T {
+			case "give_ok":
+				ok++
+			case "give_fail":
+				fail++
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatalf("only %d of 20 gifts answered", ok+fail)
+		}
+	}
+	if fail == 0 || ok == 0 {
+		t.Fatalf("rate limit: ok=%d fail=%d", ok, fail)
+	}
+}
+
+func TestEventsOnlyFromYourRoom(t *testing.T) {
+	_, srv := newServer(t, Config{})
+	a, _ := join(t, srv, "A")
+	b, _ := join(t, srv, "B")
+	b.send(Msg{T: "state", Scene: "dig", Room: "dig:0:0:7", Star: ip(0), Planet: ip(0)})
+	a.send(Msg{T: "state", Scene: "planet", Room: "planet:0:0", Star: ip(0), Planet: ip(0)})
+	a.expect("state")
+	b.expect("state")
+	// A isn't in the cave, so can't dig it
+	a.send(Msg{T: "ev", Room: "dig:0:0:7", Kind: "mask", Data: json.RawMessage(`{"dug":"////"}`)})
+	a.send(Msg{T: "ping"})
+	a.expect("pong")
+	b.expectNone("ev")
+}
+
+func TestCrateLimitPerAddress(t *testing.T) {
+	_, srv := newServer(t, Config{})
+	a, _ := join(t, srv, "A")
+	for i := 0; i < maxCratesPerIP; i++ {
+		a.send(Msg{T: "drop", Star: ip(0), Planet: ip(0), Pos: []float64{1, 2, 3}, Items: map[string]int{"lumen": 1}})
+		a.expect("drop_add")
+		time.Sleep(260 * time.Millisecond) // under the crate rate limit
+	}
+	a.send(Msg{T: "drop", Star: ip(0), Planet: ip(0), Pos: []float64{1, 2, 3}, Items: map[string]int{"lumen": 1}})
+	a.expect("drop_fail")
+	// reconnecting doesn't reset it
+	a.conn.Close(websocket.StatusNormalClosure, "")
+	a2, _ := join(t, srv, "A")
+	a2.send(Msg{T: "drop", Star: ip(0), Planet: ip(0), Pos: []float64{1, 2, 3}, Items: map[string]int{"lumen": 1}})
+	if f := a2.expect("drop_fail"); !strings.Contains(f.Text, "Too many crates") {
+		t.Fatalf("drop after reconnect: %+v", f)
+	}
+}
+
+func TestNamesIgnoreInvisibleCharsAndCase(t *testing.T) {
+	if got := cleanText("Aus​tin‮⁦!", 20); got != "Austin!" {
+		t.Fatalf("cleanText: %q", got)
+	}
+	_, srv := newServer(t, Config{})
+	join(t, srv, "Austin")
+	_, w := join(t, srv, "AUS​TIN")
+	if w.Name != "AUSTIN (2)" {
+		t.Fatalf("lookalike name: %q", w.Name)
+	}
+}
+
+func TestOriginAndStatus(t *testing.T) {
+	hub, srv := newServer(t, Config{Password: "pw"})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+	if _, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{HTTPHeader: http.Header{"Origin": {"https://evil.example"}}}); err == nil {
+		t.Fatal("a browser origin was let in")
+	}
+	hub.cfg.AllowOrigins = []string{"*.example"}
+	c, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{HTTPHeader: http.Header{"Origin": {"https://good.example"}}})
+	if err != nil {
+		t.Fatalf("allowed origin refused: %v", err)
+	}
+	c.Close(websocket.StatusNormalClosure, "")
+	if _, ok := hub.Status()["players"]; ok {
+		t.Fatal("a password server lists its players")
 	}
 }

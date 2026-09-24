@@ -13,7 +13,7 @@ signal look_changed(id: int)
 ## Something happened in the room we're in (a tile dug, a clam opened, a kill...).
 signal room_event(from_id: int, from_name: String, kind: String, data: Dictionary)
 
-const PROTOCOL := "2"
+const PROTOCOL := "3"
 const DEFAULT_PORT := 7777
 const SEND_RATE := 0.1 # seconds between position updates
 const CFG_PATH := "user://multiplayer.cfg"

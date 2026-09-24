@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,7 +15,7 @@ import (
 )
 
 // ProtocolVersion is bumped when messages change incompatibly.
-const ProtocolVersion = "2"
+const ProtocolVersion = "3"
 
 // Msg is every message in both directions. Unused fields are omitted.
 type Msg struct {
@@ -75,6 +76,7 @@ type Drop struct {
 	Items  map[string]int `json:"items"`
 	By     string         `json:"by"`
 	At     int64          `json:"at"`
+	ip     string         // who left it (not saved: crates from before a restart count for nobody)
 }
 
 // Client is one connection. Outgoing messages go through send; the
@@ -83,21 +85,62 @@ type Client struct {
 	info    PlayerInfo
 	send    chan []byte
 	joined  bool
-	drops   int
+	ip      string
 	lastMsg time.Time
 	budget  float64 // token bucket against floods
 	room    string
+	look    bucket
+	chat    bucket
+	items   bucket // gifts and crates
+}
+
+// bucket is a small token bucket for one kind of message.
+type bucket struct {
+	tokens float64
+	last   time.Time
+	primed bool
+}
+
+func (b *bucket) allow(now time.Time, perSec, burst float64) bool {
+	if !b.primed {
+		b.primed, b.tokens, b.last = true, burst, now
+	}
+	b.tokens = math.Min(burst, b.tokens+now.Sub(b.last).Seconds()*perSec)
+	b.last = now
+	if b.tokens < 1 {
+		return false
+	}
+	b.tokens--
+	return true
+}
+
+// failures tracks wrong passwords from one address.
+type failures struct {
+	count int
+	until time.Time
+	last  time.Time
 }
 
 type Config struct {
-	Name       string
-	Password   string
-	Motd       string
-	MaxPlayers int
-	DataFile   string
-	DropTTL    time.Duration
-	MaxDrops   int
+	Name         string
+	Password     string
+	Motd         string
+	MaxPlayers   int
+	DataFile     string
+	DropTTL      time.Duration
+	MaxDrops     int
+	MaxConns     int           // open sockets, joined or not (default MaxPlayers*2+8)
+	HelloTimeout time.Duration // a socket that hasn't said hello by then is closed (default 5s)
+	AllowOrigins []string      // browser origins allowed to connect (host patterns, "*" for any)
 }
+
+// Limits a client can't configure around.
+const (
+	maxCratesPerIP = 50 // crates lying around from one address
+	maxLookBytes   = 1024
+	failFree       = 3 // wrong passwords before an address has to wait
+	failMaxWait    = 5 * time.Minute
+)
 
 // Hub holds every player and drop. One mutex: the game is small.
 type Hub struct {
@@ -105,6 +148,7 @@ type Hub struct {
 	mu      sync.Mutex
 	clients map[*Client]bool
 	drops   map[int]*Drop
+	fails   map[string]*failures
 	nextID  int
 	dirty   bool
 }
@@ -116,16 +160,24 @@ func NewHub(cfg Config) *Hub {
 	if cfg.MaxDrops <= 0 {
 		cfg.MaxDrops = 500
 	}
-	h := &Hub{cfg: cfg, clients: map[*Client]bool{}, drops: map[int]*Drop{}, nextID: 1}
+	if cfg.MaxConns <= 0 {
+		cfg.MaxConns = cfg.MaxPlayers*2 + 8
+	}
+	if cfg.HelloTimeout <= 0 {
+		cfg.HelloTimeout = 5 * time.Second
+	}
+	h := &Hub{cfg: cfg, clients: map[*Client]bool{}, drops: map[int]*Drop{}, fails: map[string]*failures{}, nextID: 1}
 	h.load()
 	return h
 }
 
 var itemRe = regexp.MustCompile(`^[a-z0-9_]{1,40}$`)
 
+// cleanText drops control and format characters (zero-width spaces, bidi
+// overrides) and line/paragraph separators, trims and caps the length.
 func cleanText(s string, max int) string {
 	s = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
+		if unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) {
 			return -1
 		}
 		return r
@@ -150,15 +202,58 @@ func validVec(v []float64) bool {
 }
 
 func validItems(items map[string]int) bool {
-	if len(items) == 0 || len(items) > 20 {
-		return false
+	return itemsProblem(items) == ""
+}
+
+// itemsProblem says what's wrong with a crate's contents, or "" if nothing.
+func itemsProblem(items map[string]int) string {
+	if len(items) == 0 {
+		return "That crate would be empty."
+	}
+	if len(items) > 20 {
+		return "A crate holds at most 20 kinds of item."
 	}
 	for k, q := range items {
-		if !itemRe.MatchString(k) || q < 1 || q > 9999 {
-			return false
+		if !itemRe.MatchString(k) {
+			return "The server doesn't know that item."
+		}
+		if q < 1 || q > 9999 {
+			return "You can move at most 9999 of an item at once."
 		}
 	}
-	return true
+	return ""
+}
+
+// The parts of a look other players need: cosmetic ids and paint colours.
+var lookKeys = map[string]bool{"head": true, "top": true, "pack": true, "finish": true,
+	"shell": true, "accent": true, "glow": true, "flame": true}
+var lookValRe = regexp.MustCompile(`^[#A-Za-z0-9_-]{1,40}$`)
+
+// cleanLook keeps only known keys with short plain values.
+func cleanLook(in map[string]any) map[string]any {
+	out := map[string]any{}
+	for k, v := range in {
+		if !lookKeys[k] {
+			continue
+		}
+		switch x := v.(type) {
+		case string:
+			if lookValRe.MatchString(x) {
+				out[k] = x
+			}
+		case float64:
+			if !math.IsNaN(x) && !math.IsInf(x, 0) {
+				out[k] = x
+			}
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	if b, _ := json.Marshal(out); len(b) > maxLookBytes {
+		return nil
+	}
+	return out
 }
 
 func encode(m *Msg) []byte {
@@ -198,12 +293,23 @@ func (h *Hub) dropClientLocked(c *Client) {
 	}
 }
 
-// Register a new connection (before hello).
-func (h *Hub) Register() *Client {
-	c := &Client{send: make(chan []byte, 256), lastMsg: time.Now(), budget: 40}
+// Register a new connection (before hello). Returns nil when the server has
+// too many open sockets. A socket that doesn't say hello in time is closed.
+func (h *Hub) Register(ip string) *Client {
+	c := &Client{send: make(chan []byte, 256), lastMsg: time.Now(), budget: 40, ip: ip}
 	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.clients) >= h.cfg.MaxConns {
+		return nil
+	}
 	h.clients[c] = true
-	h.mu.Unlock()
+	time.AfterFunc(h.cfg.HelloTimeout, func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		if !c.joined {
+			h.dropClientLocked(c)
+		}
+	})
 	return c
 }
 
@@ -213,6 +319,7 @@ func (h *Hub) Unregister(c *Client) {
 	h.dropClientLocked(c)
 }
 
+// uniqueName suffixes a name already in use (ignoring case).
 func (h *Hub) uniqueName(name string) string {
 	taken := map[string]bool{}
 	for c := range h.clients {
@@ -247,7 +354,11 @@ func (h *Hub) Handle(c *Client, m *Msg) bool {
 	c.budget = math.Min(80, c.budget+now.Sub(c.lastMsg).Seconds()*60)
 	c.lastMsg = now
 	if c.budget < 1 {
-		return true // ignore the flood, keep the connection
+		// ignore the flood, keep the connection; but never swallow items
+		if c.joined {
+			h.refuseItems(c, m, "Slow down: the server is ignoring your messages for a moment.")
+		}
+		return true
 	}
 	c.budget--
 
@@ -269,12 +380,15 @@ func (h *Hub) Handle(c *Client, m *Msg) bool {
 		h.broadcast(st, c, true)
 	case "chat":
 		text := cleanText(m.Text, 200)
-		if text != "" {
+		if text != "" && c.chat.allow(now, 2, 5) {
 			h.broadcast(&Msg{T: "chat", ID: c.info.ID, Name: c.info.Name, Text: text}, nil, false)
 		}
 	case "look":
-		c.info.Look = m.Look
-		h.broadcast(&Msg{T: "look", ID: c.info.ID, Look: m.Look}, c, false)
+		if !c.look.allow(now, 2, 4) {
+			return true
+		}
+		c.info.Look = cleanLook(m.Look)
+		h.broadcast(&Msg{T: "look", ID: c.info.ID, Look: c.info.Look}, c, false)
 	case "give":
 		h.give(c, m)
 	case "drop":
@@ -289,14 +403,45 @@ func (h *Hub) Handle(c *Client, m *Msg) bool {
 	return true
 }
 
+// refuseItems answers a gift or crate the server won't handle, so the
+// sender gets the items back (the game takes them out before sending).
+func (h *Hub) refuseItems(c *Client, m *Msg, why string) {
+	switch m.T {
+	case "give":
+		h.reply(c, &Msg{T: "give_fail", To: m.To, Item: m.Item, Qty: m.Qty, Text: why})
+	case "drop":
+		h.reply(c, &Msg{T: "drop_fail", Items: m.Items, Text: why})
+	}
+}
+
 func (h *Hub) hello(c *Client, m *Msg) bool {
 	if m.Version != ProtocolVersion {
 		h.reply(c, &Msg{T: "error", Text: fmt.Sprintf("This server speaks protocol %s; your game speaks %s. Update the game or the server.", ProtocolVersion, m.Version)})
 		return false
 	}
-	if h.cfg.Password != "" && m.Password != h.cfg.Password {
-		h.reply(c, &Msg{T: "error", Text: "Wrong server password."})
-		return false
+	if h.cfg.Password != "" {
+		now := time.Now()
+		f := h.fails[c.ip]
+		if f != nil && now.Before(f.until) {
+			h.reply(c, &Msg{T: "error", Text: fmt.Sprintf("Too many wrong passwords. Try again in %d seconds.", int(math.Ceil(f.until.Sub(now).Seconds())))})
+			return false
+		}
+		if subtle.ConstantTimeCompare([]byte(m.Password), []byte(h.cfg.Password)) != 1 {
+			if f == nil {
+				f = &failures{}
+				h.fails[c.ip] = f
+			}
+			f.count++
+			f.last = now
+			if f.count >= failFree {
+				wait := time.Second << min(f.count-failFree, 9)
+				f.until = now.Add(min(wait, failMaxWait))
+			}
+			log.Printf("wrong password from %s (%d)", c.ip, f.count)
+			h.reply(c, &Msg{T: "error", Text: "Wrong server password."})
+			return false
+		}
+		delete(h.fails, c.ip)
 	}
 	n := 0
 	for o := range h.clients {
@@ -312,7 +457,7 @@ func (h *Hub) hello(c *Client, m *Msg) bool {
 	if name == "" {
 		name = "Unit"
 	}
-	c.info = PlayerInfo{ID: h.nextID, Name: h.uniqueName(name), Robot: cleanText(m.Robot, 20), Look: m.Look}
+	c.info = PlayerInfo{ID: h.nextID, Name: h.uniqueName(name), Robot: cleanText(m.Robot, 20), Look: cleanLook(m.Look)}
 	h.nextID++
 	c.joined = true
 	players := []*PlayerInfo{}
@@ -333,11 +478,12 @@ func (h *Hub) hello(c *Client, m *Msg) bool {
 	return true
 }
 
-// event relays a room event to everyone else currently in that room.
+// event relays a room event to everyone else currently in that room. A
+// player can only speak for the room their last state put them in.
 func (h *Hub) event(c *Client, m *Msg) {
 	room := cleanText(m.Room, 80)
 	kind := cleanText(m.Kind, 20)
-	if room == "" || kind == "" || len(m.Data) > 8192 || (len(m.Data) > 0 && !json.Valid(m.Data)) {
+	if room == "" || room != c.room || kind == "" || len(m.Data) > 8192 || (len(m.Data) > 0 && !json.Valid(m.Data)) {
 		return
 	}
 	b := encode(&Msg{T: "ev", ID: c.info.ID, Name: c.info.Name, Room: room, Kind: kind, Data: m.Data})
@@ -358,9 +504,18 @@ func (h *Hub) find(id int) *Client {
 }
 
 // give forwards items to another player. The sender has already taken them
-// out of their hold; give_fail hands them back.
+// out of their hold; every refusal answers give_fail, which hands them back.
 func (h *Hub) give(c *Client, m *Msg) {
-	if !itemRe.MatchString(m.Item) || m.Qty < 1 || m.Qty > 9999 {
+	if !c.items.allow(time.Now(), 4, 8) {
+		h.refuseItems(c, m, "You're giving too fast. Try again in a moment.")
+		return
+	}
+	if !itemRe.MatchString(m.Item) {
+		h.refuseItems(c, m, "The server doesn't know that item.")
+		return
+	}
+	if m.Qty < 1 || m.Qty > 9999 {
+		h.refuseItems(c, m, "You can give at most 9999 at once.")
 		return
 	}
 	to := h.find(m.To)
@@ -372,18 +527,34 @@ func (h *Hub) give(c *Client, m *Msg) {
 	h.reply(c, &Msg{T: "give_ok", To: to.info.ID, Name: to.info.Name, Item: m.Item, Qty: m.Qty})
 }
 
+// drop leaves a crate. Every refusal answers drop_fail with the items, so
+// the sender gets them back.
 func (h *Hub) drop(c *Client, m *Msg) {
-	if m.Star == nil || m.Planet == nil || !validVec(m.Pos) || !validItems(m.Items) {
+	if !c.items.allow(time.Now(), 4, 8) {
+		h.refuseItems(c, m, "You're dropping crates too fast. Try again in a moment.")
 		return
 	}
-	if len(h.drops) >= h.cfg.MaxDrops || c.drops >= 50 {
-		h.reply(c, &Msg{T: "drop_fail", Items: m.Items, Text: "Too many crates are lying around. Pick some up first."})
+	if m.Star == nil || m.Planet == nil || !validVec(m.Pos) {
+		h.refuseItems(c, m, "Crates can only be dropped on a planet.")
 		return
 	}
-	d := &Drop{ID: h.nextID, Star: *m.Star, Planet: *m.Planet, Pos: m.Pos, Items: m.Items, By: c.info.Name, At: time.Now().Unix()}
+	if why := itemsProblem(m.Items); why != "" {
+		h.refuseItems(c, m, why)
+		return
+	}
+	mine := 0
+	for _, d := range h.drops {
+		if d.ip == c.ip {
+			mine++
+		}
+	}
+	if len(h.drops) >= h.cfg.MaxDrops || mine >= maxCratesPerIP {
+		h.refuseItems(c, m, "Too many crates are lying around. Pick some up first.")
+		return
+	}
+	d := &Drop{ID: h.nextID, Star: *m.Star, Planet: *m.Planet, Pos: m.Pos, Items: m.Items, By: c.info.Name, At: time.Now().Unix(), ip: c.ip}
 	h.nextID++
 	h.drops[d.ID] = d
-	c.drops++
 	h.dirty = true
 	h.broadcast(&Msg{T: "drop_add", Drop: d}, nil, false)
 }
@@ -418,6 +589,12 @@ func (h *Hub) Sweep() {
 	if h.dirty {
 		h.save()
 		h.dirty = false
+	}
+	// forget old wrong-password streaks
+	for ip, f := range h.fails {
+		if time.Since(f.last) > time.Hour {
+			delete(h.fails, ip)
+		}
 	}
 }
 
@@ -473,6 +650,11 @@ func (h *Hub) Status() map[string]any {
 			names = append(names, c.info.Name)
 		}
 	}
-	return map[string]any{"game": "Star Circuit", "name": h.cfg.Name, "protocol": ProtocolVersion,
-		"players": names, "max_players": h.cfg.MaxPlayers, "drops": len(h.drops), "password": h.cfg.Password != ""}
+	st := map[string]any{"game": "Star Circuit", "name": h.cfg.Name, "protocol": ProtocolVersion,
+		"online": len(names), "max_players": h.cfg.MaxPlayers, "drops": len(h.drops), "password": h.cfg.Password != ""}
+	// a private server doesn't tell strangers who's playing
+	if h.cfg.Password == "" {
+		st["players"] = names
+	}
+	return st
 }
