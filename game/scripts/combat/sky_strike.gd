@@ -22,7 +22,7 @@ static func call_down(w: Node3D, dir: Vector3, dmg: float, r: float, delay: floa
 	s._pos = w.gen.surface_point(s._dir)
 	w.add_child(s)
 	s.global_position = s._pos
-	s._ring = CombatFx.ground_ring(w, s._pos, s._dir, r, Color(0.7, 0.6, 1.0, 0.35), delay)
+	s._ring = CombatFx.ground_ring(w, s._pos, s._dir, r, Color(0.5, 0.3, 1.0, 0.55), delay)
 	return s
 
 

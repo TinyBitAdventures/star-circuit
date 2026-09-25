@@ -416,6 +416,43 @@ def track_lab():
                    texture=(150, 800, 0.03), mel_density=0.5, mel_gain=1.1, bars_per_chord=2, perc=True, arp_gain=0.55)
 
 
+def track_titan():
+    """A Titan wakes: slow, heavy phrygian drums, a low saw ostinato and a rising choir pad."""
+    S.seed(151)
+    root, scale = 40, "phrygian"  # E phrygian
+    prog = [0, 1, 0, 6, 5, 1]
+    bars = 24
+    t = Track(104, bars, verb_sec=3.0, verb_damp=4500, delay_beats=0.5)
+    for b in range(bars):
+        cdeg = prog[(b // 4) % len(prog)]
+        section = 0 if b < 4 else (1 if b < 16 else 2)
+        # war drums: kick on 1 and the "and" of 2, toms rolling into each four-bar phrase
+        for beat in range(4):
+            pos = b * 4 + beat
+            if beat == 0 or (beat == 2 and section > 0):
+                t.add(drum_kick(1.0), pos, verb=0.1)
+            if beat == 1 and section > 0:
+                t.add(drum_kick(0.7), pos + 0.5, verb=0.1)
+            if beat == 3 and section > 0:
+                t.add(drum_snare(0.9), pos, verb=0.35)
+            if section == 2:
+                t.add(drum_hat(0.5, False), pos + 0.5, pan=0.3, verb=0.1, gain=0.7)
+        if b % 4 == 3:
+            for k, m in enumerate((47, 45, 43, 40)):
+                t.add(drum_tom(m), b * 4 + 2 + k * 0.5, pan=0.4 - k * 0.27, verb=0.3)
+        # low saw ostinato in 8ths
+        bm = deg_midi(root, scale, cdeg, -1)
+        for e in range(8):
+            accent = 1.0 if e in (0, 3, 6) else 0.6
+            t.add(inst_bass(bm + (7 if e == 5 else 0), 0.4 * t.spb, cutoff=600 + 300 * section, gain=0.26 * accent), b * 4 + e * 0.5, verb=0.05)
+        # choir pad swelling each phrase, higher in the last section
+        if b % 4 == 0:
+            t.add(inst_pad(chord_tones(root, scale, cdeg, 4 if section < 2 else 5, 0), 16 * t.spb, 1300, attack=1.6, release=2.0, voice="tri", gain=0.14), b * 4, verb=0.6)
+    arp_line(t, root, scale, prog, 16, bars - 16, 4, 1, [0, 4, 7, 4, 1, 4, 7, 4], 0.5,
+             lambda m, v: inst_pluck(m, v, 0.4, 2.0, 1.5), 0.5)
+    return t.render(0.12)
+
+
 TRACKS = {
     "menu": lambda: ambient("menu", 11, 72, 50, "lydian", [0, 1, 5, 4], 24, pad_cut=1500, arp_step=0.5,
                             arp_pattern=(0, 2, 4, 3, 5, 4, 2, 1), mel_inst=inst_bell, verb_sec=5.0,
@@ -456,6 +493,7 @@ TRACKS = {
                             mel_gain=1.2, bars_per_chord=2, perc=True, arp_gain=0.6),
     "combat": track_combat,
     "lab": track_lab,
+    "titan": track_titan,
 }
 
 

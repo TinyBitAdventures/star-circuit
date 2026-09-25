@@ -113,6 +113,18 @@ fullscreen, graphics quality and volume.
   Enemies spawn in camps that pull together and leash home, WoW-style, and respawn after two minutes.
   Levels scale with a world's distance from home, and names are colour-coded by difficulty. Kills drop Drone Scrap and Power Cores,
   which feed combat upgrades (Pulse Blaster, Void Lance, Reinforced Hull, Deflector Shield) and Repair Kits.
+  - **A signature enemy for every world type**, each with a trick to learn: the charging Thornback (Verdant), the
+    burrowing Dune Lurker (Arid), the shielded Frost Warden (Glacial), exploding Cinder Mite packs (Volcanic), the armoured
+    mortar Smelter (Machine), the lightning-calling Storm Kite (Tempest), the shot-reflecting Refractor (Crystalline), the
+    cloaked Void Stalker (Abyssal, scan to reveal it) and the rooted, breeding Spore Hive (Fungal). They drop their own parts.
+  - **Status effects**: burn, chill (four stacks freeze) and shock (+25% damage taken), on enemies and on you, with
+    per-enemy weaknesses and immunities.
+  - **Six weapon loadouts** (X to swap): Pulse, Scatter, Rail (pierces shields), Arc (chains and shocks), Cinder (lobbed,
+    burning grenades) and Cryo (a held beam that chills to a freeze), each retunable to **Mk II** with enemy parts and
+    **Mk III** with a Titan Core.
+  - **Titans**: world bosses in stone rings on about two dozen dangerous worlds (Colossus, Pyre Wyrm, Storm Sentinel), with
+    telegraphed attacks, an exposed-core window, a half-health enrage, a boss bar and their own battle theme.
+  - **Bestiary** (Quest Log, J): every enemy you've met; scan one to log how it fights.
 - **Exploration depth**:
   - Every world has 6–7 points of interest. Circuit Monoliths hold lore; Ancient Ruins have guarded data caches;
     Crashed Pods can be salvaged; Crystal Geodes mark hotspots of the planet's rarest resource. Undiscovered sites
@@ -274,7 +286,7 @@ fullscreen, graphics quality and volume.
   plus a combat layer that crossfades in while drones are chasing you. Effects cover footsteps, jetpack, gathering loops,
   blaster, hits, explosions, the Brute's warning and slam, abilities, UI, quests, level-ups, takeoff and warp.
   Wind and creature calls are positional. Volume sliders (Master, Music, Effects, Interface, Ambience) are in Settings.
-- **Character levels (1-30)**, a **33-quest storyline** with a real ending (combat, trade and training quests included), saved by quest ID so new quests never break old saves from the Archivist.
+- **Character levels (1-30)**, a **36-quest storyline** with a real ending (combat, trade and training quests included), saved by quest ID so new quests never break old saves from the Archivist.
 - **Three save slots** with Continue / Load / Delete on the main menu, plus autosave. An older single save moves into Slot 1 on its own.
 - **First-hour guidance**: a gold ★ on the compass (and a waypoint in space) points at whatever your current quest needs: the nearest
   matching ore, creatures to scan, a cave mouth, drones, the relay or the station. One-time tips explain landing, night, space flight,
@@ -323,6 +335,10 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     godot --headless --path game res://scenes/dev_balance.tscn # quest-line audit: sources, skill gates, training costs
     godot --path game res://scenes/dev_shots.tscn              # renders a screenshot tour into shots/
     SHOTS=combat godot --path game res://scenes/dev_shots.tscn # combat-only screenshot tour
+    godot --headless --path game res://scenes/dev_combat.tscn  # statuses, all nine biome enemies, weapons, Titans (armour, enrage, felled stays down)
+    SHOTS=bestiary godot --path game res://scenes/dev_shots.tscn # each biome enemy, portrait then mid-telegraph (FOES=mite,kite to pick)
+    SHOTS=weapons godot --path game res://scenes/dev_shots.tscn  # Arc, Cinder and Cryo firing
+    SHOTS=titans godot --path game res://scenes/dev_shots.tscn   # each Titan asleep, then its attacks (TITANS=titan_wyrm to pick)
     godot --headless --path game res://scenes/dev_brute.tscn   # elite Brute chase/slam check
     DIST=6 godot --path game res://scenes/dev_flicker.tscn      # frame-diff flicker detector on a ringed planet
     SHOTS=depth godot --path game res://scenes/dev_shots.tscn  # landmarks / compass / lore / weather tour

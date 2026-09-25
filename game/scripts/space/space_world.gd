@@ -779,6 +779,10 @@ func quest_space_target() -> Dictionary:
 				return {"kind": "relay", "id": 0, "name": "★ Circuit Relay"}
 		"station_sell":
 			return {"kind": "station", "id": 0, "name": "★ " + star.station.name}
+		"titan":
+			for p in planets:
+				if Game.has_titan(Game.star_index, p.data.index) and not Game.titans.has(p.data.key):
+					return {"kind": "planet", "id": p.data.index, "name": "★ %s (Titan)" % p.data.name}
 		"heart":
 			if heart and is_instance_valid(heart):
 				return {"kind": "heart", "id": 0, "name": "★ Corruption Heart"}

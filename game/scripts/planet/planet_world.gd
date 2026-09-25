@@ -40,6 +40,7 @@ var flora_tint := Color.WHITE
 var is_home := false
 var danger_level := 1
 var enemies: Array[Enemy] = []
+var titan: Enemy = null # this world's Titan, while it stands
 var town: Town
 var town_dir := Vector3.ZERO
 var _in_town := false
@@ -155,7 +156,24 @@ func _ready() -> void:
 var _combat_check := 0.0
 
 
+var _titan_fighting := false
+
+## Is the Titan awake and close? (Boss bar and music follow this.)
+func titan_fight() -> bool:
+	return titan != null and is_instance_valid(titan) and titan.is_alive() and titan.state == "chase" \
+		and player != null and titan.global_position.distance_to(player.global_position) < 110.0
+
+
 func _process(delta: float) -> void:
+	var tf := titan_fight()
+	if tf != _titan_fighting:
+		_titan_fighting = tf
+		hud.set_boss(titan if tf else null)
+		refresh_music()
+		if tf:
+			Game.tip("titan", "A Titan! Its armour turns aside most damage. Dodge the warning rings and lanes, and hit hard when it kneels with its core exposed.")
+	elif tf:
+		hud.set_boss(titan)
 	_combat_check -= delta
 	if _combat_check <= 0.0:
 		_combat_check = 0.5
@@ -664,6 +682,9 @@ func _spawn_enemy(t: String, lvl: int, d: Vector3, camp: int) -> Enemy:
 
 func on_enemy_killed(e: Enemy) -> void:
 	enemies.erase(e)
+	if e == titan:
+		Game.record_titan(planet.key, e.type)
+		refresh_music()
 	if e.camp_id < 0:
 		return # a hive's brood: never respawns on its own
 	var t := e.type
@@ -770,6 +791,9 @@ func _spawn_pois(outpost_dir: Vector3) -> void:
 	# (the first volcano keeps its old slot; two more follow it)
 	if biome.get("lava", false):
 		types.append_array(["volcano", "volcano", "volcano"])
+	# and Titan's Rests after everything else, for the same reason
+	if Game.has_titan(Game.star_index, Game.planet_index):
+		types.append("titan")
 	var first_cave := true
 	var first_volcano := true
 	var placed: Array[Vector3] = []
@@ -814,6 +838,14 @@ func _spawn_pois(outpost_dir: Vector3) -> void:
 				_spawn_enemy(["scrapper", "sentinel"][g % 2], danger_level + 1, _near(d, rng, 9.0), 500 + idx)
 		if t == "geode":
 			_spawn_hotspot(d, idx, rng)
+		if t == "titan" and not Game.titans.has(planet.key):
+			# the arena is the Titan's: any drone camp that landed inside it moves on
+			var centre := gen.surface_point(d)
+			for e in enemies.duplicate():
+				if e.camp_id >= 0 and e.global_position.distance_to(centre) < 70.0:
+					enemies.erase(e)
+					e.queue_free()
+			titan = _spawn_enemy(Db.TITANS[planet.biome], danger_level + 2, d, -1)
 		idx += 1
 
 
@@ -1082,6 +1114,8 @@ func _compute_quest_target() -> Dictionary:
 					return {"pos": n.global_position, "label": "The Archivist"}
 		return {}
 	var o: Dictionary = q.obj
+	if o.type == "titan" and titan and is_instance_valid(titan) and titan.is_alive():
+		return {"pos": titan.global_position, "label": titan.def.name}
 	if o.type == "collect" and o.item in ["fire_opal", "obsidian", "core_ember"]:
 		var v := _nearest_vent(pos)
 		return {"pos": v.entrance(), "label": "Volcanic Vent"} if v else {}
@@ -1178,7 +1212,9 @@ func _update_post(up: Vector3, day: float) -> void:
 ## One place decides the planet's music: the sea when the camera is under,
 ## the town theme inside a trade hub, otherwise the world's own theme.
 func refresh_music(fade := 2.5) -> void:
-	if underwater > 0.5 and not biome.get("lava", false):
+	if titan_fight():
+		Sound.play_music("titan", 1.5)
+	elif underwater > 0.5 and not biome.get("lava", false):
 		Sound.play_music("ocean", fade)
 	elif _in_town:
 		Sound.play_music("town", fade)

@@ -72,6 +72,7 @@ var volcano := {} # the volcano we're in (not saved: runs always resume on the s
 var volcanoes := {} # poi key -> {"escapes": n}
 var volcano_runs := 0
 var bestiary := {} # enemy type -> {"kills": n, "scanned": bool}
+var titans := {} # planet key -> the Titan type felled there (they stay down)
 var lab := {} # Micro Lab: {"grades": {item: grade}, "runs": n, "pristine": n}
 var orbit := {} # the world we're orbiting (not saved: orbit always resumes in space)
 var species_names := {} # species key -> display name (species log)
@@ -236,6 +237,7 @@ func _reset_state() -> void:
 	volcanoes = {}
 	volcano_runs = 0
 	bestiary = {}
+	titans = {}
 
 
 func new_game(robot: String, pname: String, slot_n := -1) -> void:
@@ -639,6 +641,48 @@ func _foe(type: String) -> Dictionary:
 	return bestiary[type]
 
 
+## Does this world have a Titan's Rest? (Dangerous planets, not moons.)
+## At most one per system, in about half the systems, picked by a hash so it
+## never touches the galaxy's own random streams.
+func has_titan(star_i: int, planet_i: int) -> bool:
+	if star_i == 0:
+		return false
+	var h := hash("titan:%d" % star_i)
+	if h % 2 != 0:
+		return false
+	var eligible: Array = []
+	for p in Galaxy.star(star_i).planets:
+		if Db.TITANS.has(p.get("biome", "")) and not p.has("moon_of") and planet_level(star_i, p.index) >= Db.TITAN_MIN_DANGER:
+			eligible.append(p.index)
+	if eligible.is_empty():
+		return false
+	return eligible[(h / 2) % eligible.size()] == planet_i
+
+
+## The closest world whose Titan still stands, for quest guidance.
+func nearest_titan_world() -> Dictionary:
+	var best := {}
+	for s in Galaxy.stars.size():
+		for p in Galaxy.star(s).planets:
+			if has_titan(s, p.index) and not titans.has(p.key):
+				var d := Galaxy.distance(star_index, s)
+				if best.is_empty() or d < float(best.dist):
+					best = {"name": p.name, "star": s, "index": p.index, "star_name": Galaxy.star(s).name, "dist": d, "titan": Db.ENEMIES[Db.TITANS[p.biome]].name}
+	return best
+
+
+## A Titan fell at a Titan's Rest: it stays down in this save.
+func record_titan(key: String, type: String) -> void:
+	if titans.has(key):
+		return
+	titans[key] = type
+	big_notify.emit("TITAN FELLED", "%s  ·  the Titan Core is yours" % Db.ENEMIES[type].name, Color("ff9a4d"))
+	Sound.play("quest_complete", -2.0, 0.0, "UI")
+	add_credits(800 + level * 40)
+	_quest_event("titan", type)
+	check_milestones()
+
+
 ## A scan caught an enemy: its entry in the Bestiary opens up (weaknesses, how it fights).
 func record_foe_scan(type: String) -> bool:
 	if not Db.ENEMIES.has(type) or bool(_foe(type).scanned):
@@ -747,6 +791,10 @@ func accept_quest() -> void:
 		"gem_types":
 			quest_progress = gem_types()
 	_reconcile_quest()
+	if o.type == "titan":
+		var tw := nearest_titan_world()
+		if not tw.is_empty():
+			notify.emit("Nearest Titan: a %s on %s, %s system (%.1f ly)" % [tw.titan, tw.name, tw.star_name, tw.dist], Color("ff9a4d"))
 	if o.type == "collect" and o.item in ["fire_opal", "obsidian", "core_ember"]:
 		var v := nearest_volcanic_world()
 		if not v.is_empty():
@@ -790,7 +838,7 @@ func _quest_event(kind: String, what: String, amount := 1) -> void:
 		"skill":
 			if o.skill == what:
 				quest_progress = mini(o.count, skill_level(what))
-		"gem", "sea_scan", "lab":
+		"gem", "sea_scan", "lab", "titan":
 			quest_progress = mini(o.count, quest_progress + 1)
 		"gem_types":
 			quest_progress = mini(o.count, gem_types())
@@ -957,7 +1005,7 @@ func save_game() -> void:
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
 		"milestones": milestones, "crafted_once": crafted_once,
-		"workers": workers, "home": home, "interdictions": interdictions, "volcanoes": volcanoes, "volcano_runs": volcano_runs, "bestiary": bestiary, "lab": lab,
+		"workers": workers, "home": home, "interdictions": interdictions, "volcanoes": volcanoes, "volcano_runs": volcano_runs, "bestiary": bestiary, "titans": titans, "lab": lab,
 		"vault": vault, "vault_level": vault_level, "inbox": inbox, "mail_seq": _mail_seq, "order_t": _order_t, "home_visits": home_visits, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": _saved_inventory(), "upgrades": upgrades, "skills": skills,
@@ -1031,6 +1079,7 @@ func load_game(n := -1) -> bool:
 	volcanoes = d.get("volcanoes", {})
 	volcano_runs = int(d.get("volcano_runs", 0))
 	bestiary = d.get("bestiary", {})
+	titans = d.get("titans", {})
 	lab = d.get("lab", {})
 	home = d.get("home", {})
 	if home_visits == 0 and inbox.is_empty():
@@ -1642,11 +1691,13 @@ func weapon_def() -> Dictionary:
 
 ## 1, or 2 once the loadout's Mk II retune is crafted.
 func weapon_tier(id: String) -> int:
+	if has_upgrade(id + "_mk3"):
+		return 3
 	return 2 if has_upgrade(id + "_mk2") else 1
 
 
 func weapon_tier_mult(id: String) -> float:
-	return 1.35 if weapon_tier(id) >= 2 else 1.0
+	return [1.0, 1.0, 1.35, 1.75][weapon_tier(id)]
 
 
 func weapon_unlocked(id: String) -> bool:
@@ -1800,6 +1851,7 @@ func metric(m: String) -> int:
 		"gem_types": return gem_types()
 		"sea_depth": return max_sea_depth
 		"volcano_runs": return volcano_runs
+		"titans": return titans.size()
 		"bestiary": return Db.BIOME_FOES.values().filter(func(t): return bool(bestiary.get(t, {}).get("scanned", false))).size()
 		"lab_pristine": return int(lab_state().pristine)
 		"relays": return lit_relays.size() - 1 # Solace's relay starts lit

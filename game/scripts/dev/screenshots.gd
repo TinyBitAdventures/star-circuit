@@ -178,6 +178,9 @@ func _run() -> void:
 	if which == "bestiary":
 		await _bestiary_tour()
 		get_tree().quit()
+	if which == "titans":
+		await _titans_tour()
+		get_tree().quit()
 	if which == "weapons":
 		await _weapons_tour()
 		get_tree().quit()
@@ -1921,3 +1924,51 @@ func _weapons_tour() -> void:
 			await _wait(0.45)
 		await shot("weapon_%s" % wid)
 		await _wait(1.0)
+
+
+
+func _titans_tour() -> void:
+	Game.new_game("miner", "Tester")
+	await _wait(4.0)
+	Sound.show_tips = false
+	var worlds := {}
+	for si in Galaxy.stars.size():
+		for pl in Galaxy.star(si).planets:
+			if Game.has_titan(si, pl.index) and not worlds.has(Db.TITANS[pl.biome]):
+				worlds[Db.TITANS[pl.biome]] = Vector2i(si, pl.index)
+	var only := OS.get_environment("TITANS")
+	for kind in ["titan_colossus", "titan_wyrm", "titan_sentinel"]:
+		if only != "" and not kind in only.split(","):
+			continue
+		var at: Vector2i = worlds[kind]
+		Game.go_to_planet(at.x, at.y)
+		await _wait(5.5)
+		var w := _scene()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		Game.invulnerable = true
+		var t: Enemy = w.titan
+		var p = w.player
+		p.place_at((t.dir + PlanetGen.align_basis(t.dir).z * 26.0 / w.gen.radius).normalized(), w.gen)
+		await _wait(0.4)
+		var up: Vector3 = p.global_position.normalized()
+		var to: Vector3 = t.global_position - p.global_position
+		p.ref_fwd = (to - up * to.dot(up)).normalized()
+		p.cam_yaw = 0.3
+		p.cam_pitch = 0.05 if kind == "titan_sentinel" else -0.02
+		p.spring.spring_length = 9.0
+		await _wait(0.8)
+		await shot("%s_rest" % kind)
+		t.aggro()
+		var snapped := {}
+		for i in 220:
+			await _wait(0.1)
+			to = t.global_position - p.global_position
+			p.ref_fwd = (to - up * to.dot(up)).normalized()
+			var step: int = t.behavior._step
+			var cyc: Array = t.behavior.CYCLES[t.behavior.kind]
+			var what: String = cyc[(step - 1) % cyc.size()] if step > 0 else ""
+			if what != "" and not snapped.has(what) and t.behavior._hold > 0.0 and t.behavior._hold < 1.0 or (what == "dive" and t.behavior._under > 0.0 and t.behavior._under < 0.4 and not snapped.has(what)):
+				snapped[what] = true
+				await shot("%s_%s" % [kind, what])
+			if snapped.size() >= 3:
+				break

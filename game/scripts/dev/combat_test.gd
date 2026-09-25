@@ -122,6 +122,7 @@ func _run() -> void:
 	await _biome_foes(w)
 	await _biome_foes_2()
 	await _weapons()
+	await _titans()
 	get_tree().quit()
 
 
@@ -479,3 +480,70 @@ func _weapons() -> void:
 	print("[combat] cryo mk2: x%.2f -> x%.2f tier=%d" % [before, Game.weapon_tier_mult("cryo"), Game.weapon_tier("cryo")])
 	Game.set_weapon("pulse")
 	_clear(w)
+
+
+
+func _titans() -> void:
+	var worlds := {}
+	for si in Galaxy.stars.size():
+		for p in Galaxy.star(si).planets:
+			if Game.has_titan(si, p.index):
+				var k: String = Db.TITANS[p.biome]
+				if not worlds.has(k):
+					worlds[k] = Vector2i(si, p.index)
+	var total := 0
+	for si in Galaxy.stars.size():
+		for p in Galaxy.star(si).planets:
+			if Game.has_titan(si, p.index):
+				total += 1
+	print("[combat] titan worlds: %d in the galaxy, first of each: %s" % [total, worlds])
+	Game.invulnerable = true
+	for kind in ["titan_colossus", "titan_wyrm", "titan_sentinel"]:
+		var at: Vector2i = worlds[kind]
+		Game.go_to_planet(at.x, at.y)
+		await _wait(5.5)
+		var w := get_tree().current_scene
+		var t: Enemy = w.titan
+		if t == null:
+			print("[combat] %s: NO TITAN on %s" % [kind, w.planet.name])
+			continue
+		var pl: Node3D = w.player
+		pl.place_at((t.dir + PlanetGen.align_basis(t.dir).z * 20.0 / w.gen.radius).normalized(), w.gen)
+		await _wait(0.3)
+		t.aggro()
+		# armour, then the exposed core
+		var h := t.hp
+		t.take_hit(100.0)
+		var armour := h - t.hp
+		t.behavior.exposed = 1.0
+		h = t.hp
+		t.take_hit(100.0)
+		var open := h - t.hp
+		t.behavior.exposed = 0.0
+		var seen := {}
+		var music := ""
+		var bar := false
+		var hazards := 0
+		for i in 160:
+			await _wait(0.1)
+			seen[t.behavior.CYCLES[t.behavior.kind][(t.behavior._step - 1) % 4] if t.behavior._step > 0 else "-"] = true
+			hazards = maxi(hazards, w.get_children().filter(func(c): return c is TelegraphBlast or c is MortarShell or c is SkyStrike).size())
+			music = Sound._music_current
+			bar = bar or w.hud.boss_box.visible
+			if seen.size() >= 4:
+				break
+		# half health: enrage and help arrives
+		var before: int = w.enemies.size()
+		t.hp = t.max_hp * 0.45
+		await _wait(0.3)
+		print("[combat] %s on %s: hp=%d armour took %d/100, exposed %d/100, attacks=%s hazards=%d boss bar=%s music=%s enraged=%s adds=+%d" % [
+			t.def.name, w.planet.name, int(t.max_hp), armour, open, seen.keys(), hazards, bar, music, t.behavior.enraged, w.enemies.size() - before])
+		var cores := Game.count("titan_core")
+		t.take_hit(9999999.0)
+		await _wait(1.0)
+		print("[combat] %s felled: recorded=%s cores %d -> %d music=%s bar=%s" % [kind, Game.titans.has(w.planet.key), cores, Game.count("titan_core"), Sound._music_current, w.hud.boss_box.visible])
+	# a felled Titan stays down
+	var again: Vector2i = worlds["titan_colossus"]
+	Game.go_to_planet(again.x, again.y)
+	await _wait(5.5)
+	print("[combat] titan revisit: titan=%s titans felled=%d milestone metric=%d" % [get_tree().current_scene.titan != null, Game.titans.size(), Game.metric("titans")])

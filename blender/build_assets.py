@@ -778,6 +778,92 @@ def build_sporeling():
     export("enemy_sporeling")
 
 
+def build_titan_arena():
+    """Titan's Rest: a ring of broken standing stones around a cracked dais."""
+    reset_scene()
+    stone = mat("Rock", hexc("#6d6760"), 0.0, 0.95)
+    dark = mat("Metal", hexc("#2b2826"), 0.2, 0.8)
+    glyph = mat("Glyph", (1, 1, 1), emission=hexc("#ff5d3d"), strength=6)
+    root = empty("Arena")
+    part("Dais", "cyl", (9.0, 9.0, 0.5), dark, loc=(0, 0, 0.1), parent=root, seg=10, smooth=False)
+    part("DaisRing", "torus", (8.4, 8.4, 2.0), glyph, loc=(0, 0, 0.36), parent=root, minor=0.03)
+    for i in range(9):
+        a = i / 9 * math.tau
+        h = 5.0 + (i * 37 % 5)
+        broken = i % 3 == 1
+        pillar = part(f"Stone{i}", "cube", (1.6, 1.4, h * (0.55 if broken else 1.0)), stone, loc=(math.cos(a) * 19.0, math.sin(a) * 19.0, 0), offset=(0, 0, h * (0.27 if broken else 0.5) - 0.5), rot=(0, 0, a + 0.3), parent=root, bevel=0.2)
+        part(f"Rune{i}", "cube", (0.5, 0.05, 1.4), glyph, loc=(math.cos(a) * 18.2, math.sin(a) * 18.2, 2.2), rot=(0, 0, a + math.pi / 2), parent=root)
+    export("poi_titan_arena")
+
+
+def build_titan_colossus():
+    """A walking mountain: stone plates over a molten core, huge fists."""
+    reset_scene()
+    stone = mat("Shell", hexc("#5e5a55"), 0.2, 0.85)
+    plate = mat("Accent", hexc("#8a4a2b"), 0.5, 0.5)
+    dark = mat("Metal", hexc("#242120"), 0.7, 0.4)
+    core = mat("Eye", (1, 1, 1), emission=hexc("#ff7a2a"), strength=12)
+    root = empty("Titan")
+    torso = part("Torso", "cube", (2.4, 1.7, 2.1), stone, loc=(0, 0, 2.6), parent=root, bevel=0.35)
+    part("Core", "ico", (0.9, 0.9, 0.9), core, loc=(0, 0.8, 0.1), parent=torso, sub=1)
+    for i, x in enumerate((-0.75, 0.75)):
+        part(f"ChestPlate{i}", "cube", (0.9, 0.3, 1.3), plate, loc=(x, 0.85, 0.2), rot=(0, 0, 0.12 * (1 if x > 0 else -1)), parent=torso, bevel=0.1)
+    head = part("Head", "cube", (0.9, 0.9, 0.7), dark, loc=(0, 0.3, 1.35), parent=torso, bevel=0.15)
+    part("Eye", "cube", (0.6, 0.1, 0.14), core, loc=(0, 0.46, 0.05), parent=head, bevel=0.03)
+    for side, x in (("L", -1), ("R", 1)):
+        part(f"Shoulder{side}", "sphere", (1.2, 1.2, 1.0), stone, loc=(1.45 * x, 0, 0.8), parent=torso)
+        arm = part(f"Arm{side}", "cube", (0.8, 0.8, 1.9), dark, loc=(1.55 * x, 0, 0.6), offset=(0, 0, -0.8), parent=torso, bevel=0.15)
+        part(f"Fist{side}", "cube", (1.3, 1.3, 1.1), stone, loc=(0, 0.1, -1.95), parent=arm, bevel=0.25)
+        leg = part(f"Leg{side}", "cube", (0.95, 1.0, 1.6), dark, loc=(0.65 * x, 0, -1.05), offset=(0, 0, -0.6), parent=torso, bevel=0.15)
+        part(f"Foot{side}", "cube", (1.2, 1.5, 0.45), stone, loc=(0, 0.2, -1.45), parent=leg, bevel=0.12)
+    for i in range(4):
+        part(f"Crag{i}", "cone", (0.6, 0.6, 1.0), stone, loc=(-0.8 + i * 0.55, -0.7, 0.95 - abs(i - 1.5) * 0.15), rot=(-0.4, 0, 0), offset=(0, 0, 0.35), parent=torso, seg=5)
+    export("enemy_titan_colossus")
+
+
+def build_titan_wyrm():
+    """A lava wyrm: an armoured maw and plated segments with a glowing throat."""
+    reset_scene()
+    shell = mat("Shell", hexc("#2a1d1a"), 0.6, 0.45)
+    plate = mat("Accent", hexc("#7a2e1b"), 0.5, 0.5)
+    tooth = mat("Blade", hexc("#e8dcc4"), 0.2, 0.4)
+    core = mat("Eye", (1, 1, 1), emission=hexc("#ff5a1a"), strength=12)
+    root = empty("Wyrm")
+    head = part("Head", "sphere", (2.0, 2.4, 1.9), shell, loc=(0, 0.6, 1.8), parent=root)
+    part("Core", "sphere", (1.0, 0.6, 1.0), core, loc=(0, 1.0, 0), parent=head)
+    part("Maw", "torus", (1.5, 1.5, 1.5), plate, loc=(0, 1.05, 0), rot=(math.pi / 2, 0, 0), parent=head, minor=0.18)
+    for i in range(10):
+        a = i / 10 * math.tau
+        part(f"Tooth{i}", "cone", (0.2, 0.2, 0.6), tooth, loc=(math.cos(a) * 0.62, 1.1, math.sin(a) * 0.62), offset=(0, 0, 0.18), rot=(-math.pi / 2, 0, 0), parent=head, seg=5)
+    for i, x in enumerate((-0.6, 0.6)):
+        part(f"Horn{i}", "cone", (0.35, 0.35, 1.3), plate, loc=(x, 0.2, 0.8), offset=(0, 0, 0.5), rot=(0.5, x * 0.6, 0), parent=head, seg=6)
+    prev = head
+    for i in range(5):
+        seg = part(f"Seg{i}", "sphere", (1.9 - i * 0.2, 1.5, 1.8 - i * 0.2), shell, loc=(0, -1.3, -0.1), parent=prev)
+        part(f"Plate{i}", "cube", (1.2 - i * 0.12, 0.8, 0.3), plate, loc=(0, 0, 0.8 - i * 0.08), parent=seg, bevel=0.1)
+        part(f"Glow{i}", "torus", (1.7 - i * 0.2, 1.7 - i * 0.2, 1.0), core, loc=(0, 0.6, 0), rot=(math.pi / 2, 0, 0), parent=seg, minor=0.05)
+        prev = seg
+    export("enemy_titan_wyrm")
+
+
+def build_titan_sentinel():
+    """A storm eye: a great iris ringed by turning bands and blade fins."""
+    reset_scene()
+    shell = mat("Shell", hexc("#2a3350"), 0.8, 0.3)
+    band = mat("Accent", hexc("#7fe3ff"), 0.4, 0.3)
+    core = mat("Eye", (1, 1, 1), emission=hexc("#c9f4ff"), strength=12)
+    root = empty("Sentinel")
+    body = part("Torso", "sphere", (2.4, 2.4, 2.4), shell, loc=(0, 0, 2.4), parent=root, seg=24, rings=14)
+    part("Core", "sphere", (1.1, 0.5, 1.1), core, loc=(0, 1.05, 0), parent=body)
+    part("Lid", "torus", (1.5, 1.5, 1.5), band, loc=(0, 0.95, 0), rot=(math.pi / 2, 0, 0), parent=body, minor=0.1)
+    part("Ring1", "torus", (3.6, 3.6, 3.6), band, loc=(0, 0, 0), rot=(0.3, 0, 0), parent=body, minor=0.06)
+    part("Ring2", "torus", (4.4, 4.4, 4.4), shell, loc=(0, 0, 0), rot=(-0.5, 0.4, 0), parent=body, minor=0.08)
+    for i in range(6):
+        a = i / 6 * math.tau
+        part(f"Fin{i}", "cone", (0.35, 0.12, 1.6), band, loc=(math.cos(a) * 1.3, -0.3, math.sin(a) * 1.3), rot=(math.sin(a) * 1.4, 0, -math.cos(a) * 1.4 + math.pi / 2), offset=(0, 0, 0.7), parent=body, seg=4)
+    export("enemy_titan_sentinel")
+
+
 def build_turret():
     """Engineer's deployable turret."""
     reset_scene()
@@ -1527,6 +1613,10 @@ elif __name__ == "__main__":
     build_stalker()
     build_hive()
     build_sporeling()
+    build_titan_arena()
+    build_titan_colossus()
+    build_titan_wyrm()
+    build_titan_sentinel()
     build_turret()
     build_monolith()
     build_ruin()

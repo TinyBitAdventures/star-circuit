@@ -30,6 +30,10 @@ var target_hp: Label
 var ability_label: Label
 var ability_bar: ProgressBar
 var effects_label: Label # your burn / chill / shock, over the ability bar
+var boss_box: PanelContainer # a Titan's health, across the top
+var _boss_name: Label
+var _boss_state: Label
+var _boss_bar: ProgressBar
 var _effects: Status = null
 var damage_flash: ColorRect
 var death_box: Control
@@ -278,6 +282,8 @@ static func objective_text(q: Dictionary) -> String:
 			return "Probe a world from orbit (O) and extract a gem: %d / %d" % [p, o.count]
 		"gem_types":
 			return "Different world gems held: %d / %d" % [p, o.count]
+		"titan":
+			return "Fell a Titan at a Titan's Rest (dangerous worlds): %d / %d" % [p, o.count]
 		"lab":
 			return "Grow a culture in the Micro Lab (%s, walk right to the lab): %d / %d" % [Sound.key_name("home"), p, o.count]
 		"chamber":
@@ -1265,6 +1271,25 @@ func _build_combat() -> void:
 	crosshair.visible = mode in ["planet", "space"]
 	root.add_child(crosshair)
 
+	boss_box = PanelContainer.new()
+	boss_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	boss_box.position = Vector2(-330, 140)
+	boss_box.custom_minimum_size = Vector2(660, 0)
+	boss_box.add_theme_stylebox_override("panel", UiKit.box(Color(0.05, 0.03, 0.03, 0.85), Color("ff5d3d"), 10, 2, 10))
+	boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boss_box.visible = false
+	root.add_child(boss_box)
+	var bv := VBoxContainer.new()
+	boss_box.add_child(bv)
+	var bh := HBoxContainer.new()
+	bv.add_child(bh)
+	_boss_name = UiKit.label("", 20, Color("ff9a4d"), true)
+	_boss_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bh.add_child(_boss_name)
+	_boss_state = UiKit.label("", 15, Color("ffd23f"), true)
+	bh.add_child(_boss_state)
+	_boss_bar = UiKit.bar(Color("e0453a"), 16)
+	bv.add_child(_boss_bar)
 	target_box = PanelContainer.new()
 	target_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	target_box.position = Vector2(-180, 64)
@@ -1351,6 +1376,26 @@ func set_target(e: Enemy) -> void:
 	var st := e.status.labels()
 	if not st.is_empty():
 		target_hp.text += "   " + "  ".join(st)
+
+
+## A Titan's health bar across the top of the screen (null hides it).
+func set_boss(e: Enemy) -> void:
+	if boss_box == null:
+		return
+	if e == null or not is_instance_valid(e) or not e.is_alive():
+		boss_box.visible = false
+		return
+	boss_box.visible = true
+	_boss_name.text = "%s   Lv %d" % [String(e.def.name).to_upper(), e.level]
+	_boss_bar.max_value = e.max_hp
+	_boss_bar.value = maxf(0.0, e.hp)
+	var st: Array[String] = []
+	if e.behavior.get("exposed") and float(e.behavior.exposed) > 0.0:
+		st.append("CORE EXPOSED")
+	if e.behavior.get("enraged"):
+		st.append("ENRAGED")
+	st.append_array(e.status.labels())
+	_boss_state.text = "  ".join(st)
 
 
 ## Follow a status (the player's) on the ability panel until it wears off.

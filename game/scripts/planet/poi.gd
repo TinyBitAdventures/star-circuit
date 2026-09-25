@@ -71,8 +71,8 @@ func _add_collision() -> void:
 			sp.radius = 2.2
 			cs.shape = sp
 			cs.position.y = 1.0
-		"cave":
-			return # walk right onto the shaft
+		"cave", "titan":
+			return # walk right onto the shaft / into the arena
 		"volcano":
 			# a solid cone: you walk around it (or jetpack up it), never through it
 			var cone := CylinderMesh.new()

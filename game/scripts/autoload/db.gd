@@ -120,6 +120,13 @@ const ITEMS := {
 	"prism_lens": {"name": "Prism Lens", "kind": "resource", "color": Color("c9b8ff"), "desc": "A flawless facet from a Refractor. Light bends oddly through it."},
 	"void_veil": {"name": "Void Veil", "kind": "resource", "color": Color("5a3dff"), "desc": "A scrap of a Void Stalker's cloaking skin, hard to look straight at."},
 	"spore_heart": {"name": "Spore Heart", "kind": "resource", "color": Color("b6ff5a"), "desc": "The beating core of a Spore Hive."},
+	"titan_core": {"name": "Titan Core", "kind": "resource", "color": Color("ff5d3d"), "desc": "The molten heart of a fallen Titan. Fabricators can retune a weapon around one (Mk III)."},
+	"pulse_mk3": {"name": "Pulse Mk III", "kind": "upgrade", "color": Color("ff5d3d"), "desc": "A Titan Core retune for the Pulse loadout: +75% damage."},
+	"scatter_mk3": {"name": "Scatter Mk III", "kind": "upgrade", "color": Color("ff5d3d"), "desc": "A Titan Core retune for the Scatter loadout: +75% damage."},
+	"rail_mk3": {"name": "Rail Mk III", "kind": "upgrade", "color": Color("ff5d3d"), "desc": "A Titan Core retune for the Rail loadout: +75% damage."},
+	"arc_mk3": {"name": "Arc Mk III", "kind": "upgrade", "color": Color("ff5d3d"), "desc": "A Titan Core retune for the Arc loadout: +75% damage."},
+	"cinder_mk3": {"name": "Cinder Mk III", "kind": "upgrade", "color": Color("ff5d3d"), "desc": "A Titan Core retune for the Cinder loadout: +75% damage."},
+	"cryo_mk3": {"name": "Cryo Mk III", "kind": "upgrade", "color": Color("ff5d3d"), "desc": "A Titan Core retune for the Cryo loadout: +75% damage."},
 	"power_core": {"name": "Rogue Power Core", "kind": "resource", "color": Color("ff4d6d"), "desc": "A still-humming drone core. Elites always carry one."},
 	# intermediates
 	"alloy": {"name": "Alloy Plate", "kind": "component", "color": Color("dfe3ea"), "desc": "Pressed ferrite plating."},
@@ -222,6 +229,12 @@ const RECIPES := [
 	{"id": "arc_mk2", "out": "arc_mk2", "qty": 1, "in": {"storm_vane": 3, "prism_lens": 2, "circuit": 2}, "req": 38, "xp": 190, "cat": "Upgrades"},
 	{"id": "cinder_mk2", "out": "cinder_mk2", "qty": 1, "in": {"slag_heart": 2, "cinder_gland": 4, "alloy": 6}, "req": 40, "xp": 200, "cat": "Upgrades"},
 	{"id": "cryo_mk2", "out": "cryo_mk2", "qty": 1, "in": {"rime_core": 3, "void_veil": 1, "polymer": 3}, "req": 38, "xp": 190, "cat": "Upgrades"},
+	{"id": "pulse_mk3", "out": "pulse_mk3", "qty": 1, "in": {"thorn_barb": 6, "sand_fang": 4, "titan_core": 1}, "req": 55, "xp": 400, "cat": "Upgrades"},
+	{"id": "scatter_mk3", "out": "scatter_mk3", "qty": 1, "in": {"cinder_gland": 6, "thorn_barb": 4, "titan_core": 1}, "req": 55, "xp": 400, "cat": "Upgrades"},
+	{"id": "rail_mk3", "out": "rail_mk3", "qty": 1, "in": {"rime_core": 3, "prism_lens": 3, "titan_core": 1}, "req": 55, "xp": 400, "cat": "Upgrades"},
+	{"id": "arc_mk3", "out": "arc_mk3", "qty": 1, "in": {"storm_vane": 4, "prism_lens": 2, "titan_core": 1}, "req": 55, "xp": 400, "cat": "Upgrades"},
+	{"id": "cinder_mk3", "out": "cinder_mk3", "qty": 1, "in": {"slag_heart": 3, "cinder_gland": 4, "titan_core": 1}, "req": 55, "xp": 400, "cat": "Upgrades"},
+	{"id": "cryo_mk3", "out": "cryo_mk3", "qty": 1, "in": {"rime_core": 4, "void_veil": 2, "titan_core": 1}, "req": 55, "xp": 400, "cat": "Upgrades"},
 	{"id": "rail_mod", "out": "rail_mod", "qty": 1, "in": {"power_core": 1, "circuit": 2, "cobalt": 8}, "req": 24, "xp": 120, "cat": "Upgrades"},
 	{"id": "relay_coupler", "out": "relay_coupler", "qty": 1, "in": {"circuit": 2, "alloy": 4, "plasma": 6}, "req": 20, "xp": 90, "cat": "Components"},
 	{"id": "drill_mk2", "out": "drill_mk2", "qty": 1, "in": {"alloy": 4, "biofiber": 4}, "req": 2, "xp": 60, "cat": "Upgrades"},
@@ -382,6 +395,7 @@ const MILESTONES := [
 	{"id": "naturalist", "name": "Naturalist", "desc": "Log 20 species", "metric": "species", "n": 20, "bonus": {"harvest": 0.05}},
 	{"id": "xenobiologist", "name": "Xenobiologist", "desc": "Log 60 species", "metric": "species", "n": 60, "bonus": {"harvest": 0.1}},
 	{"id": "cartographer", "name": "Cartographer", "desc": "Fully survey 3 worlds", "metric": "surveyed", "n": 3, "bonus": {"energy": 15}},
+	{"id": "titan_slayer", "name": "Titan Slayer", "desc": "Fell 3 Titans", "metric": "titans", "n": 3, "bonus": {"hull": 40}},
 	{"id": "monster_hunter", "name": "Monster Hunter", "desc": "Scan the signature enemy of all 9 world types", "metric": "bestiary", "n": 9, "bonus": {"hull": 25}},
 	{"id": "scrapper", "name": "Scrapper", "desc": "Destroy 25 rogue drones", "metric": "kills", "n": 25, "bonus": {"hull": 15}},
 	{"id": "ace", "name": "Void Ace", "desc": "Destroy 15 ships in space", "metric": "space_kills", "n": 15, "bonus": {"hull": 15}},
@@ -516,6 +530,9 @@ const QUESTS := [
 	{"id": "soup", "title": "Primordial Soup", "giver": "Archivist",
 		"text": "Your Homespace has grown a Micro Lab. Press {home}, walk to the lab and grow a Medic Culture from Biofiber and Plasma. Down there it's all soup: steer your probe with WASD, zap a cell with the left mouse button, then zap a different strain to fuse them. Fused cells divide on their own. Reach critical mass before the culture goes off.",
 		"obj": {"type": "lab", "count": 1}, "xp": 650, "reward": {"energy_cell": 2}, "credits": 150},
+	{"id": "titanfall", "title": "Titanfall", "giver": "Archivist",
+		"text": "Out on the dangerous worlds, where the rogue drones grow teeth, something older is waking. The Circuit's builders left guardians in stone rings, and the corruption got into them too. Find a Titan's Rest and put one back to sleep. Watch the ground: when it kneels, its core is open.",
+		"obj": {"type": "titan", "count": 1}, "xp": 1600, "reward": {"repair_kit": 4, "energy_cell": 3}, "credits": 600},
 	{"id": "firstlight", "title": "First Light", "giver": "Archivist",
 		"text": "Every system has a dead relay beacon; the Circuit was a chain of them. To relight one you need a Resonance Crystal (derelict wrecks and deep Ancient Vaults still hold them) and a Relay Coupler from your fabricator. Pirates guard the dead relays. Open the system map (M) to find it.",
 		"obj": {"type": "relay", "count": 1}, "xp": 900, "reward": {"warp_cell": 1}, "credits": 250},
@@ -561,7 +578,7 @@ const VALUES := {
 	"kelp": 6, "sea_pearl": 180, "obsidian": 12, "fire_opal": 220, "core_ember": 400,
 	"gem_giant": 550, "gem_abyss": 900, "gem_tempest": 900, "gem_forge": 900, "deep_probe": 60,
 	"thorn_barb": 28, "sand_fang": 32, "rime_core": 40, "cinder_gland": 30, "slag_heart": 55, "storm_vane": 50,
-	"prism_lens": 48, "void_veil": 60, "spore_heart": 65,
+	"prism_lens": 48, "void_veil": 60, "spore_heart": 65, "titan_core": 900,
 	"glowcap": 14, "fossil": 90, "ancient_relic": 260, "relay_coupler": 90, "legend_shard": 600,
 }
 
@@ -723,6 +740,8 @@ const POIS := {
 		"xp": 40, "lore": false, "loot": {}, "verb": "Descend into the cave", "time": 0.0},
 	"volcano": {"name": "Volcanic Vent", "model": "", "color": Color("ff6a2a"),
 		"xp": 60, "lore": false, "loot": {}, "verb": "Climb down into the volcano", "time": 0.0},
+	"titan": {"name": "Titan's Rest", "model": "res://assets/models/poi_titan_arena.glb", "color": Color("ff5d3d"),
+		"xp": 120, "lore": false, "loot": {}, "verb": "", "time": 0.0},
 	"geode": {"name": "Crystal Geode", "model": "res://assets/models/poi_geode.glb", "color": Color("7ff0ff"),
 		"xp": 40, "lore": false, "hotspot": true, "loot": {}, "verb": "", "time": 0.0},
 }
@@ -808,6 +827,23 @@ const ENEMIES := {
 		"scale": 1.5, "style": "hive", "heavy": true, "mods": {"fire": 2.0}, "resist": {"chill": 1.0},
 		"loot": {"spore_heart": [1, 1], "sporegel": [1, 3]},
 		"biome": "bloom", "tip": "Rooted in place, it breeds Sporelings and puffs out a sticky cloud that slows you. Kill the hive and its brood withers. Fire does double damage."},
+	# world bosses (see behaviors/titan.gd): one sleeps in a Titan's Rest on most dangerous worlds
+	"titan_colossus": {"name": "Colossus", "model": "res://assets/models/enemy_titan_colossus.glb",
+		"hp": [3000, 240], "dmg": [20, 4.5], "speed": 2.4, "range": 44.0, "cd": 3.2, "aggro": 34.0, "xp": [1400, 80],
+		"scale": 3.0, "style": "titan", "titan": "colossus", "elite": true, "boss": true, "heavy": true, "resist": {"chill": 0.7},
+		"loot": {"titan_core": [1, 1], "alloy": [4, 8], "power_core": [1, 2]},
+		"tip": "A walking mountain. Get out of its stomp rings and lanes, keep moving through the boulder barrages, then pour everything into its core when it kneels. At half health it calls for help."},
+	"titan_wyrm": {"name": "Pyre Wyrm", "model": "res://assets/models/enemy_titan_wyrm.glb",
+		"hp": [2700, 220], "dmg": [22, 5.0], "speed": 3.0, "range": 44.0, "cd": 3.4, "aggro": 34.0, "xp": [1400, 80],
+		"scale": 2.0, "style": "titan", "titan": "wyrm", "elite": true, "boss": true, "heavy": true, "mods": {"frost": 1.3}, "resist": {"burn": 1.0},
+		"loot": {"titan_core": [1, 1], "obsidian": [4, 8], "power_core": [1, 2]},
+		"tip": "Tunnels out of reach and erupts under you from a burning ring. Keep moving, dodge its molten spit, and hit its throat when it rears up exposed. Frost hurts it."},
+	"titan_sentinel": {"name": "Storm Sentinel", "model": "res://assets/models/enemy_titan_sentinel.glb",
+		"hp": [2600, 210], "dmg": [19, 4.2], "speed": 4.0, "range": 46.0, "cd": 3.0, "aggro": 36.0, "xp": [1400, 80],
+		"scale": 2.4, "style": "titan", "titan": "sentinel", "elite": true, "boss": true, "heavy": true, "wades": true,
+		"mods": {"pierce": 1.3}, "resist": {"shock": 1.0},
+		"loot": {"titan_core": [1, 1], "lumen": [4, 8], "power_core": [1, 2]},
+		"tip": "Floats high above the arena calling lightning storms and chilling fans of bolts. When it sinks low with its eye exposed, that's your chance. Rail slugs hit it hardest."},
 	"sporeling": {"name": "Sporeling", "model": "res://assets/models/enemy_sporeling.glb",
 		"hp": [16, 5], "dmg": [5, 1.2], "speed": 4.0, "range": 2.2, "cd": 1.6, "aggro": 30.0, "xp": [6, 2],
 		"scale": 0.8, "style": "drift", "wades": true, "mods": {"fire": 1.5}, "loot": {},
@@ -831,6 +867,12 @@ static func foe_traits(type: String) -> String:
 		out.append(("Immune to %s" if float(res[k]) >= 1.0 else "Resists %s") % st.get(k, k))
 	return "  ·  ".join(out) if not out.is_empty() else "No special weaknesses"
 
+
+## Which Titan sleeps on each world type.
+const TITANS := {"verdant": "titan_colossus", "dune": "titan_colossus", "prism": "titan_colossus", "bloom": "titan_colossus",
+	"ember": "titan_wyrm", "forge": "titan_wyrm", "frost": "titan_sentinel", "tempest": "titan_sentinel", "abyss": "titan_sentinel"}
+## Worlds at least this dangerous have a Titan's Rest.
+const TITAN_MIN_DANGER := 8
 
 ## The signature enemy of each world type (camps there often bring them along).
 const BIOME_FOES := {"verdant": "thornback", "dune": "lurker", "frost": "warden", "ember": "mite", "forge": "smelter",

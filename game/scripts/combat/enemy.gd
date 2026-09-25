@@ -21,6 +21,7 @@ const BEHAVIORS := {
 	"stalk": "res://scripts/combat/behaviors/stalk.gd",
 	"hive": "res://scripts/combat/behaviors/hive.gd",
 	"drift": "res://scripts/combat/behaviors/drift.gd",
+	"titan": "res://scripts/combat/behaviors/titan.gd",
 }
 
 var world: Node3D
