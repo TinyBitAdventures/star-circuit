@@ -120,6 +120,7 @@ func _run() -> void:
 	print("[combat] brute slam: raised=%s hull %d -> %d" % [raised, Game.max_hull(), Game.hull])
 	_clear(w)
 	await _biome_foes(w)
+	await _biome_foes_2()
 	get_tree().quit()
 
 
@@ -228,7 +229,9 @@ func _biome_foes(w: Node3D) -> void:
 	_clear(w)
 
 	# signature camps turn up on their own worlds (never on the home world)
-	var planets := {"verdant": Vector2i(-1, -1), "dune": Vector2i(-1, -1), "frost": Vector2i(-1, -1)}
+	var planets := {}
+	for b in Db.BIOME_FOES:
+		planets[b] = Vector2i(-1, -1)
 	for si in range(1, Galaxy.stars.size()):
 		for p in Galaxy.star(si).planets:
 			if planets.has(p.biome) and planets[p.biome].x < 0 and not p.has("moon_of"):
@@ -242,3 +245,140 @@ func _biome_foes(w: Node3D) -> void:
 		var foe: String = Db.BIOME_FOES[b]
 		counts[b] = "%d %s of %d" % [world2.enemies.filter(func(e): return e.type == foe).size(), foe, world2.enemies.size()]
 	print("[combat] signature camps: ", counts)
+
+
+
+func _count(w: Node3D, node_class: String) -> int:
+	return w.get_children().filter(func(c): return c.get_class() == "Node3D" and c.get_script() and c.get_script().get_global_name() == node_class).size()
+
+
+func _biome_foes_2() -> void:
+	Game.go_to_planet(0, 0)
+	await _wait(4.5)
+	var w := get_tree().current_scene
+	_clear(w)
+	await _wait(0.2)
+	var pl: Node3D = w.player
+	Game.invulnerable = false
+	pl.status.clear()
+
+	# Cinder Mites: rush in, fuse, burst into flame; their own burst pays nothing
+	Game.hull = Game.max_hull()
+	var k0 := Game.kills
+	var mites: Array = []
+	for i in 3:
+		mites.append(w._spawn_enemy("mite", 2, _near(w, 9.0, i * 2.0), 930))
+	mites[0].aggro()
+	var patch_seen := false
+	for i in 60:
+		await _wait(0.1)
+		patch_seen = patch_seen or _count(w, "HazardPatch") > 0
+		if mites.all(func(m): return not is_instance_valid(m) or not m.is_alive()):
+			break
+	print("[combat] mites: all burst=%s kills +%d (want 0) hull %d -> %d burning=%s patch=%s" % [mites.all(func(m): return not is_instance_valid(m) or not m.is_alive()), Game.kills - k0, Game.max_hull(), Game.hull, pl.status.burning(), patch_seen])
+	var shot: Enemy = w._spawn_enemy("mite", 2, _near(w, 20.0), 931)
+	await _wait(0.1)
+	var patches := _count(w, "HazardPatch")
+	shot.take_hit(999.0)
+	await _wait(0.1)
+	print("[combat] mite shot down: kills +%d pops a patch=%s" % [Game.kills - k0, _count(w, "HazardPatch") > patches])
+	_clear(w)
+	await _wait(3.5)
+
+	# Smelter: armour, then a venting window; mortar shells land where you are
+	Game.hull = Game.max_hull()
+	pl.status.clear()
+	var sm: Enemy = w._spawn_enemy("smelter", 2, _near(w, 18.0), 932)
+	await _wait(0.2)
+	var h := sm.hp
+	sm.take_hit(50.0)
+	var closed := (h - sm.hp) * 2.0
+	sm.behavior._vent = 1.0
+	h = sm.hp
+	sm.take_hit(50.0)
+	var open := (h - sm.hp) * 2.0
+	sm.behavior._vent = -1.0
+	sm.hp = sm.max_hp
+	sm.aggro()
+	var vented := false
+	var hull0 := Game.hull
+	for i in 120:
+		await _wait(0.1)
+		vented = vented or sm.behavior.venting()
+		if vented and Game.hull < hull0:
+			break
+	print("[combat] smelter: armour took %d of 100, venting took %d; vented=%s hull %d -> %d" % [closed, open, vented, hull0, Game.hull])
+	_clear(w)
+	await _wait(0.5)
+
+	# Storm Kite: flies high, calls lightning that shocks you
+	Game.hull = Game.max_hull()
+	pl.status.clear()
+	var kt: Enemy = w._spawn_enemy("kite", 2, _near(w, 14.0), 933)
+	kt.aggro()
+	var shocked := false
+	var height := 0.0
+	for i in 80:
+		await _wait(0.1)
+		height = maxf(height, kt.global_position.length() - w.gen.surface_radius(kt.dir))
+		if pl.status.shocked():
+			shocked = true
+			break
+	print("[combat] kite: flies %.1f m up, strike shocked the player=%s hull %d -> %d" % [height, shocked, Game.max_hull(), Game.hull])
+	_clear(w)
+	await _wait(0.5)
+
+	# Refractor: reflects while glowing, takes hits otherwise
+	Game.hull = Game.max_hull()
+	var rf: Enemy = w._spawn_enemy("refractor", 2, _near(w, 16.0), 934)
+	await _wait(0.2)
+	rf.behavior._glow = 1.5
+	h = rf.hp
+	var hull1 := Game.hull
+	rf.take_hit(60.0, false, "kinetic", pl.global_position)
+	var glow_dmg := h - rf.hp
+	await _wait(1.2)
+	var reflected := Game.hull < hull1
+	rf.behavior._glow = 0.0
+	h = rf.hp
+	rf.take_hit(60.0, false, "kinetic", pl.global_position)
+	print("[combat] refractor: glowing took %d (want 0), reflection hit me=%s; dim took %d" % [glow_dmg, reflected, h - rf.hp])
+	_clear(w)
+
+	# Void Stalker: cloaked, a scan reveals and exposes it, then it pounces
+	Game.hull = Game.max_hull()
+	var st: Enemy = w._spawn_enemy("stalker", 2, _near(w, 15.0), 935)
+	await _wait(0.3)
+	var hidden_at_start: bool = not st.behavior.visible_to_player()
+	w.scan(pl.global_position, 30.0)
+	h = st.hp
+	st.take_hit(40.0)
+	var exposed_dmg := h - st.hp
+	st.hp = st.max_hp
+	var leapt := false
+	hull0 = Game.hull
+	for i in 60:
+		await _wait(0.05)
+		leapt = leapt or st.behavior.phase == "leap"
+		if leapt and st.behavior.phase == "recover":
+			break
+	print("[combat] stalker: cloaked=%s scan exposed hit took %d of 40 (want 60) pounced=%s hull %d -> %d" % [hidden_at_start, exposed_dmg, leapt, hull0, Game.hull])
+	_clear(w)
+	await _wait(0.3)
+
+	# Spore Hive: breeds sporelings, puffs a slowing cloud, brood withers when it dies
+	Game.hull = Game.max_hull()
+	pl.status.clear()
+	var hv: Enemy = w._spawn_enemy("hive", 2, _near(w, 7.0), 936)
+	hv.aggro()
+	var chilled := false
+	for i in 90:
+		await _wait(0.1)
+		chilled = chilled or pl.status.chill > 0 or pl.status.frozen()
+	var brood: int = hv.behavior.brood.filter(func(b): return is_instance_valid(b) and b.is_alive()).size()
+	var k1 := Game.kills
+	hv.take_hit(99999.0, false, "fire")
+	await _wait(0.4)
+	var alive: int = w.enemies.filter(func(e): return e.type == "sporeling" and e.is_alive()).size()
+	print("[combat] hive: brood=%d spore cloud chilled=%s; killed: kills +%d brood left=%d" % [brood, chilled, Game.kills - k1, alive])
+	_clear(w)

@@ -536,6 +536,10 @@ func on_harvested(n: ResourceNode) -> void:
 
 func scan(pos: Vector3, radius: float) -> void:
 	_scan_pulse(pos, radius)
+	# a scan lights up anything hiding nearby (Void Stalkers)
+	for e in enemies:
+		if e.is_alive() and e.behavior.has_method("on_scanned") and e.global_position.distance_to(pos) < radius * 1.5:
+			e.behavior.on_scanned()
 	var found := 0
 	for n in _nodes:
 		if is_instance_valid(n) and n.global_position.distance_to(pos) < radius:
@@ -628,6 +632,10 @@ func _spawn_enemies(outpost_dir: Vector3) -> void:
 			if i < sig:
 				t = foe
 			_spawn_enemy(t, lvl, _near(d, rng, 7.0), made)
+			# pack animals (Cinder Mites) bring the rest of the pack, placed on the signature stream
+			if t == foe and Db.ENEMIES[foe].has("pack"):
+				for k in int(Db.ENEMIES[foe].pack) - 1:
+					_spawn_enemy(foe, lvl, _near(d, srng, 7.0), made)
 		if with_brute:
 			_spawn_enemy("brute", danger_level + 2, d, made)
 
@@ -650,6 +658,8 @@ func _spawn_enemy(t: String, lvl: int, d: Vector3, camp: int) -> Enemy:
 
 func on_enemy_killed(e: Enemy) -> void:
 	enemies.erase(e)
+	if e.camp_id < 0:
+		return # a hive's brood: never respawns on its own
 	var t := e.type
 	var lvl := e.level
 	var home := e.home_dir

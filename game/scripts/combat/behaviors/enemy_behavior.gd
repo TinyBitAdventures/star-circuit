@@ -37,6 +37,11 @@ func on_hit(amount: float, _kind: String, _from: Vector3) -> float:
 	return amount
 
 
+## Killed (by anyone): last-gasp effects such as a burst or a withering brood.
+func on_death() -> void:
+	pass
+
+
 ## Called on leash, death and removal: free anything the behaviour spawned.
 func cleanup() -> void:
 	pass

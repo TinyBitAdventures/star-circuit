@@ -342,6 +342,10 @@ func use_repair_kit() -> void:
 
 func record_kill(type: String, lvl: int, elite: bool) -> void:
 	var e: Dictionary = Db.ENEMIES[type]
+	if type == "sporeling":
+		# a hive breeds these without end: a little XP, nothing that could be farmed
+		gain_xp(int(e.xp[0] + e.xp[1] * lvl) / 2)
+		return
 	kills += 1
 	var xp_amt := int(e.xp[0] + e.xp[1] * lvl)
 	var diff := lvl - level

@@ -3,11 +3,17 @@
 ## Unreleased (v0.4.0)
 
 ### Combat
-- Every world type is getting a signature enemy with a trick to learn. The first three:
+- Every world type now has a signature enemy with a trick to learn:
   - **Thornback** (Verdant worlds) paints a lane on the ground, then charges down it. Step aside: a miss leaves it stunned and taking 60% more damage.
   - **Dune Lurker** (Arid worlds) dives into the sand, tunnels toward you under a dust trail and bursts up beneath you from a glowing ring. It can't be hit while it's underground.
   - **Frost Warden** (Glacial worlds) hides behind a shield that blocks everything from the front and turns slowly, so circle behind it (back hits do 25% more). Rail slugs and fire go straight through. Its bolts chill you, and up close it pulses a frost nova.
-- Signature enemies lead about half the camps on their own worlds (never on the Cradle) and drop their own parts: Thorn Barbs, Sand Fangs and Rime Cores.
+  - **Cinder Mites** (Volcanic worlds) come in packs of three, scuttle straight at you and burst into flame, leaving the ground burning. Shooting one pops it too, so thin them out at range.
+  - **Smelter** (Machine worlds) keeps its distance and lobs molten shells where you're heading. Its plating shrugs off most damage until it vents steam after every third shot: that's your window.
+  - **Storm Kite** (Tempest worlds) circles overhead calling down lightning on warning rings. Every third call is a triple strike, and a hit shocks you.
+  - **Refractor** (Crystalline worlds) throws your shots straight back while its facets glow, blinks to new spots and fires fans of crystal shards.
+  - **Void Stalker** (Abyssal worlds) is nearly invisible until it's close. Scan (Q) to reveal it and leave it exposed for extra damage, then sidestep the pounce.
+  - **Spore Hive** (Fungal worlds) is rooted in place, breeds Sporelings and puffs out a sticky cloud that slows you. Kill the hive and its brood withers. Fire does double damage.
+- Signature enemies lead about half the camps on their own worlds (never on the Cradle) and drop their own parts (Thorn Barbs, Sand Fangs, Rime Cores, Cinder Glands, Slag Hearts, Storm Vanes, Prism Lenses, Void Veils and Spore Hearts).
 - Status effects: **burn** (damage over time), **chill** (slows you; a fourth stack freezes solid) and **shock** (takes 25% more damage). They work on enemies and on you, show on your HUD and the target frame, and tint whatever they're on. Robots shake off a freeze faster than drones do.
 - Enemies can be weak or resistant to kinds of damage (fire, frost, shock).
 

@@ -1841,3 +1841,22 @@ func _bestiary_tour() -> void:
 					if e.behavior._nova_t >= 0.0 and e.behavior._nova_t < 0.4:
 						break
 				await shot("foe_%s_nova" % foe)
+			"stalker":
+				w.scan(p.global_position, 30.0)
+				await _wait(0.6)
+				await shot("foe_%s_revealed" % foe)
+			"refractor":
+				e.behavior._glow = 2.0
+				await _wait(0.4)
+				await shot("foe_%s_glow" % foe)
+			"smelter":
+				await _wait(1.6)
+				await shot("foe_%s_mortar" % foe)
+				e.behavior._vent = 3.0
+				for c in e.behavior._steam:
+					c.emitting = true
+				await _wait(1.0)
+				await shot("foe_%s_vent" % foe)
+			_:
+				await _wait(2.4)
+				await shot("foe_%s_action" % foe)

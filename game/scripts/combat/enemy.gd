@@ -14,6 +14,13 @@ const BEHAVIORS := {
 	"charge": "res://scripts/combat/behaviors/charge.gd",
 	"burrow": "res://scripts/combat/behaviors/burrow.gd",
 	"shield": "res://scripts/combat/behaviors/shield.gd",
+	"swarm": "res://scripts/combat/behaviors/swarm.gd",
+	"mortar": "res://scripts/combat/behaviors/mortar.gd",
+	"storm": "res://scripts/combat/behaviors/storm.gd",
+	"mirror": "res://scripts/combat/behaviors/mirror.gd",
+	"stalk": "res://scripts/combat/behaviors/stalk.gd",
+	"hive": "res://scripts/combat/behaviors/hive.gd",
+	"drift": "res://scripts/combat/behaviors/drift.gd",
 }
 
 var world: Node3D
@@ -438,6 +445,7 @@ static func _shared_kill_fallback(w: Node, args: Array) -> void:
 func _die(remote := false) -> void:
 	state = "dead"
 	collision_layer = 0
+	behavior.on_death()
 	behavior.cleanup()
 	status.clear()
 	_update_overlay()
@@ -452,6 +460,36 @@ func _die(remote := false) -> void:
 	var t := create_tween()
 	t.tween_property(_model, "scale", Vector3.ONE * 0.01, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	t.tween_callback(queue_free)
+
+
+## Gone by its own doing (a mite's burst, a withering sporeling): no reward, no loot.
+func self_destruct() -> void:
+	if state == "dead":
+		return
+	state = "dead"
+	collision_layer = 0
+	behavior.cleanup()
+	status.clear()
+	_update_overlay()
+	_bar.visible = false
+	_name.visible = false
+	world.on_enemy_killed(self)
+	var t := create_tween()
+	t.tween_property(_model, "scale", Vector3.ONE * 0.01, 0.2)
+	t.tween_callback(queue_free)
+
+
+## Near-invisible (a cloaked Stalker): a faint dark shimmer instead of the model.
+func set_ghost(on: bool, alpha := 0.08) -> void:
+	var ghost: StandardMaterial3D = null
+	if on:
+		ghost = StandardMaterial3D.new()
+		ghost.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		ghost.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		ghost.albedo_color = Color(0.45, 0.35, 0.9, alpha)
+	for mi in _meshes:
+		(mi as MeshInstance3D).material_override = ghost
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if on else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 
 func _exit_tree() -> void:
