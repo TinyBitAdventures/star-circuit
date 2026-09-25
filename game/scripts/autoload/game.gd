@@ -1445,7 +1445,7 @@ func board_offers(planet: Dictionary) -> Array:
 		b.xp = int(b.credits * 1.2) + 40
 		var foe_def: Dictionary = Db.ENEMIES.get(b.get("foe", ""), {})
 		b.text = String(tpl.text).format({"n": b.n, "item": Db.item_name(b.get("item", "")),
-			"foe": foe_def.get("name", ""), "world": Db.BIOMES.get(foe_def.get("biome", ""), {}).get("name", "")})
+			"foe": foe_def.get("name", ""), "world": Db.foe_worlds_text(b.get("foe", ""))})
 		out.append(b)
 	return out
 

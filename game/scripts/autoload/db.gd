@@ -879,6 +879,35 @@ const TITAN_MIN_DANGER := 8
 const BIOME_FOES := {"verdant": "thornback", "dune": "lurker", "frost": "warden", "ember": "mite", "forge": "smelter",
 	"tempest": "kite", "prism": "refractor", "abyss": "stalker", "bloom": "hive"}
 
+## Machine, Tempest and Abyssal worlds only exist at the galaxy's edge, so their
+## signature enemies also roam two common world types each (rarer, and only
+## where the danger suits them). World type -> visiting enemy.
+const VISITING_FOES := {"ember": "smelter", "dune": "smelter", "frost": "kite", "verdant": "kite", "prism": "stalker", "bloom": "stalker"}
+const VISIT_CHANCE := 0.18 # of a camp on those worlds
+const VISIT_MIN_DANGER := 6
+
+
+## Every world type an enemy can be found on, home first.
+func foe_biomes(foe: String) -> Array:
+	var out := []
+	for b in BIOME_FOES:
+		if BIOME_FOES[b] == foe:
+			out.append(b)
+	for b in VISITING_FOES:
+		if VISITING_FOES[b] == foe:
+			out.append(b)
+	return out
+
+
+## "Machine, Volcanic and Arid" for an enemy's worlds.
+func foe_worlds_text(foe: String) -> String:
+	var names := []
+	for b in foe_biomes(foe):
+		names.append(BIOMES[b].name)
+	if names.size() <= 1:
+		return "".join(names)
+	return ", ".join(names.slice(0, names.size() - 1)) + " and " + names[-1]
+
 
 ## WoW-style "con" colour: enemy level relative to the player.
 func con_color(enemy_lvl: int, player_lvl: int) -> Color:

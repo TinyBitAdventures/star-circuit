@@ -248,6 +248,24 @@ func _biome_foes(w: Node3D) -> void:
 		var foe: String = Db.BIOME_FOES[b]
 		counts[b] = "%d %s of %d" % [world2.enemies.filter(func(e): return e.type == foe).size(), foe, world2.enemies.size()]
 	print("[combat] signature camps: ", counts)
+	# edge-world enemies visit common worlds dangerous enough for them
+	var eligible := {}
+	var pick := {}
+	for si in range(1, Galaxy.stars.size()):
+		for p in Galaxy.star(si).planets:
+			if Db.VISITING_FOES.has(p.biome) and Game.planet_level(si, p.index) >= Db.VISIT_MIN_DANGER and not p.has("moon_of"):
+				var f: String = Db.VISITING_FOES[p.biome]
+				eligible[f] = int(eligible.get(f, 0)) + 1
+				if not pick.has(p.biome):
+					pick[p.biome] = Vector2i(si, p.index)
+	var visit_seen := {}
+	for b in pick:
+		Game.go_to_planet(pick[b].x, pick[b].y)
+		await _wait(5.0)
+		var w3 := get_tree().current_scene
+		var vf: String = Db.VISITING_FOES[b]
+		visit_seen[b] = "%d %s" % [w3.enemies.filter(func(e): return e.type == vf).size(), vf]
+	print("[combat] visitors: eligible worlds ", eligible, " seen ", visit_seen, " hunt text: ", Db.foe_worlds_text("stalker"))
 
 
 

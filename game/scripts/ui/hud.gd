@@ -1091,7 +1091,9 @@ func _bestiary_tab() -> Control:
 		box.add_theme_constant_override("separation", 2)
 		list.add_child(box)
 		var where := ""
-		if d.has("biome"):
+		if not Db.foe_biomes(t).is_empty():
+			where = "  ·  %s worlds" % Db.foe_worlds_text(t)
+		elif d.has("biome"):
 			where = "  ·  %s worlds" % Db.BIOMES[d.biome].name
 		elif t in ["scrapper", "sentinel", "brute"]:
 			where = "  ·  Rogue drone, everywhere"

@@ -664,6 +664,13 @@ func _spawn_enemies(outpost_dir: Vector3) -> void:
 					_spawn_enemy(foe, lvl, _near(d, srng, 7.0), made)
 		if with_brute:
 			_spawn_enemy("brute", danger_level + 2, d, made)
+		# an edge-world enemy passing through, on its own stream so every other camp stays put
+		var visitor: String = Db.VISITING_FOES.get(planet.biome, "")
+		if visitor != "" and not is_home and danger_level >= Db.VISIT_MIN_DANGER:
+			var vrng := RandomNumberGenerator.new()
+			vrng.seed = planet.seed + 83 + made * 11
+			if vrng.randf() < Db.VISIT_CHANCE:
+				_spawn_enemy(visitor, clampi(danger_level + vrng.randi_range(0, 2), 1, 40), _near(d, vrng, 7.0), made)
 
 
 func _near(d: Vector3, rng: RandomNumberGenerator, dist: float) -> Vector3:

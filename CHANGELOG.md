@@ -14,6 +14,7 @@
   - **Void Stalker** (Abyssal worlds) is nearly invisible until it's close. Scan (Q) to reveal it and leave it exposed for extra damage, then sidestep the pounce.
   - **Spore Hive** (Fungal worlds) is rooted in place, breeds Sporelings and puffs out a sticky cloud that slows you. Kill the hive and its brood withers. Fire does double damage.
 - Signature enemies lead about half the camps on their own worlds (never on the Cradle) and drop their own parts (Thorn Barbs, Sand Fangs, Rime Cores, Cinder Glands, Slag Hearts, Storm Vanes, Prism Lenses, Void Veils and Spore Hearts).
+- The Smelter, Storm Kite and Void Stalker no longer live only at the galaxy's edge. They also roam two common world types each (Smelters on Volcanic and Arid worlds, Storm Kites on Glacial and Verdant, Void Stalkers on Crystalline and Fungal), turning up in about one camp in six once a world is dangerous enough. Their parts, and the Arc, Cinder and Cryo upgrades that need them, are now reachable long before the endgame. Hunt Contracts and the Bestiary list every world type each enemy roams.
 - Status effects: **burn** (damage over time), **chill** (slows you; a fourth stack freezes solid) and **shock** (takes 25% more damage). They work on enemies and on you, show on your HUD and the target frame, and tint whatever they're on. Robots shake off a freeze faster than drones do.
 - Enemies can be weak or resistant to kinds of damage (fire, frost, shock).
 - Three new weapon loadouts, crafted from biome enemy parts at the Fabricator and swapped with X like the others:
