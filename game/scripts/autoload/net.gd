@@ -44,6 +44,16 @@ const LAN_WAIT := 1.5 # seconds to listen for answers
 
 var saved_address := ""
 var saved_password := ""
+var auto_join := false # join the last server when a game starts
+
+## Dropped connections retry on their own, waiting longer each time. A refusal
+## (wrong password, other version, server full) or leaving on purpose doesn't.
+var reconnect_in := 0.0 # seconds until the next try (0 = not waiting)
+var _retry_n := 0
+var _refused := false
+var _auto_pending := false
+const RETRY_WAITS := [2.0, 4.0, 8.0, 15.0, 30.0]
+const MAX_RETRIES := 12
 
 var _ws: WebSocketPeer
 var _password := ""
@@ -67,6 +77,8 @@ func _ready() -> void:
 	if cfg.load(CFG_PATH) == OK:
 		saved_address = String(cfg.get_value("server", "address", ""))
 		saved_password = String(cfg.get_value("server", "password", ""))
+		auto_join = bool(cfg.get_value("server", "auto_join", false))
+	_auto_pending = auto_join and saved_address != "" and not Game.is_dev_run()
 
 
 ## Ask the local network who's hosting. Answers arrive over the next moment
@@ -137,6 +149,23 @@ func _poll_lan(delta: float) -> void:
 		lan_changed.emit()
 
 
+func set_auto_join(on: bool) -> void:
+	auto_join = on
+	if Game.is_dev_run():
+		return
+	var cfg := ConfigFile.new()
+	cfg.load(CFG_PATH)
+	cfg.set_value("server", "auto_join", on)
+	cfg.save(CFG_PATH)
+
+
+## Stop trying to get back onto a server that dropped us.
+func stop_reconnecting() -> void:
+	reconnect_in = 0.0
+	_retry_n = 0
+	status_changed.emit()
+
+
 func is_online() -> bool:
 	return status == "online"
 
@@ -168,8 +197,12 @@ static func url_for(addr: String) -> String:
 	return scheme + host + path
 
 
-func join(addr: String, password := "") -> void:
+func join(addr: String, password := "", retry := false) -> void:
+	var tries := _retry_n
 	leave(false)
+	if retry:
+		_retry_n = tries
+	_refused = false
 	var url := url_for(addr)
 	if url == "":
 		last_error = "Enter a server address."
@@ -193,6 +226,7 @@ func join(addr: String, password := "") -> void:
 		var cfg := ConfigFile.new()
 		cfg.set_value("server", "address", address)
 		cfg.set_value("server", "password", password)
+		cfg.set_value("server", "auto_join", auto_join)
 		cfg.save(CFG_PATH)
 		saved_address = address
 		saved_password = password
@@ -204,6 +238,8 @@ func leave(announce := true) -> void:
 		_ws = null
 	var was := status
 	status = "offline"
+	reconnect_in = 0.0
+	_retry_n = 0
 	players.clear()
 	drops.clear()
 	my_id = 0
@@ -217,6 +253,15 @@ func leave(announce := true) -> void:
 func _process(delta: float) -> void:
 	if _lan:
 		_poll_lan(delta)
+	if _auto_pending and Game.in_game:
+		_auto_pending = false
+		if status == "offline":
+			join(saved_address, saved_password)
+	if reconnect_in > 0.0 and _ws == null:
+		reconnect_in -= delta
+		if reconnect_in <= 0.0:
+			reconnect_in = 0.0
+			join(address, _password, true)
 	if _ws == null:
 		return
 	_ws.poll()
@@ -249,6 +294,12 @@ func _process(delta: float) -> void:
 		status = "offline"
 		players.clear()
 		drops.clear()
+		# lost the server (not refused): try again, a little later each time
+		if not _refused and address != "" and (was == "online" or _retry_n > 0) and _retry_n < MAX_RETRIES:
+			reconnect_in = RETRY_WAITS[mini(_retry_n, RETRY_WAITS.size() - 1)]
+			_retry_n += 1
+			if was == "online":
+				last_error = "Lost the connection to %s. Reconnecting..." % address
 		if was == "online":
 			_system(last_error)
 			Game.notify.emit(last_error, Color("ff8a6b"))
@@ -302,6 +353,9 @@ func _on_msg(m: Dictionary) -> void:
 			for d in m.get("drops", []):
 				_add_drop(d)
 			status = "online"
+			if _retry_n > 0:
+				_retry_n = 0
+				Game.notify.emit("Reconnected to %s" % address, Color("6ee06a"))
 			_system("Connected to %s as %s. %d other%s online." % [address, my_name, players.size(), "" if players.size() == 1 else "s"])
 			if server_motd != "":
 				_system(server_motd)
@@ -383,6 +437,7 @@ func _on_msg(m: Dictionary) -> void:
 			if String(m.get("room", "")) == room and data is Dictionary:
 				room_event.emit(int(m.id), String(m.get("name", "")), String(m.get("kind", "")), data)
 		"error":
+			_refused = true
 			last_error = String(m.get("text", "The server refused the connection."))
 			Game.notify.emit(last_error, Color("ff8a6b"))
 

@@ -2525,6 +2525,17 @@ func _mp_join_view(v: VBoxContainer) -> void:
 	b.disabled = Net.status == "connecting"
 	b.custom_minimum_size = Vector2(180, 46)
 	row.add_child(b)
+	var auto := CheckBox.new()
+	auto.text = "Join this server whenever I play"
+	auto.button_pressed = Net.auto_join
+	auto.focus_mode = Control.FOCUS_NONE
+	auto.toggled.connect(Net.set_auto_join)
+	row.add_child(auto)
+	if Net.reconnect_in > 0.0 or (Net.status == "connecting" and Net._retry_n > 0):
+		var rr := HBoxContainer.new()
+		v.add_child(rr)
+		rr.add_child(UiKit.label("Lost the connection to %s. Trying again (attempt %d of %d)..." % [Net.address, maxi(1, Net._retry_n), Net.MAX_RETRIES], 15, Color("ffd23f")))
+		rr.add_child(UiKit.button("Stop", Net.stop_reconnecting))
 	if Net.last_error != "":
 		v.add_child(UiKit.label(Net.last_error, 15, Color("ff8a6b")))
 	# servers on this network, found by asking

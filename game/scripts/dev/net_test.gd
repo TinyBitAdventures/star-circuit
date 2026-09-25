@@ -451,8 +451,27 @@ func _run() -> void:
 	bob.close()
 	await _wait(0.8)
 	print("[net] bob left: players=", Net.players.size(), " avatars=", sw.net_view.avatars.size())
+	# the server goes down and comes back: we get back on by ourselves
+	OS.kill(_pid)
+	await _wait(1.0)
+	var waiting := Net.reconnect_in > 0.0
+	await _wait(3.0) # first retry (2 s) fails: nobody's listening
+	var tries := Net._retry_n
+	_pid = OS.create_process(bin, ["-addr", "127.0.0.1:%d" % _port, "-data", "", "-discovery=false"])
+	var back := 0.0
+	while not Net.is_online() and back < 12.0:
+		await _wait(0.5)
+		back += 0.5
+	print("[net] reconnect: waiting after drop=", waiting, " failed tries=", tries, " back online=", Net.is_online(), " after ", back, "s retries reset=", Net._retry_n == 0)
+	# leaving on purpose never retries
+	Net.leave()
+	OS.kill(_pid)
+	await _wait(3.0)
+	print("[net] reconnect after leave=", Net.reconnect_in > 0.0 or Net.status != "offline", " (want false)")
+	_pid = -1
 	Net.leave()
 	await _wait(0.3)
 	print("[net] left: status=", Net.status)
-	OS.kill(_pid)
+	if _pid > 0:
+		OS.kill(_pid)
 	get_tree().quit()
