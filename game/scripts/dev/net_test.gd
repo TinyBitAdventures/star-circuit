@@ -81,7 +81,8 @@ func _run() -> void:
 		print("[net] server build failed: ", out)
 		get_tree().quit()
 		return
-	_pid = OS.create_process(bin, ["-addr", "127.0.0.1:%d" % _port, "-data", "", "-motd", "Welcome to the test server"])
+	_pid = OS.create_process(bin, ["-addr", "127.0.0.1:%d" % _port, "-data", "", "-motd", "Welcome to the test server",
+		"-name", "Test Server", "-discovery-port", str(_port + 1)])
 	print("[net] server pid=", _pid, " port=", _port)
 	Game.new_game("scout", "Austin")
 	await _wait(4.0)
@@ -92,6 +93,15 @@ func _run() -> void:
 		if Net.is_online():
 			break
 	print("[net] online=", Net.is_online(), " as ", Net.my_name, " id=", Net.my_id, " motd=", Net.server_motd)
+	# LAN discovery: the server answers our probe (on its own test port)
+	Net.discovery_port = _port + 1
+	Net.lan_scan()
+	await _wait(Net.LAN_WAIT + 0.3)
+	var found := {}
+	for k in Net.lan_servers:
+		if int(k.get_slice(":", 1)) == _port:
+			found = Net.lan_servers[k]
+	print("[net] lan: scanning=", Net.lan_scanning, " found=", found.get("name", ""), " address=", found.get("address", ""), " here=", found.get("here", false), " online=", found.get("online", -1), " protocol ok=", found.get("protocol", "") == Net.PROTOCOL)
 	var pw := get_tree().current_scene
 	# Bob joins and stands next to us
 	bob = WebSocketPeer.new()

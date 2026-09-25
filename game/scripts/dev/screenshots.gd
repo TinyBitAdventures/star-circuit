@@ -1736,10 +1736,17 @@ func _net_tour() -> void:
 	if sdir == "":
 		sdir = ProjectSettings.globalize_path("res://").path_join("../../star-circuit-server").simplify_path()
 	OS.execute("go", ["-C", sdir, "build", "-o", bin, "."])
-	var pid := OS.create_process(bin, ["-addr", "127.0.0.1:%d" % port, "-data", ""])
+	var pid := OS.create_process(bin, ["-addr", "127.0.0.1:%d" % port, "-data", "", "-name", "Austin's Star Circuit", "-discovery-port", str(port + 1)])
 	Game.new_game("scout", "Austin")
 	await _wait(4.0)
 	Game.play_time = 40.0
+	# the join screen finds the server on the network by itself
+	Net.discovery_port = port + 1
+	var jw := _scene()
+	jw.hud.toggle_panel("multiplayer")
+	await _wait(2.5)
+	await shot("net_join_lan")
+	jw.hud.close_panel()
 	Net.join("127.0.0.1:%d" % port)
 	await _wait(1.5)
 	var pw := _scene()

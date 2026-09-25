@@ -36,6 +36,7 @@
 - Shared enemies agree on their health: every second, each of you reports the ones you're hitting and everyone takes the lowest. An enemy a friend is fighting no longer heals while it walks home.
 - You can see friends shoot: their pulse shots, scatter, rail slugs, arc bolts, cryo beams and cinder grenades now fire from their robot on your screen (with the sound), and their robot raises its arm to aim. In space, you see their cannon fire. A friend's grenade only bursts for show; their own game deals the damage.
 - Find your friends: they show on your compass in blue when they're on the same world, on the system map (flying, or beside the planet they're on) and on the galaxy map (a blue ring round their star, with names). **Plot course** in the player list sets a waypoint that follows them round the system, or opens the galaxy map on their star when they're further away.
+- **Servers on your network show up by themselves** in the Multiplayer window under "On your network", with how many are playing and whether there's a password. Click Join, no address needed. "Scan again" looks once more. (Needs the matching server release.)
 - A Titan felled by a friend only gives you its Titan Core and the reward if you were in the fight (within 120 m). Otherwise you're told who got it, and it's still there to fight next time.
 
 ### Updates

@@ -2399,6 +2399,9 @@ func _mp_wire() -> void:
 	Game.inventory_changed.connect(func():
 		if current_panel == "multiplayer" and _mp_item and is_instance_valid(_mp_item):
 			_mp_fill_items())
+	Net.lan_changed.connect(func():
+		if current_panel == "multiplayer":
+			_mp_refresh_lan())
 
 
 func _rebuild_mp() -> void:
@@ -2524,6 +2527,21 @@ func _mp_join_view(v: VBoxContainer) -> void:
 	row.add_child(b)
 	if Net.last_error != "":
 		v.add_child(UiKit.label(Net.last_error, 15, Color("ff8a6b")))
+	# servers on this network, found by asking
+	v.add_child(HSeparator.new())
+	var lh := HBoxContainer.new()
+	v.add_child(lh)
+	var lt := UiKit.label("ON YOUR NETWORK", 13, UiKit.MUTED, true)
+	lt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lh.add_child(lt)
+	lh.add_child(UiKit.button("Scan again", Net.lan_scan))
+	_mp_lan = VBoxContainer.new()
+	_mp_lan.add_theme_constant_override("separation", 6)
+	v.add_child(_mp_lan)
+	_mp_lan_pw = pw
+	if not Net.lan_scanning and Net.status != "connecting":
+		Net.lan_scan()
+	_mp_refresh_lan()
 	v.add_child(HSeparator.new())
 	var lan: Array[String] = []
 	for a in IP.get_local_addresses():
@@ -2532,6 +2550,41 @@ func _mp_join_view(v: VBoxContainer) -> void:
 	var host := UiKit.rich("[b]Hosting a game[/b]\nDownload and run the Star Circuit server from [color=#9bd1ff]github.com/TinyBitAdventures/star-circuit-server[/color] (its release has builds for Mac, Windows and Linux; the game and server versions must match). Friends on your network join with your address%s. Over the internet, open port 7777 on your router and share your public address or domain name, or put the server behind a web server with HTTPS and share [color=#9bd1ff]wss://your.domain[/color]." % (" ([color=#9bd1ff]%s[/color])" % ", ".join(lan) if not lan.is_empty() else ""), 14)
 	host.fit_content = true
 	v.add_child(host)
+
+
+var _mp_lan: VBoxContainer
+var _mp_lan_pw: LineEdit
+
+
+func _mp_refresh_lan() -> void:
+	if _mp_lan == null or not is_instance_valid(_mp_lan):
+		return
+	for c in _mp_lan.get_children():
+		c.queue_free()
+	if Net.lan_servers.is_empty():
+		_mp_lan.add_child(UiKit.label("Looking for servers..." if Net.lan_scanning else "No servers found on this network.", 14, UiKit.MUTED))
+		return
+	var keys := Net.lan_servers.keys()
+	keys.sort()
+	for k in keys:
+		var s: Dictionary = Net.lan_servers[k]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		_mp_lan.add_child(row)
+		var same := String(s.protocol) == Net.PROTOCOL
+		var info := "[b][color=#9bd1ff]%s[/color][/b]  ·  %s  ·  %d/%d online%s" % [String(s.name).replace("[", "[lb]"), "this computer" if s.here else s.address,
+			int(s.online), int(s.max), "  ·  password" if s.password else ""]
+		if not same:
+			info += "\n[color=#ff8a6b]Runs a different version (protocol %s). You need the matching game.[/color]" % String(s.protocol).replace("[", "[lb]").left(8)
+		var r := UiKit.rich(info, 15)
+		r.fit_content = true
+		r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(r)
+		var addr: String = s.address
+		var b := UiKit.button("Join", func(): Net.join(addr, _mp_lan_pw.text if is_instance_valid(_mp_lan_pw) else ""))
+		b.disabled = not same or Net.status == "connecting"
+		b.custom_minimum_size = Vector2(110, 40)
+		row.add_child(b)
 
 
 func _mp_selected_item() -> String:

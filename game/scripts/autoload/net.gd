@@ -12,6 +12,8 @@ signal drops_changed
 signal look_changed(id: int)
 ## Something happened in the room we're in (a tile dug, a clam opened, a kill...).
 signal room_event(from_id: int, from_name: String, kind: String, data: Dictionary)
+## LAN discovery found a server or finished a scan.
+signal lan_changed
 
 const PROTOCOL := "3"
 const DEFAULT_PORT := 7777
@@ -29,6 +31,16 @@ var server_motd := ""
 var players := {} # id -> {name, robot, look, state: {scene, star, planet, label, pos, fwd, anim}, t}
 var drops := {} # id -> {id, star, planet, pos: Vector3, items: {item: qty}, by}
 var chat_log: Array = [] # {name, text, color}
+
+## Servers on the local network, from the last scan: "ip:port" -> {name, address,
+## online, max, password, protocol, version, here (on this computer)}.
+var lan_servers := {}
+var lan_scanning := false
+var discovery_port := 7777 # the server's LAN discovery port (tests use their own)
+var _lan: PacketPeerUDP
+var _lan_t := 0.0
+const LAN_PROBE := "STARCIRCUIT?"
+const LAN_WAIT := 1.5 # seconds to listen for answers
 
 var saved_address := ""
 var saved_password := ""
@@ -55,6 +67,74 @@ func _ready() -> void:
 	if cfg.load(CFG_PATH) == OK:
 		saved_address = String(cfg.get_value("server", "address", ""))
 		saved_password = String(cfg.get_value("server", "password", ""))
+
+
+## Ask the local network who's hosting. Answers arrive over the next moment
+## (lan_changed fires as each one comes in, and when the scan ends).
+func lan_scan() -> void:
+	if _lan:
+		_lan.close()
+	lan_servers.clear()
+	_lan = PacketPeerUDP.new()
+	_lan.set_broadcast_enabled(true)
+	if _lan.bind(0) != OK:
+		_lan = null
+		lan_scanning = false
+		lan_changed.emit()
+		return
+	var probe := LAN_PROBE.to_utf8_buffer()
+	var targets := ["255.255.255.255", "127.0.0.1"]
+	for a in _private_addresses():
+		var q := a.split(".")
+		targets.append("%s.%s.%s.255" % [q[0], q[1], q[2]]) # this subnet (a /24 is the usual home network)
+	for t in targets:
+		_lan.set_dest_address(t, discovery_port)
+		_lan.put_packet(probe)
+	_lan_t = LAN_WAIT
+	lan_scanning = true
+	lan_changed.emit()
+
+
+static func _private_addresses() -> Array[String]:
+	var out: Array[String] = []
+	for a in IP.get_local_addresses():
+		var q := a.split(".")
+		if q.size() != 4:
+			continue
+		if a.begins_with("192.168.") or a.begins_with("10.") or (q[0] == "172" and int(q[1]) >= 16 and int(q[1]) <= 31):
+			out.append(a)
+	return out
+
+
+func _poll_lan(delta: float) -> void:
+	var changed := false
+	while _lan.get_available_packet_count() > 0:
+		var bytes := _lan.get_packet()
+		var ip := _lan.get_packet_ip()
+		if bytes.size() > 2048:
+			continue
+		var r = JSON.parse_string(bytes.get_string_from_utf8())
+		if not r is Dictionary or String(r.get("game", "")) != "Star Circuit":
+			continue
+		var port := clampi(int(r.get("port", DEFAULT_PORT)), 1, 65535)
+		# our own server answers on loopback and on our LAN address: list it once
+		var here := ip == "127.0.0.1" or ip in IP.get_local_addresses()
+		if here:
+			ip = "127.0.0.1"
+		var key := "%s:%d" % [ip, port]
+		var host := ip if port == DEFAULT_PORT else key
+		lan_servers[key] = {"name": String(r.get("name", "Star Circuit server")).left(40), "address": ("wss://" + key) if bool(r.get("tls", false)) else host,
+			"online": int(r.get("online", 0)), "max": int(r.get("max_players", 0)), "password": bool(r.get("password", false)),
+			"protocol": String(r.get("protocol", "")), "version": String(r.get("version", "")), "here": here}
+		changed = true
+	_lan_t -= delta
+	if _lan_t <= 0.0:
+		_lan.close()
+		_lan = null
+		lan_scanning = false
+		changed = true
+	if changed:
+		lan_changed.emit()
 
 
 func is_online() -> bool:
@@ -135,6 +215,8 @@ func leave(announce := true) -> void:
 
 
 func _process(delta: float) -> void:
+	if _lan:
+		_poll_lan(delta)
 	if _ws == null:
 		return
 	_ws.poll()
