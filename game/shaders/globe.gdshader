@@ -1,7 +1,9 @@
 // Illustrated planet globe (see Globe.gd). The height/colour texture is baked
 // from the planet's real generator; everything crisp is drawn per pixel.
 shader_type spatial;
-render_mode fog_disabled, shadows_disabled;
+// Lit here, not by scene lights: the engine's clustered omni lights dropped the
+// star's light in screen tiles on big close globes (a stair-stepped terminator).
+render_mode fog_disabled, shadows_disabled, unshaded;
 
 uniform sampler2D globe_tex : source_color, filter_linear, repeat_enable;
 uniform bool has_sea = true;
@@ -11,6 +13,12 @@ uniform vec3 shallow_color : source_color = vec3(0.35, 0.7, 0.85);
 uniform vec3 foam_color : source_color = vec3(0.8, 0.92, 1.0);
 uniform vec3 ink_color : source_color = vec3(0.05, 0.08, 0.16);
 uniform float seed = 0.0;
+// where the light comes from: a point in world space (a star) or a fixed direction
+uniform bool use_sun_pos = false;
+uniform vec3 sun_pos = vec3(0.0);
+uniform vec3 sun_dir = vec3(0.6, 0.55, 0.6);
+uniform vec3 sun_color : source_color = vec3(1.0, 0.97, 0.92);
+uniform float sun_energy = 1.0;
 
 varying vec3 obj;
 
@@ -45,6 +53,7 @@ void vertex() {
 }
 
 void fragment() {
+	vec3 glow = vec3(0.0); // lava shines on the night side too
 	vec3 d = normalize(obj);
 	float u = atan(d.x, d.z) / TAU + 0.5;
 	vec2 uv = vec2(u, acos(clamp(d.y, -1.0, 1.0)) / PI);
@@ -73,7 +82,7 @@ void fragment() {
 			float crust = smoothstep(0.52, 0.6, fbm(d * 7.0 + vec3(seed)));
 			sea_col = mix(vec3(1.0, 0.42, 0.08) * 1.3, vec3(0.16, 0.07, 0.06), crust);
 			sea_col = mix(sea_col, vec3(1.0, 0.8, 0.35) * 1.6, smoothstep(-0.04, -0.005, h) * (1.0 - crust));
-			EMISSION = sea_col * water * (1.0 - crust) * 1.2;
+			glow = sea_col * water * (1.0 - crust) * 1.2;
 		} else {
 			float sh = smoothstep(-0.032 - aa, -0.032 + aa, h);
 			sea_col = mix(deep_color, shallow_color, sh);
@@ -92,33 +101,29 @@ void fragment() {
 	float fres = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	col = mix(col, ink_color, smoothstep(0.86, 0.93, fres) * 0.9);
 
-	ALBEDO = col;
-	ROUGHNESS = mix(1.0, 0.05, water);
-	SPECULAR = 0.0;
-}
-
-void light() {
-	float ndl = dot(NORMAL, LIGHT);
-	vec3 lc = LIGHT_COLOR / PI;
+	// light: the same banded, halftoned look everywhere
+	vec3 wpos = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec3 lw = use_sun_pos ? normalize(sun_pos - wpos) : normalize(sun_dir);
+	vec3 L = normalize((VIEW_MATRIX * vec4(lw, 0.0)).xyz);
+	float ndl = dot(NORMAL, L);
+	vec3 lc = sun_color * sun_energy;
 	// two crisp light bands
-	float d = smoothstep(-0.02, 0.05, ndl) * 0.62 + smoothstep(0.38, 0.46, ndl) * 0.38;
+	float lit = smoothstep(-0.02, 0.05, ndl) * 0.62 + smoothstep(0.38, 0.46, ndl) * 0.38;
 	// halftone dots soften the terminator into the night side
 	vec2 fc = FRAGCOORD.xy * 0.2;
 	fc = vec2(fc.x + fc.y, fc.y - fc.x) * 0.7071;
-	float tone = smoothstep(-0.3, 0.03, ndl) * (1.0 - d);
+	float tone = smoothstep(-0.3, 0.03, ndl) * (1.0 - lit);
 	float rad = 0.62 * sqrt(tone);
 	float dots = 1.0 - smoothstep(rad - 0.08, rad, length(fract(fc) - 0.5));
-	DIFFUSE_LIGHT += lc * (d + dots * 0.32 * step(0.02, tone));
-	if (LIGHT_IS_DIRECTIONAL) {
-		// the shade is a cool violet, never grey
-		DIFFUSE_LIGHT += vec3(0.2, 0.16, 0.46) * length(lc) * 0.5 * (1.0 - d);
-		// warm edge on the lit limb
-		float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0) * smoothstep(0.0, 0.4, ndl);
-		DIFFUSE_LIGHT += lc * vec3(1.0, 0.82, 0.6) * rim * 0.5;
-	}
+	vec3 light = lc * (lit + dots * 0.32 * step(0.02, tone));
+	// the shade is a cool violet, never grey
+	light += vec3(0.2, 0.16, 0.46) * 0.5 * (1.0 - lit);
+	// warm edge on the lit limb
+	float rim = pow(fres, 3.0) * smoothstep(0.0, 0.4, ndl);
+	light += lc * vec3(1.0, 0.82, 0.6) * rim * 0.5;
+	vec3 shaded = col * light;
 	// one crisp painted glint on the water
-	if (ROUGHNESS < 0.5) {
-		float s = smoothstep(0.9935, 0.9955, dot(reflect(-LIGHT, NORMAL), VIEW));
-		SPECULAR_LIGHT += lc * s * 1.1;
-	}
+	float glint = smoothstep(0.9935, 0.9955, dot(reflect(-L, NORMAL), VIEW)) * water * step(0.02, ndl);
+	shaded += lc * glint * 1.1;
+	ALBEDO = shaded + glow;
 }

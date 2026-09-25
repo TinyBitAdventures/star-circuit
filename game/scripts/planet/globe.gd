@@ -73,6 +73,18 @@ static func bake(gen: PlanetGen) -> Image:
 	return img
 
 
+## Light a globe from a point (a star) instead of a fixed direction, as it orbits.
+static func light_from(globe: Node3D, pos: Vector3, color: Color, energy: float) -> void:
+	var mi := globe.get_node_or_null("Surface") as MeshInstance3D
+	if mi == null:
+		return
+	var m := mi.material_override as ShaderMaterial
+	m.set_shader_parameter("use_sun_pos", true)
+	m.set_shader_parameter("sun_pos", pos)
+	m.set_shader_parameter("sun_color", color)
+	m.set_shader_parameter("sun_energy", energy)
+
+
 ## A complete illustrated globe: surface, clouds and halo. `r` is the radius
 ## in the caller's units; `sun_dir` is the direction light arrives from, in world space.
 static func build(gen: PlanetGen, r: float, sun_dir: Vector3, segments := 96, with_clouds := true) -> Node3D:
@@ -98,7 +110,9 @@ static func build(gen: PlanetGen, r: float, sun_dir: Vector3, segments := 96, wi
 	m.set_shader_parameter("foam_color", water.lightened(0.45))
 	m.set_shader_parameter("ink_color", deep.darkened(0.72))
 	m.set_shader_parameter("seed", float(int(gen.data.seed) % 97))
+	m.set_shader_parameter("sun_dir", sun_dir)
 	mi.material_override = m
+	mi.name = "Surface"
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mi)
 	if with_clouds:

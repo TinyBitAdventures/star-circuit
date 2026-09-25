@@ -162,7 +162,10 @@ func _build_planet(p: Dictionary) -> void:
 	var r: float = p.radius * SPACE_SCALE
 	var biome: Dictionary = Db.BIOMES[p.biome]
 	if Globe.enabled():
-		root.add_child(Globe.build(gen, gen.radius * SPACE_SCALE, (-root.position).normalized(), 96))
+		var globe := Globe.build(gen, gen.radius * SPACE_SCALE, (-root.position).normalized(), 96)
+		root.add_child(globe)
+		# the star sits at the system's origin
+		Globe.light_from(globe, global_position, Color(star.color).lerp(Color.WHITE, 0.5), 1.35)
 	else:
 		_classic_planet(root, gen, p, r)
 	if p.rings:

@@ -178,6 +178,9 @@ func _run() -> void:
 	if which == "bestiary":
 		await _bestiary_tour()
 		get_tree().quit()
+	if which == "globe_close":
+		await _globe_close_tour()
+		get_tree().quit()
 	if which == "titans":
 		await _titans_tour()
 		get_tree().quit()
@@ -1976,3 +1979,34 @@ func _titans_tour() -> void:
 				await shot("%s_%s" % [kind, what])
 			if snapped.size() >= 3:
 				break
+
+
+
+## Close-up of one planet from orbit (STAR=name, PLANET=name, DIST=radii), from a few angles.
+func _globe_close_tour() -> void:
+	Game.new_game("scout", "Tester")
+	await _wait(4.0)
+	var star_name := OS.get_environment("STAR")
+	for si in Galaxy.stars.size():
+		if Galaxy.star(si).name == star_name:
+			Game.star_index = si
+	Game.go_to_space()
+	await _wait(4.5)
+	var s := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	var dist := float(OS.get_environment("DIST")) if OS.get_environment("DIST") != "" else 2.2
+	for p in s.planets:
+		if p.data.name != OS.get_environment("PLANET"):
+			continue
+		var pos: Vector3 = p.node.global_position
+		var r: float = float(p.data.radius) * s.SPACE_SCALE
+		var sun: Vector3 = (-pos).normalized()
+		var k := 0
+		var sides: Array = []
+		for i in 6:
+			sides.append(sun.rotated(Vector3.UP, float(i) / 6.0 * TAU + 0.4).normalized())
+		for side in sides:
+			await _space_look(s, pos, side * r * dist)
+			await shot("globe_close_%d" % k)
+			k += 1
