@@ -54,6 +54,7 @@ var _sky_offset := 0.0
 var _cloud_mat: ShaderMaterial
 var ground_cover: GroundCover
 var net_view: NetView # other players and their crates (multiplayer)
+var damage_mute: Enemy = null # set while an enemy swings at a friend's robot: our robot takes nothing
 
 var _nodes: Array[ResourceNode] = []
 var _interactables: Array[Node3D] = []
@@ -165,6 +166,7 @@ func titan_fight() -> bool:
 
 
 func _process(delta: float) -> void:
+	_send_hp(delta)
 	var tf := titan_fight()
 	if tf != _titan_fighting:
 		_titan_fighting = tf
@@ -680,10 +682,14 @@ func _spawn_enemy(t: String, lvl: int, d: Vector3, camp: int) -> Enemy:
 	return e
 
 
-func on_enemy_killed(e: Enemy) -> void:
+func on_enemy_killed(e: Enemy, remote := false) -> void:
 	enemies.erase(e)
 	if e == titan:
-		Game.record_titan(planet.key, e.type)
+		# a friend's kill only counts for us if we were in the fight
+		if not remote or (player != null and player.global_position.distance_to(e.global_position) < TITAN_SHARE_RANGE):
+			Game.record_titan(planet.key, e.type)
+		else:
+			Game.notify.emit("A friend felled the %s. Be there next time to share the Titan Core." % e.def.name, Color("ffb86b"))
 		refresh_music()
 	if e.camp_id < 0:
 		return # a hive's brood: never respawns on its own
@@ -708,6 +714,8 @@ func on_enemy_killed(e: Enemy) -> void:
 ## effect: an optional status the hit carries ("burn", "chill", "shock").
 func damage_player(amount: float, _source: Node, effect := "", duration := 0.0, power := 1.0) -> void:
 	if player == null or player.dead:
+		return
+	if damage_mute != null and _source == damage_mute:
 		return
 	if Game.invulnerable:
 		return
@@ -1277,6 +1285,9 @@ func drop_point() -> Vector3:
 
 ## Friends this close to a kill share it: XP, their own loot roll and credits.
 const SHARE_RANGE := 80.0
+const TITAN_SHARE_RANGE := 120.0 # a Titan's arena is bigger than a camp
+const HP_SYNC := 1.0 # seconds between health reports for enemies we're fighting
+var _hp_sync_t := 0.0
 var _dead_nids := {} # enemy net id -> time it died (so a double kill only pays once)
 
 
@@ -1292,8 +1303,33 @@ func _enemy_by_nid(nid: String) -> Enemy:
 	return null
 
 
+## Every second, the health of the shared enemies we've been hitting. Each
+## copy takes the lowest value, so everyone's view of a long fight agrees.
+func _send_hp(delta: float) -> void:
+	_hp_sync_t -= delta
+	if _hp_sync_t > 0.0 or not Net.is_online() or Net.room_peers().is_empty():
+		return
+	_hp_sync_t = HP_SYNC
+	var now := Time.get_ticks_msec() / 1000.0
+	var h := {}
+	for e in enemies:
+		if is_instance_valid(e) and e.is_alive() and e.nid != "" and e.hp < e.max_hp and now - e.mine_t < 5.0:
+			h[e.nid] = snappedf(e.hp, 0.1)
+			if h.size() >= 24:
+				break
+	if not h.is_empty():
+		Net.send_event("hp", {"h": h})
+
+
 func _on_room_event(_from: int, from_name: String, kind: String, data: Dictionary) -> void:
 	match kind:
+		"hp":
+			var h: Dictionary = data.get("h", {})
+			for nid in h:
+				var e := _enemy_by_nid(String(nid))
+				var v := float(h[nid])
+				if e and v < e.hp:
+					e.remote_hit(e.hp - v)
 		"hits":
 			var h: Dictionary = data.get("h", {})
 			for nid in h:

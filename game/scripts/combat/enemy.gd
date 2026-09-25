@@ -37,6 +37,11 @@ var home_dir := Vector3.UP
 var heading := Vector3.FORWARD
 var camp_id := 0
 var nid := "" # multiplayer: the same drone on every player's screen shares this id
+## Who it's after: our robot, or a friend's robot on this planet (multiplayer).
+## Only our own robot takes damage here; a friend's game handles theirs.
+var target: Node3D = null
+var remote_t := -100.0 # when a friend last hurt it (seconds): it won't heal while contested
+var mine_t := -100.0 # when we last hurt it
 var behavior: EnemyBehavior
 var status := Status.new()
 var swing := 0.0 # attack animation, 1 -> 0
@@ -146,8 +151,11 @@ func _physics_process(delta: float) -> void:
 	var slow := status.speed_mult()
 	_atk_cd = maxf(0.0, _atk_cd - delta * slow)
 	var player: Node3D = world.player
-	var player_ok: bool = player != null and not player.dead
-	var ppos: Vector3 = player.global_position if player else Vector3.ZERO
+	var local_ok: bool = player != null and not player.dead
+	var ldist := global_position.distance_to(player.global_position) if local_ok else INF
+	target = _pick_target(player if local_ok else null, ldist)
+	var player_ok := target != null
+	var ppos: Vector3 = target.global_position if player_ok else Vector3.ZERO
 	var dist := global_position.distance_to(ppos) if player_ok else INF
 
 	# frozen solid: nothing but the knockback moves it
@@ -155,11 +163,11 @@ func _physics_process(delta: float) -> void:
 		if _knock.length() > 0.1:
 			_apply_knock(delta)
 			_place()
-		_update_plate_visibility(dist)
+		_update_plate_visibility(ldist)
 		return
 	if behavior.busy(delta):
 		_animate(delta, false)
-		_update_plate_visibility(dist)
+		_update_plate_visibility(ldist)
 		return
 
 	var home_pos: Vector3 = world.gen.surface_point(home_dir)
@@ -181,14 +189,20 @@ func _physics_process(delta: float) -> void:
 				behavior.chase(delta, ppos, dist)
 				if dist <= def.range and _atk_cd <= 0.0:
 					_atk_cd = def.cd * randf_range(0.9, 1.15)
-					behavior.attack(player, dist)
+					# a swing at a friend's robot can't hurt ours (their game deals it)
+					world.damage_mute = self if target != player else null
+					behavior.attack(target, dist)
+					world.damage_mute = null
 		"return":
 			move_toward_point(home_pos, def.speed * 1.6, delta)
-			hp = minf(max_hp, hp + max_hp * delta * 0.5)
+			var contested := contested()
+			if not contested:
+				hp = minf(max_hp, hp + max_hp * delta * 0.5)
 			_bar.set_instance_shader_parameter("fill", hp / max_hp)
 			if global_position.distance_to(home_pos) < 3.0:
 				state = "idle"
-				hp = max_hp
+				if not contested:
+					hp = max_hp
 				status.clear()
 				_update_plate()
 
@@ -297,6 +311,27 @@ func part(part_name: String) -> Node3D:
 	return _parts.get(part_name)
 
 
+## Nearest robot worth chasing: ours, or a friend's on this planet. The current
+## target is kept unless another is clearly closer, so it doesn't flicker between two.
+func _pick_target(player: Node3D, ldist: float) -> Node3D:
+	var best: Node3D = player
+	var bd := ldist * (0.75 if player != null and player == target else 1.0)
+	var nv = world.get("net_view")
+	if nv != null and not nv.avatars.is_empty():
+		for id in nv.avatars:
+			var a: Node3D = nv.avatars[id]
+			var d := global_position.distance_to(a.global_position) * (0.75 if a == target else 1.0)
+			if d < bd:
+				bd = d
+				best = a
+	return best
+
+
+## A friend hurt it in the last few seconds: it doesn't heal or reset.
+func contested() -> bool:
+	return Time.get_ticks_msec() / 1000.0 - remote_t < 6.0
+
+
 func model() -> Node3D:
 	return _model
 
@@ -386,6 +421,7 @@ func take_hit(amount: float, crit := false, kind := "kinetic", from := Vector3.I
 			aggro()
 		return false
 	hp -= amount
+	mine_t = Time.get_ticks_msec() / 1000.0
 	Net.queue_hit(nid, amount)
 	_flash = 0.15
 	var col := Color("ffe066") if crit else Color.WHITE
@@ -407,6 +443,9 @@ func take_hit(amount: float, crit := false, kind := "kinetic", from := Vector3.I
 func remote_hit(amount: float) -> void:
 	if state == "dead":
 		return
+	remote_t = Time.get_ticks_msec() / 1000.0
+	if state == "idle":
+		aggro()
 	hp -= amount
 	_flash = 0.15
 	world.floating_text(global_position + dir * (3.2 if elite else 2.4), "%d" % int(amount), Color("9bd1ff"), false)
@@ -456,7 +495,7 @@ func _die(remote := false) -> void:
 	if not remote:
 		Game.record_kill(type, level, elite)
 		world.share_kill(self)
-	world.on_enemy_killed(self)
+	world.on_enemy_killed(self, remote)
 	world.explosion(global_position + dir * 1.2, Color(1.0, 0.45, 0.2), 2.2 if elite else 1.3)
 	var t := create_tween()
 	t.tween_property(_model, "scale", Vector3.ONE * 0.01, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)

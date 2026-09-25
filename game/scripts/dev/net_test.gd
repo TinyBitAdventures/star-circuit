@@ -224,6 +224,78 @@ func _run() -> void:
 		if m.t == "ev" and m.kind == "kill":
 			kev = m
 	print("[net] bob got hits=", hits.get("kind", ""), " ", hits.get("data", {}).get("h", {}), " kill=", kev.get("data", {}).get("nid", "") == foe2.nid)
+	# ---- co-op: a drone goes after Bob's robot when he's the one next to it, and can't hurt us from there
+	var home_pos: Vector3 = pw.player.global_position
+	var e4: Enemy = null
+	for e in pw.enemies:
+		if is_instance_valid(e) and e.is_alive() and e.state == "idle" and e.def.style == "melee":
+			e4 = e
+			break
+	if e4 == null:
+		e4 = pw._spawn_enemy("scrapper", 3, pw.player.global_position.normalized(), -1)
+	var eu: Vector3 = e4.global_position.normalized()
+	var eb := PlanetGen.align_basis(eu, 0.0)
+	# park our robot somewhere quiet: no drone within 70 m
+	var park := eu
+	for k in 24:
+		var cand: Vector3 = (eu + (eb.x * cos(k * 0.9) + eb.z * sin(k * 0.9)) * (140.0 + k * 20.0) / pw.gen.radius).normalized()
+		var cp: Vector3 = pw.gen.surface_point(cand)
+		var clear := true
+		for e in pw.enemies:
+			if is_instance_valid(e) and e.is_alive() and e.global_position.distance_to(cp) < 70.0:
+				clear = false
+		if clear:
+			park = cand
+			break
+	pw.player.global_position = pw.gen.surface_point(park) + park * 0.5
+	var hull0 := Game.hull
+	for i in 30:
+		_bob_send({"t": "state", "scene": "planet", "room": room, "star": Game.star_index, "planet": Game.planet_index,
+			"pos": Net._arr(e4.global_position + eb.z * 1.5), "fwd": Net._arr(-eb.z), "anim": "idle"})
+		await _wait(0.1)
+	print("[net] co-op target: state=", e4.state, " chasing bob=", e4.target is RemotePlayer, " our hull ", snappedf(hull0, 0.1), " -> ", snappedf(Game.hull, 0.1))
+	# health reports: Bob's lower value wins here, and ours reach Bob
+	var hp4 := e4.hp
+	_bob_send({"t": "ev", "room": room, "kind": "hp", "data": {"h": {e4.nid: snappedf(hp4 - 7.0, 0.1)}}})
+	await _wait(0.3)
+	var hp_low := e4.hp
+	_bob_send({"t": "ev", "room": room, "kind": "hp", "data": {"h": {e4.nid: e4.max_hp}}})
+	await _wait(0.3)
+	print("[net] hp sync: ", snappedf(hp4, 0.1), " -> ", snappedf(hp_low, 0.1), " (want -7), a higher report ignored=", is_equal_approx(e4.hp, hp_low))
+	bob_in.clear()
+	e4.take_hit(3.0)
+	var hpev := {}
+	var waited := 0.0
+	while hpev.is_empty() and waited < 2.5:
+		await _wait(0.1)
+		waited += 0.1
+		for m in bob_in:
+			if m.t == "ev" and m.kind == "hp":
+				hpev = m
+	print("[net] our hp report reached bob=", hpev.get("data", {}).get("h", {}).has(e4.nid))
+	# contested: a drone a friend is fighting doesn't heal on its way home
+	e4.remote_t = Time.get_ticks_msec() / 1000.0
+	e4.state = "return"
+	var hpr := e4.hp
+	await _wait(0.5)
+	print("[net] contested no heal=", e4.hp <= hpr + 0.01, " (", snappedf(hpr, 0.1), " -> ", snappedf(e4.hp, 0.1), ")")
+	pw.player.global_position = home_pos
+	# Titans: a friend's kill only counts if we were there
+	var tkind: String = Db.TITANS.get(pw.planet.biome, Db.TITANS.values()[0])
+	var pu: Vector3 = pw.player.global_position.normalized()
+	var pb := PlanetGen.align_basis(pu, 0.0)
+	var t_far: Enemy = pw._spawn_enemy(tkind, 20, (pu + pb.x * 400.0 / pw.gen.radius).normalized(), -1)
+	pw.titan = t_far
+	Game.titans.erase(pw.planet.key)
+	_bob_send({"t": "ev", "room": room, "kind": "kill", "data": {"nid": t_far.nid, "type": tkind, "lvl": 20, "elite": true, "pos": Net._arr(t_far.global_position)}})
+	await _wait(0.4)
+	var far_rec := Game.titans.has(pw.planet.key)
+	var t_near: Enemy = pw._spawn_enemy(tkind, 20, (pu + pb.x * 40.0 / pw.gen.radius).normalized(), -1)
+	pw.titan = t_near
+	_bob_send({"t": "ev", "room": room, "kind": "kill", "data": {"nid": t_near.nid, "type": tkind, "lvl": 20, "elite": true, "pos": Net._arr(t_near.global_position)}})
+	await _wait(0.4)
+	print("[net] titan far kill recorded=", far_rec, " (want false), near kill recorded=", Game.titans.has(pw.planet.key), " dead=", not (is_instance_valid(t_far) and t_far.is_alive()) and not (is_instance_valid(t_near) and t_near.is_alive()))
+	Game.titans.erase(pw.planet.key)
 	# ---- a shared cave
 	var cave: Poi = null
 	for p in pw.pois:

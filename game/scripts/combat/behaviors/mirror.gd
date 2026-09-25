@@ -36,10 +36,9 @@ func busy(delta: float) -> bool:
 
 
 func _do_blink() -> void:
-	var player: Node3D = e.world.player
-	if player == null or player.dead:
+	if e.target == null:
 		return
-	var pd: Vector3 = player.global_position.normalized()
+	var pd: Vector3 = e.target.global_position.normalized()
 	var b := PlanetGen.align_basis(pd, randf() * TAU)
 	var to: Vector3 = (pd + b.z * randf_range(9.0, 15.0) / e.world.gen.radius).normalized()
 	e.world.explosion(e.global_position, Color(0.8, 0.75, 1.0), 0.8)

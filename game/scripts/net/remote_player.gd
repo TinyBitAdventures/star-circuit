@@ -8,6 +8,7 @@ var mode := "planet"
 var visual: RobotVisual
 var label: Label3D
 var anim := ""
+var dead := false # enemies may chase a friend's robot; it never takes damage here
 var _target := Vector3.ZERO
 var _fwd := Vector3.FORWARD
 var _has := false

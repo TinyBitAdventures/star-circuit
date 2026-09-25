@@ -31,6 +31,11 @@
 - **Hunt Contracts** on bounty boards name one signature enemy to put down (usually the board's own world's), and pay well for it.
 - **Bestiary**: a new tab in the Quest Log (J). Every enemy you meet is listed with how many you've destroyed; scan one (Q) to log how it fights and what it's weak or immune to. Scanning the signature enemy of all nine world types earns the **Monster Hunter** milestone (+25 hull).
 
+### Multiplayer
+- Enemies now go after whichever robot is closest, yours or a friend's, so a drone your friend is fighting turns on them on your screen too instead of standing idle. A swing at your friend never hurts you.
+- Shared enemies agree on their health: every second, each of you reports the ones you're hitting and everyone takes the lowest. An enemy a friend is fighting no longer heals while it walks home.
+- A Titan felled by a friend only gives you its Titan Core and the reward if you were in the fight (within 120 m). Otherwise you're told who got it, and it's still there to fight next time.
+
 ### Updates
 - **The game now updates itself.** When a new version is out, the title screen shows **Update to x.y.z** and the pause menu gains **Save & Update**. It saves your game, downloads the new version from GitHub, swaps it in, and restarts where you left off. Saves carry over.
 - The update dialog shows what's new, the download size and a progress bar. If the game can't replace itself (on macOS, when it's still running from Downloads or another read-only spot), it tells you why and opens the release page instead.

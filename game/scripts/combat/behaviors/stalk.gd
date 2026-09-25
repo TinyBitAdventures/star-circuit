@@ -51,7 +51,7 @@ func busy(delta: float) -> bool:
 				phase = "leap"
 				_t = POUNCE_TIME
 				_from = e.dir
-				_to = player.global_position.normalized() if player else e.dir
+				_to = e.target.global_position.normalized() if e.target else e.dir
 				Sound.play_3d("pounce", e.global_position, -2.0, 0.08, 20.0)
 			return true
 		"leap":

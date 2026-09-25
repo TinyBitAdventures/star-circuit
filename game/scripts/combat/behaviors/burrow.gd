@@ -48,11 +48,10 @@ func busy(delta: float) -> bool:
 		if phase != "up":
 			_surface()
 		return false
-	var player: Node3D = e.world.player
 	match phase:
 		"up":
 			_t -= delta
-			if _t <= 0.0 and player and not player.dead:
+			if _t <= 0.0 and e.target:
 				phase = "diving"
 				_t = 0.5
 				Sound.play_3d("burrow", e.global_position, -4.0, 0.1, 20.0)
@@ -69,8 +68,8 @@ func busy(delta: float) -> bool:
 			return true
 		"under":
 			_t -= delta
-			if player and not player.dead:
-				var ppos: Vector3 = player.global_position
+			if e.target:
+				var ppos: Vector3 = e.target.global_position
 				e.move_toward_point(ppos, e.def.speed * TUNNEL_SPEED, delta)
 				e.place_now()
 				if e.global_position.distance_to(ppos) < 3.0 or _t <= 0.0:
