@@ -57,6 +57,7 @@ var _loop_harvest := ""
 var _low_energy_warned := false
 var _dust: CPUParticles3D
 var shake := CamShake.new()
+var status := Status.new() # burn, chill/freeze, shock from enemy attacks
 var _dropping := false
 var _stuck_t := 0.0
 var _last_pos := Vector3.ZERO
@@ -175,8 +176,13 @@ func _physics_process(delta: float) -> void:
 	var cam_right := cam_fwd.cross(up).normalized()
 
 	var ui_block: bool = Game.get("ui_open")
+	var burn := status.tick(delta)
+	if burn > 0.0:
+		world.damage_player(burn, null)
+		if dead:
+			return
 	var input := Vector2.ZERO
-	if not ui_block and not launching:
+	if not ui_block and not launching and not status.frozen():
 		input = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
 	var wish := (cam_fwd * input.y + cam_right * input.x)
 	if wish.length() > 1.0:
@@ -187,7 +193,7 @@ func _physics_process(delta: float) -> void:
 	in_liquid = dist < liquid_r - 0.4
 	var is_lava: bool = world.biome.get("lava", false)
 
-	var speed := BASE_SPEED * Game.stat("speed")
+	var speed := BASE_SPEED * Game.stat("speed") * maxf(status.speed_mult(), 0.35)
 	var sprinting := Input.is_action_pressed("sprint") and not ui_block and input.length() > 0.1
 	if sprinting:
 		speed *= SPRINT_MULT
@@ -343,6 +349,8 @@ func _update_combat(delta: float, up: Vector3, ui_block: bool) -> void:
 	world.hud.set_ability_cooldown(ability_cd, Game.robot().ability.cd)
 	if ui_block or launching or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
+	if status.frozen():
+		return
 	if Input.is_action_pressed("fire") and fire_cd <= 0.0:
 		var wd := Game.weapon_def()
 		if Game.energy < FIRE_COST * float(wd.cost):
@@ -476,6 +484,7 @@ func _on_died() -> void:
 	if dead:
 		return
 	dead = true
+	status.clear()
 	Game.invulnerable = false
 	Sound.play("death", -2.0, 0.0)
 	Sound.loop_stop("jet", 0.1)

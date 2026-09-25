@@ -144,3 +144,26 @@ static func floating_text(parent: Node3D, pos: Vector3, up: Vector3, text: Strin
 	t.tween_property(l, "global_position", pos + jitter + up * 2.0, 0.9).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	t.tween_property(l, "modulate:a", 0.0, 0.9).set_delay(0.35)
 	t.chain().tween_callback(l.queue_free)
+
+
+## A flat warning disc on the ground that grows to full size over grow_time.
+## The caller frees it when the attack lands.
+static func ground_ring(parent: Node3D, center: Vector3, up: Vector3, radius: float, color: Color, grow_time: float) -> MeshInstance3D:
+	var ring := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = radius
+	cyl.bottom_radius = radius
+	cyl.height = 0.08
+	cyl.radial_segments = 40
+	ring.mesh = cyl
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = color
+	ring.material_override = m
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(ring)
+	ring.global_transform = Transform3D(PlanetGen.align_basis(up), center + up * 0.15)
+	ring.scale = Vector3(0.2, 1, 0.2)
+	ring.create_tween().tween_property(ring, "scale", Vector3.ONE, maxf(grow_time, 0.05))
+	return ring

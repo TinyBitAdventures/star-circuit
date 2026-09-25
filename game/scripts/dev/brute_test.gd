@@ -27,5 +27,5 @@ func _go() -> void:
 	Game.invulnerable = false
 	for i in 8:
 		await get_tree().create_timer(0.5).timeout
-		print("[brute] t=%.1f state=%s dist=%.1f slam=%.2f hull=%d sea=%s h=%.4f" % [i * 0.5, b.state, b.global_position.distance_to(p.global_position), b._slam_timer, Game.hull, w.gen.sea, w.gen.height(b.dir)])
+		print("[brute] t=%.1f state=%s dist=%.1f slam=%.2f hull=%d sea=%s h=%.4f" % [i * 0.5, b.state, b.global_position.distance_to(p.global_position), (1.0 if b.behavior.raised() else -1.0), Game.hull, w.gen.sea, w.gen.height(b.dir)])
 	get_tree().quit()

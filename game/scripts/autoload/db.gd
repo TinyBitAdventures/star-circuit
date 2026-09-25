@@ -724,7 +724,7 @@ const ENEMIES := {
 		"hover": 0.0, "scale": 0.9, "style": "melee", "loot": {"scrap": [1, 3]}},
 	"sentinel": {"name": "Rogue Sentinel", "model": "res://assets/models/enemy_sentinel.glb",
 		"hp": [30, 10], "dmg": [8, 2.5], "speed": 3.5, "range": 18.0, "cd": 2.0, "aggro": 26.0, "xp": [34, 11],
-		"hover": 0.0, "scale": 0.9, "style": "ranged", "loot": {"scrap": [1, 2], "plasma": [0, 1]}},
+		"hover": 0.0, "scale": 0.9, "style": "ranged", "wades": true, "loot": {"scrap": [1, 2], "plasma": [0, 1]}},
 	"brute": {"name": "Rogue Brute", "model": "res://assets/models/enemy_brute.glb",
 		"hp": [170, 42], "dmg": [18, 4.0], "speed": 3.8, "range": 4.2, "cd": 3.2, "aggro": 18.0, "xp": [110, 30],
 		"hover": 0.0, "scale": 1.1, "style": "slam", "elite": true, "loot": {"scrap": [4, 7], "power_core": [1, 1]}},

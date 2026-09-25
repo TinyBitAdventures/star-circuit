@@ -659,11 +659,21 @@ func on_enemy_killed(e: Enemy) -> void:
 	)
 
 
-func damage_player(amount: float, _source: Node) -> void:
+## effect: an optional status the hit carries ("burn", "chill", "shock").
+func damage_player(amount: float, _source: Node, effect := "", duration := 0.0, power := 1.0) -> void:
 	if player == null or player.dead:
 		return
 	if Game.invulnerable:
 		return
+	amount *= player.status.damage_mult()
+	if effect != "":
+		# robots shrug a freeze off faster than drones do
+		var got: String = player.status.apply(effect, duration, power, 0.35 if effect == "chill" else 0.0)
+		if got != "":
+			hud.show_effects(player.status)
+			if got == "freeze":
+				floating_text(player.global_position + player.global_basis.y * 3.0, "FROZEN", Color("9be7ff"), true)
+				Sound.play("freeze", -4.0, 0.05)
 	Sound.play("shield_hit" if Game.shield > 0.0 else "player_hurt", -5.0, 0.08, "SFX", 0.08)
 	if Game.take_damage(amount):
 		pass # player_died signal handles it

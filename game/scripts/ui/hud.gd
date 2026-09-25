@@ -29,6 +29,8 @@ var target_bar: ProgressBar
 var target_hp: Label
 var ability_label: Label
 var ability_bar: ProgressBar
+var effects_label: Label # your burn / chill / shock, over the ability bar
+var _effects: Status = null
 var damage_flash: ColorRect
 var death_box: Control
 var compass: Control
@@ -1242,6 +1244,10 @@ func _build_combat() -> void:
 		root.add_child(pc)
 		var av := VBoxContainer.new()
 		pc.add_child(av)
+		effects_label = UiKit.label("", 14, Color("9be7ff"), true)
+		effects_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		effects_label.visible = false
+		av.add_child(effects_label)
 		ability_label = UiKit.label("", 14, Game.robot().color.lightened(0.35))
 		_update_ability_label()
 		Game.appearance_changed.connect(_update_ability_label)
@@ -1292,6 +1298,27 @@ func set_target(e: Enemy) -> void:
 	target_bar.max_value = e.max_hp
 	target_bar.value = maxf(0.0, e.hp)
 	target_hp.text = "%d / %d" % [int(maxf(0.0, e.hp)), int(e.max_hp)]
+	var st := e.status.labels()
+	if not st.is_empty():
+		target_hp.text += "   " + "  ".join(st)
+
+
+## Follow a status (the player's) on the ability panel until it wears off.
+func show_effects(st: Status) -> void:
+	_effects = st
+	_refresh_effects()
+
+
+func _refresh_effects() -> void:
+	if effects_label == null:
+		return
+	if _effects == null or not _effects.any():
+		effects_label.visible = false
+		_effects = null
+		return
+	effects_label.visible = true
+	effects_label.text = "  ".join(_effects.labels())
+	effects_label.add_theme_color_override("font_color", _effects.tint().lightened(0.2))
 
 
 func set_crosshair_hot(hot: bool) -> void:
@@ -2005,6 +2032,8 @@ func _build_preview() -> Control:
 
 
 func _process(delta: float) -> void:
+	if _effects != null:
+		_refresh_effects()
 	if is_instance_valid(_preview_pivot) and _preview_pivot.is_inside_tree():
 		_preview_pivot.rotation.y += delta * 0.35
 
