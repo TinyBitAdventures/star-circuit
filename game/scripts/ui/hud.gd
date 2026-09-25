@@ -1154,35 +1154,53 @@ func _milestone_tab() -> Control:
 
 
 func _panel_help() -> void:
-	var v := _frame("FIELD MANUAL", Vector2(900, 640))
+	var v := _frame("FIELD MANUAL", Vector2(960, 680))
+	var k := {}
+	for a in ["jump", "sprint", "descend", "interact", "scan", "use_cell", "takeoff", "ability", "repair", "weapon_cycle",
+			"inventory", "crafting", "skills", "quests", "map", "orbit", "home", "multiplayer", "help"]:
+		k[a] = Sound.key_name(a)
 	var t := """[b][color=#5ff7ff]On a planet[/color][/b]
 WASD move  ·  Mouse look (click to capture)  ·  Wheel zoom
-Space jump, hold in the air for [b]jetpack[/b] (uses energy)  ·  Shift sprint  ·  Ctrl descend
-[b]E[/b] hold to gather / talk / use  ·  [b]Q[/b] scanner pulse (reveals nodes, logs species)
-[b]R[/b] use an Energy Cell  ·  [b]T[/b] break orbit and fly to space
+[b]{jump}[/b] jump, hold in the air for the [b]jetpack[/b] (uses energy)  ·  [b]{sprint}[/b] sprint  ·  [b]{descend}[/b] descend
+[b]{interact}[/b] hold to gather / talk / use  ·  [b]{scan}[/b] scanner pulse (reveals nodes, logs species, reveals hidden enemies)
+[b]{use_cell}[/b] use an Energy Cell  ·  [b]{takeoff}[/b] break orbit and fly to space  ·  [b]{home}[/b] step into your Homespace
 
 [b][color=#ff5d5d]Combat[/color][/b]
-[b]Left mouse[/b] fire blaster at the crosshair (1 energy per shot)  ·  [b]F[/b] class ability  ·  [b]G[/b] Repair Kit
-Hull repairs itself once you are out of combat. Rogue drones travel in camps: pull one and its friends come too.
+[b]Left mouse[/b] fires your loadout at the crosshair  ·  [b]{ability}[/b] class ability  ·  [b]{repair}[/b] Repair Kit  ·  [b]{weapon_cycle}[/b] swap loadout
+Hull repairs itself once you are out of combat. Drones travel in camps: pull one and its friends come too.
 Name colours show danger: [color=#ff3b3b]red[/color] and [color=#ff8c3b]orange[/color] out-level you, [color=#ffe066]yellow[/color] even, [color=#6ee06a]green[/color] easy. [color=#ffd23f]Gold[/color] names are Elites.
-Brutes telegraph their slam with a red ring. Get out of it!
+Red rings and lanes on the ground are attacks about to land. Step out of them.
+[b]Statuses[/b] work on you and on enemies: [color=#ff9a4d]burn[/color] hurts over time, [color=#9be7ff]chill[/color] slows (a fourth stack freezes solid), [color=#c9a0ff]shock[/color] makes the target take 25% more damage. Some enemies are weak or immune to fire, frost or shock.
+[b]Loadouts[/b] (swap at an Outfitter): Pulse, Scatter and Rail, plus three built from enemy parts at the Fabricator: [b]Arc[/b] (leaps to nearby targets and shocks), [b]Cinder[/b] (a burning grenade) and [b]Cryo[/b] (hold for a freezing beam). Each can be retuned to [b]Mk II[/b] (+35%) and, with a Titan Core, [b]Mk III[/b] (+75%), on foot and in space.
+[b]Signature enemies[/b]: every world type has its own, with a trick to learn. The rarest roam the galaxy's edge and a few common worlds. Scan one to log how it fights in the [b]Bestiary[/b] (Quest Log, {quests}).
+[b]Titans[/b] sleep in stone rings on dangerous worlds. Their armour turns most damage aside until they kneel with the core exposed. A felled Titan drops a Titan Core.
+[b]Hunt Contracts[/b] on bounty boards name a signature enemy to put down, and pay well.
 
 [b][color=#5ff7ff]In space[/color][/b]
-Mouse steer  ·  W/S thrust  ·  A/D strafe  ·  Space/Ctrl rise/sink  ·  Shift boost
-Fly close to a planet and press [b]E[/b] to land ([b]F[/b] to dock at its trade hub, [b]O[/b] to hold orbit and probe for gems)  ·  [b]M[/b] galaxy map to warp (costs a Warp Cell)
-[b]Left mouse[/b] pulse cannons, which switch to the mining laser when the crosshair is on rock  ·  [b]Right mouse[/b] homing missiles
-Cut asteroids in the belt and fly through the shards  ·  [b]Q[/b] scan the belt  ·  Red arrows at the screen edge point to pirates
+Mouse steer  ·  W/S thrust  ·  A/D strafe  ·  {jump}/{descend} rise/sink  ·  {sprint} boost
+Fly close to a planet and press [b]{interact}[/b] to land ([b]{ability}[/b] to dock at its trade hub, [b]{orbit}[/b] to hold orbit and probe for gems)  ·  [b]{map}[/b] galaxy map to warp (costs a Warp Cell)
+[b]Left mouse[/b] cannons, which switch to the mining laser when the crosshair is on rock  ·  [b]Right mouse[/b] homing missiles
+Cut asteroids in the belt and fly through the shards  ·  [b]{scan}[/b] scan the belt  ·  Red arrows at the screen edge point to pirates
+
+[b][color=#9bd1ff]Playing together[/color][/b]
+[b]{multiplayer}[/b] opens Multiplayer: servers on your network are listed, or type an address. Friends show in blue on your compass and maps; [b]Plot course[/b] takes you to them. Fight the same enemies and you share the kill.
 
 [b][color=#5ff7ff]Panels[/color][/b]
-I / Tab cargo  ·  C fabricator  ·  K professions  ·  J quest log  ·  X swap weapon  ·  Esc pause
+{inventory} cargo  ·  {crafting} fabricator  ·  {skills} professions  ·  {quests} quest log  ·  {help} this manual  ·  Esc pause
 Visit an [b]Outfitter[/b] (towns, or the Outfitting tab at stations) to paint your robot, fit new parts and change loadouts.
 
 [b][color=#ffd23f]Tips[/color][/b]
-Energy recharges in sunlight. Night falls - plan your jetpack use.
+Energy recharges in sunlight. Night falls, so plan your jetpack use.
 Node colours follow skill difficulty: [color=#ff4d4d]red[/color] too hard, [color=#ff9f43]orange[/color] best XP, [color=#ffe066]yellow[/color], [color=#6ee06a]green[/color], [color=#9aa0a6]grey[/color] trivial.
 Each world type has its own resources. Cold and dry worlds carry Cobalt, crystal worlds Lumen, volcanic worlds Void Shards.
-Harvested nodes regrow after ten minutes."""
-	v.add_child(UiKit.rich(t, 17))
+Harvested nodes regrow after ten minutes.""".format(k)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(scroll)
+	var body := UiKit.rich(t, 16)
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(body)
 
 
 func _panel_pause() -> void:

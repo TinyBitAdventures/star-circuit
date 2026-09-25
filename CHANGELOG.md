@@ -31,6 +31,7 @@
   - A felled Titan stays down and drops a **Titan Core**, which retunes any loadout to **Mk III** (+75% damage).
   - A new quest, **Titanfall**, after Primordial Soup, points you at the nearest Titan, and **Titan Slayer** (fell 3) is worth +40 hull. In multiplayer everyone fighting shares the kill.
 - **Hunt Contracts** on bounty boards name one signature enemy to put down (usually the board's own world's), and pay well for it.
+- The Field Manual (H) covers everything new: statuses, the six loadouts and their Mk II and Mk III retunes, signature enemies, Titans, the Bestiary, Hunt Contracts and playing together. It scrolls, and names your own key bindings instead of the defaults. New first-time tips explain statuses, signature enemies and Hunt Contracts.
 - **Bestiary**: a new tab in the Quest Log (J). Every enemy you meet is listed with how many you've destroyed; scan one (Q) to log how it fights and what it's weak or immune to. Scanning the signature enemy of all nine world types earns the **Monster Hunter** milestone (+25 hull).
 
 ### Multiplayer

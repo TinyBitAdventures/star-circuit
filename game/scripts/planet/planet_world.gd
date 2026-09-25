@@ -732,6 +732,7 @@ func damage_player(amount: float, _source: Node, effect := "", duration := 0.0, 
 		var got: String = player.status.apply(effect, duration, power, 0.35 if effect == "chill" else 0.0)
 		if got != "":
 			hud.show_effects(player.status)
+			Game.tip("statuses", "You've been hit by a status. Burn hurts over time, chill slows you (four stacks freeze you solid) and shock makes you take 25% more damage. They wear off: keep moving.")
 			if got == "freeze":
 				floating_text(player.global_position + player.global_basis.y * 3.0, "FROZEN", Color("9be7ff"), true)
 				Sound.play("freeze", -4.0, 0.05)

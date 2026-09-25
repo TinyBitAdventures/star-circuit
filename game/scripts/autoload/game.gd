@@ -1464,6 +1464,8 @@ func accept_bounty(b: Dictionary) -> void:
 	if has_bounty(b.id):
 		return
 	bounties.append(b.duplicate())
+	if String(b.get("type", "")) == "hunt":
+		tip("hunt", "A Hunt Contract. Your target roams the world types named on the contract; the galaxy map shows each star's worlds once you've visited it. Shared kills in multiplayer count too.")
 	Sound.play("quest_accept", -4.0, 0.0, "UI")
 	notify.emit("Contract accepted: %s" % b.title, Color("ffd23f"))
 	quest_changed.emit()

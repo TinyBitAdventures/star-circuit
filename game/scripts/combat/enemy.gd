@@ -350,6 +350,8 @@ func aggro() -> void:
 		return
 	state = "chase"
 	_update_plate()
+	if target == world.player and not Db.foe_biomes(type).is_empty():
+		Game.tip("signature", "%s! Every world type has a signature enemy with its own trick. Scan it with %s to log how it fights in the Bestiary (Quest Log, %s)." % [def.name, Game.key("scan"), Game.key("quests")])
 	# WoW-style social aggro: the rest of the camp joins in
 	for e in world.enemies:
 		if e != self and e.is_alive() and e.state == "idle" and e.global_position.distance_to(global_position) < SOCIAL_RADIUS:

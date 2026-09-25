@@ -85,6 +85,19 @@ func _run() -> void:
 		await _net_tour()
 		get_tree().quit()
 		return
+	if which == "manual":
+		Sound.show_tips = false
+		Game.new_game("scout", "Tester")
+		await _wait(4.0)
+		_scene().hud.toggle_panel("help")
+		await _wait(0.6)
+		await shot("manual_top")
+		var sc: ScrollContainer = _scene().hud._panel.find_children("*", "ScrollContainer", true, false)[0]
+		sc.scroll_vertical = 520
+		await _wait(0.3)
+		await shot("manual_bottom")
+		get_tree().quit()
+		return
 	if which == "saves":
 		# a damaged save with a backup, as the title screen and Load Game show it
 		Game.new_game("miner", "Saver", 1)
