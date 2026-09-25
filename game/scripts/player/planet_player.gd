@@ -58,6 +58,7 @@ var _low_energy_warned := false
 var _dust: CPUParticles3D
 var shake := CamShake.new()
 var status := Status.new() # burn, chill/freeze, shock from enemy attacks
+var _beam_on := 0.0 # Cryo beam hum: seconds left before it stops
 var _dropping := false
 var _stuck_t := 0.0
 var _last_pos := Vector3.ZERO
@@ -331,6 +332,12 @@ func _physics_process(delta: float) -> void:
 
 func _update_combat(delta: float, up: Vector3, ui_block: bool) -> void:
 	fire_cd = maxf(0.0, fire_cd - delta)
+	# the Cryo hum stops a moment after you let go
+	if _beam_on > 0.0:
+		_beam_on -= delta
+		if _beam_on <= 0.0:
+			Sound.loop_stop("weapon", 0.15)
+			_beam_acc.clear()
 	ability_cd = maxf(0.0, ability_cd - delta)
 	_warn_cd = maxf(0.0, _warn_cd - delta)
 	_fire_pose = maxf(0.0, _fire_pose - delta)
@@ -387,6 +394,14 @@ func _shoot(up: Vector3) -> void:
 	var muzzle := global_position + up * 1.3 + global_basis.x * 0.55 - global_basis.z * 0.5
 	var from := camera.global_position
 	var fwd := -camera.global_basis.z
+	var mode: String = wd.get("mode", "hitscan")
+	var kind: String = wd.get("kind", "kinetic")
+	var tier := Game.weapon_tier_mult(Game.weapon)
+	if mode == "lobbed":
+		# Cinder: a grenade on an arc, aimed a little above the crosshair
+		var vel := fwd * 26.0 + up * 5.0
+		PlayerGrenade.launch(world, muzzle, vel, Game.weapon_damage() * float(wd.dmg) * tier, 3.5, 3.0)
+		return
 	var reach: float = AIM_RANGE * float(wd.range)
 	var col: Color = Game.robot().color.lightened(0.3)
 	if Game.appearance.has("glow"):
@@ -408,22 +423,81 @@ func _shoot(up: Vector3) -> void:
 			if e == null:
 				break
 			if e.is_alive():
-				var crit := randf() < 0.12
-				var dmg := Game.weapon_damage() * float(wd.dmg) * randf_range(0.9, 1.1) * (1.8 if crit else 1.0)
-				Sound.play_3d("crit" if crit else "hit", r.position, -4.0 if crit else -8.0)
+				var crit := mode != "beam" and randf() < 0.12
+				var dmg := Game.weapon_damage() * float(wd.dmg) * tier * randf_range(0.9, 1.1) * (1.8 if crit else 1.0)
+				if mode != "beam":
+					Sound.play_3d("crit" if crit else "hit", r.position, -4.0 if crit else -8.0)
 				# rail slugs pierce shields; everything else can be blocked from the front
-				e.take_hit(dmg, crit, "pierce" if wd.pierce else "kinetic", global_position)
+				e.take_hit(dmg, crit, kind, global_position)
 				_last_target = e
+				if mode == "chain":
+					_chain_from(e, dmg)
+				elif mode == "beam" and e.is_alive():
+					_beam_chill(e)
 			exclude.append(e.get_rid())
 		if wd.pierce:
 			CombatFx.tracer(world, muzzle, end, col * 1.6)
 			CombatFx.spark(world, end, col, 1.2)
+		elif mode == "chain":
+			CombatFx.arc_bolt(world, muzzle, end, Color(0.75, 0.7, 1.0) * 2.2)
+		elif mode == "beam":
+			CombatFx.tracer(world, muzzle, end, Color(0.55, 0.9, 1.0) * 2.0)
 		else:
 			world.tracer(muzzle, end, col)
 
 
+const CHAIN_RANGE := 8.0
+const CHAIN_JUMPS := 3
+
+## Arc: the bolt leaps from the first target to the nearest others, weaker each jump, shocking each.
+func _chain_from(first: Enemy, dmg: float) -> void:
+	if first.is_alive():
+		first.apply_status("shock", 2.5)
+	var hit := [first]
+	var at: Vector3 = first.global_position + first.dir * 1.2
+	var d := dmg
+	for i in CHAIN_JUMPS:
+		var best: Enemy = null
+		var bd := CHAIN_RANGE
+		for e in world.enemies_near(at, CHAIN_RANGE):
+			if hit.has(e):
+				continue
+			var dist: float = e.global_position.distance_to(at)
+			if dist < bd:
+				bd = dist
+				best = e
+		if best == null:
+			break
+		d *= 0.7
+		var to: Vector3 = best.global_position + best.dir * 1.2
+		CombatFx.arc_bolt(world, at, to, Color(0.75, 0.7, 1.0) * 2.2)
+		best.take_hit(d, false, "shock", at)
+		if best.is_alive():
+			best.apply_status("shock", 2.5)
+		hit.append(best)
+		at = to
+
+
+var _beam_acc := {} # enemy -> seconds of beam since its last chill stack
+
+## Cryo: every half second of beam on a target adds a chill stack (the fourth freezes).
+func _beam_chill(e: Enemy) -> void:
+	var t: float = _beam_acc.get(e, 0.0) + FIRE_RATE * float(Game.weapon_def().rate)
+	if t >= 0.5:
+		t = 0.0
+		e.apply_status("chill", 3.0, 1.0)
+	_beam_acc[e] = t
+
+
 func _weapon_sound(wd: Dictionary) -> void:
 	match wd.name:
+		"Arc":
+			Sound.play("arc_zap", -4.0, 0.1, "SFX", 0.0)
+		"Cinder":
+			Sound.play("cinder_thump", -3.0, 0.08, "SFX", 0.0)
+		"Cryo":
+			Sound.loop_start("weapon", "cryo_loop", -10.0)
+			_beam_on = 0.2
 		"Rail":
 			Sound.play("sentinel_shot", -3.0, 0.05, "SFX", 0.0)
 		"Scatter":
@@ -486,6 +560,7 @@ func _on_died() -> void:
 		return
 	dead = true
 	status.clear()
+	Sound.loop_stop("weapon", 0.1)
 	Game.invulnerable = false
 	Sound.play("death", -2.0, 0.0)
 	Sound.loop_stop("jet", 0.1)

@@ -2190,10 +2190,15 @@ func _outfit_loadout(body: VBoxContainer) -> void:
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(info)
-		info.add_child(UiKit.label(String(w.name).to_upper(), 18, Color("ffb86b"), true))
+		var tier := Game.weapon_tier(id)
+		info.add_child(UiKit.label(String(w.name).to_upper() + ("  MK II" if tier >= 2 else ""), 18, Color("ffd23f") if tier >= 2 else Color("ffb86b"), true))
 		info.add_child(UiKit.label(w.desc, 15))
 		var dps := float(w.dmg) * float(w.pellets) / float(w.rate)
-		var stats := UiKit.label("Damage/shot x%.1f  ·  Pellets %d  ·  Rate x%.2f  ·  Range x%.1f  ·  DPS x%.2f  ·  Energy x%.1f%s" % [w.dmg, w.pellets, 1.0 / float(w.rate), w.range, dps, w.cost, "  ·  pierces" if w.pierce else ""], 13, UiKit.MUTED)
+		dps *= Game.weapon_tier_mult(id)
+		var extra: String = {"chain": "  ·  chains + shocks", "lobbed": "  ·  area blast + burns", "beam": "  ·  hold to fire, chills"}.get(w.get("mode", ""), "")
+		if w.pierce:
+			extra = "  ·  pierces shields"
+		var stats := UiKit.label("Damage x%.1f  ·  Rate x%.2f  ·  Range x%.1f  ·  DPS x%.2f  ·  Energy x%.1f%s" % [float(w.dmg) * Game.weapon_tier_mult(id), 1.0 / float(w.rate), w.range, dps, w.cost, extra], 13, UiKit.MUTED)
 		stats.autowrap_mode = TextServer.AUTOWRAP_WORD
 		info.add_child(stats)
 		if on:
@@ -2205,6 +2210,8 @@ func _outfit_loadout(body: VBoxContainer) -> void:
 			))
 		else:
 			row.add_child(UiKit.label("Craft the %s\nto unlock" % Db.item_name(w.unlock), 14, Color("ff9f43")))
+		if Game.weapon_unlocked(id) and tier < 2:
+			info.add_child(UiKit.label("Craft %s Mk II at the Fabricator for +35%% damage." % w.name, 13, Color("9aa0a6")))
 
 
 

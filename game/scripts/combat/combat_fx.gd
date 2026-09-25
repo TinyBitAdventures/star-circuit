@@ -210,3 +210,19 @@ static func ground_lane(world: Node3D, start_dir: Vector3, heading: Vector3, len
 	lane.global_transform = Transform3D.IDENTITY
 	lane.create_tween().tween_property(m, "albedo_color:a", color.a, maxf(grow_time * 0.6, 0.05))
 	return lane
+
+
+## A jagged electric bolt from a to b (Arc chains).
+static func arc_bolt(parent: Node3D, a: Vector3, b: Vector3, color: Color) -> void:
+	var dir := b - a
+	var side := dir.cross(Vector3.UP if absf(dir.normalized().y) < 0.9 else Vector3.RIGHT).normalized()
+	var up := side.cross(dir).normalized()
+	var prev := a
+	var segs := 6
+	for i in range(1, segs + 1):
+		var k := float(i) / segs
+		var next := a.lerp(b, k)
+		if i < segs:
+			next += (side * randf_range(-1, 1) + up * randf_range(-1, 1)) * dir.length() * 0.06
+		tracer(parent, prev, next, color)
+		prev = next

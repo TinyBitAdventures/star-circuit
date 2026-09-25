@@ -178,6 +178,9 @@ func _run() -> void:
 	if which == "bestiary":
 		await _bestiary_tour()
 		get_tree().quit()
+	if which == "weapons":
+		await _weapons_tour()
+		get_tree().quit()
 	if which == "bestiary_panel":
 		Game.new_game("miner", "Tester")
 		await _wait(4.0)
@@ -1873,3 +1876,48 @@ func _bestiary_tour() -> void:
 			_:
 				await _wait(2.4)
 				await shot("foe_%s_action" % foe)
+
+
+
+func _weapons_tour() -> void:
+	Game.new_game("miner", "Tester")
+	await _wait(4.0)
+	Sound.show_tips = false
+	var w := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Game.invulnerable = true
+	for e in w.enemies.duplicate():
+		w.enemies.erase(e)
+		e.queue_free()
+	for u in ["arc_coil", "cinder_launcher", "cryo_projector"]:
+		Game.add_item(u, 1)
+	var p = w.player
+	var up: Vector3 = p.global_position.normalized()
+	var b := PlanetGen.align_basis(up)
+	var foes: Array = []
+	for k in 3:
+		foes.append(w._spawn_enemy("hive", 1, (up + (b.z * 11.0 + b.x * (k - 1) * 3.0) / w.gen.radius).normalized(), 960))
+	await _wait(0.5)
+	p.spring.spring_length = 7.0
+	for wid in ["arc", "cinder", "cryo"]:
+		Game.set_weapon(wid)
+		Game.energy = Game.max_energy()
+		for f in foes:
+			f.hp = f.max_hp
+			f.status.clear()
+		var to: Vector3 = foes[1].global_position - p.global_position
+		p.ref_fwd = (to - up * to.dot(up)).normalized()
+		p.cam_yaw = 0.25
+		p.cam_pitch = -0.1
+		await _wait(0.4)
+		var shots: int = {"arc": 1, "cinder": 1, "cryo": 12}[wid]
+		for i in shots:
+			p.camera.look_at(foes[1].global_position + up * 1.4, up)
+			p._weapon_sound(Game.weapon_def())
+			p._shoot(up)
+			p._fire_pose = 0.6
+			await _wait(0.1 if wid == "cryo" else 0.02)
+		if wid == "cinder":
+			await _wait(0.45)
+		await shot("weapon_%s" % wid)
+		await _wait(1.0)

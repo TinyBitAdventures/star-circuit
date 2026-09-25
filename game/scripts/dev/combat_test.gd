@@ -121,6 +121,7 @@ func _run() -> void:
 	_clear(w)
 	await _biome_foes(w)
 	await _biome_foes_2()
+	await _weapons()
 	get_tree().quit()
 
 
@@ -383,4 +384,98 @@ func _biome_foes_2() -> void:
 	var alive: int = w.enemies.filter(func(e): return e.type == "sporeling" and e.is_alive()).size()
 	print("[combat] bestiary: hive kills=%d scanned=%s" % [int(Game.bestiary.get("hive", {}).get("kills", 0)), Game.bestiary.get("hive", {}).get("scanned", false)])
 	print("[combat] hive: brood=%d spore cloud chilled=%s; killed: kills +%d brood left=%d" % [brood, chilled, Game.kills - k1, alive])
+	_clear(w)
+
+
+
+## Point the camera (and so the crosshair) at a target.
+func _aim(w: Node3D, target: Node3D) -> void:
+	var pl: Node3D = w.player
+	var up: Vector3 = pl.global_position.normalized()
+	var to: Vector3 = target.global_position + up * 1.2 - pl.global_position
+	pl.ref_fwd = (to - up * to.dot(up)).normalized()
+	pl.cam_yaw = 0.0
+	pl.cam_pitch = -0.05
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	pl.camera.look_at(target.global_position + up * 1.2, up)
+
+
+func _weapons() -> void:
+	var w := get_tree().current_scene
+	_clear(w)
+	await _wait(0.3)
+	var pl: Node3D = w.player
+	Game.invulnerable = true
+	Game.energy = Game.max_energy()
+	for u in ["arc_coil", "cinder_launcher", "cryo_projector"]:
+		Game.add_item(u, 1)
+	var cycled := []
+	Game.set_weapon("pulse")
+	for i in 6:
+		cycled.append(Game.weapon)
+		Game.cycle_weapon()
+	print("[combat] weapons cycle: ", cycled)
+
+	# Arc: one bolt, three hives shocked
+	var up: Vector3 = pl.global_position.normalized()
+	var b := PlanetGen.align_basis(up)
+	var hives: Array = []
+	for k in 3:
+		var off: Vector3 = b.z * 12.0 + b.x * (k - 1) * 3.0
+		hives.append(w._spawn_enemy("hive", 1, (up + off / w.gen.radius).normalized(), 950))
+	await _wait(0.3)
+	var hp0: Array = hives.map(func(h): return h.hp)
+	Game.set_weapon("arc")
+	await _aim(w, hives[1])
+	pl._shoot(up)
+	await _wait(0.1)
+	var arc_hit := 0
+	var arc_shocked := 0
+	for k in 3:
+		if hives[k].hp < hp0[k]:
+			arc_hit += 1
+		if hives[k].status.shocked():
+			arc_shocked += 1
+	print("[combat] arc: hit %d of 3 hives, shocked %d" % [arc_hit, arc_shocked])
+	# Cinder: a grenade into the group burns them
+	for h in hives:
+		h.hp = h.max_hp
+		h.status.clear()
+	Game.set_weapon("cinder")
+	await _aim(w, hives[1])
+	pl._shoot(up)
+	await _wait(1.6)
+	var burnt := 0
+	var dmg := 0
+	for k in 3:
+		if hives[k].status.burning():
+			burnt += 1
+		dmg += int(hives[k].max_hp - hives[k].hp)
+	print("[combat] cinder: %d of 3 burning, %d damage in the blast" % [burnt, dmg])
+	_clear(w)
+	await _wait(0.3)
+
+	# Cryo: hold the beam on a brute until it freezes, then let go (the hum stops)
+	var br: Enemy = w._spawn_enemy("brute", 1, (up + b.z * 9.0 / w.gen.radius).normalized(), 951)
+	await _wait(0.2)
+	Game.set_weapon("cryo")
+	var froze_at := -1.0
+	var t := 0.0
+	while t < 3.5:
+		await _aim(w, br)
+		pl._weapon_sound(Game.weapon_def())
+		pl._shoot(up)
+		t += 0.1
+		await _wait(0.1)
+		if br.status.frozen():
+			froze_at = t
+			break
+	await _wait(0.5)
+	print("[combat] cryo: froze after %.1fs of beam, hum stopped=%s" % [froze_at, pl._beam_on <= 0.0])
+	# Mk II: +35%
+	var before := Game.weapon_tier_mult("cryo")
+	Game.add_item("cryo_mk2", 1)
+	print("[combat] cryo mk2: x%.2f -> x%.2f tier=%d" % [before, Game.weapon_tier_mult("cryo"), Game.weapon_tier("cryo")])
+	Game.set_weapon("pulse")
 	_clear(w)

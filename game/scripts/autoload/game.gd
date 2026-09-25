@@ -1640,6 +1640,15 @@ func weapon_def() -> Dictionary:
 	return Db.WEAPONS.get(weapon, Db.WEAPONS.pulse)
 
 
+## 1, or 2 once the loadout's Mk II retune is crafted.
+func weapon_tier(id: String) -> int:
+	return 2 if has_upgrade(id + "_mk2") else 1
+
+
+func weapon_tier_mult(id: String) -> float:
+	return 1.35 if weapon_tier(id) >= 2 else 1.0
+
+
 func weapon_unlocked(id: String) -> bool:
 	var u: String = Db.WEAPONS[id].unlock
 	return u == "" or has_upgrade(u)
@@ -1664,7 +1673,7 @@ func cycle_weapon() -> void:
 			if nxt != weapon:
 				set_weapon(nxt)
 			else:
-				notify.emit("Craft a Scatter Emitter or Rail Coil to unlock more loadouts.", Color("9aa0a6"))
+				notify.emit("Craft weapon parts at the Fabricator to unlock more loadouts.", Color("9aa0a6"))
 			return
 
 

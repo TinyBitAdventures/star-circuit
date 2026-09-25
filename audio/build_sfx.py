@@ -847,6 +847,31 @@ def hive_pulse():
     wet = S.bandpass(S.noise(n), 200, 1200) * S.adsr(n, 0.2, 0.3, 0.5, 0.4) * 0.35
     return fade_out(thrum + wet, 0.2)
 
+
+def arc_zap():
+    S.seed(55)
+    n = N(0.35)
+    buzz = S.bandpass(S.saw(chirp(180, 90, n) + 40 * S.noise(n), n), 400, 6000) * S.exp_decay(n, 0.08) * 0.5
+    crack = S.highpass(S.noise(n), 3000) * (S.rng().random(n) > 0.9) * S.exp_decay(n, 0.05) * 0.8
+    return fade_out(buzz + crack)
+
+
+def cinder_thump():
+    S.seed(56)
+    n = N(0.4)
+    thump = S.sine(chirp(140, 60, n), n) * S.exp_decay(n, 0.06) * 0.8
+    hiss = S.bandpass(S.noise(n), 1000, 5000) * S.exp_decay(n, 0.1) * 0.3
+    return fade_out(thump + hiss)
+
+
+def cryo_loop():
+    S.seed(57)
+    n = N(2.0)
+    hiss = S.bandpass(S.noise(n), 3000, 11000) * 0.25
+    tone = S.fm(1200 + 30 * np.sin(np.linspace(0, 40, n)), n, 1.5, 1.0) * 0.08
+    shimmer = S.sine(2400 + 200 * np.sin(np.linspace(0, 90, n)), n) * 0.03
+    return S.crossfade_loop(hiss + tone + shimmer, 0.25)
+
 SFX = {
     "lab_zap": lab_zap, "lab_tag": lab_tag, "lab_fuse": lab_fuse, "lab_divide": lab_divide, "lab_pop": lab_pop,
     "lab_armor": lab_armor, "lab_infect": lab_infect, "lab_phage": lab_phage, "lab_stir": lab_stir,
@@ -877,6 +902,7 @@ SFX = {
     "thunder": thunder, "screech": screech,
     "blink": blink, "reflect": reflect, "crystal_shot": crystal_shot, "cloak": cloak, "pounce": pounce,
     "spore_puff": spore_puff, "hive_pulse": hive_pulse,
+    "arc_zap": arc_zap, "cinder_thump": cinder_thump, "cryo_loop": cryo_loop,
     "chirp_1": lambda: chirp_call(21), "chirp_2": lambda: chirp_call(22), "chirp_3": lambda: chirp_call(23),
 }
 
