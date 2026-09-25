@@ -31,6 +31,10 @@
 - **Hunt Contracts** on bounty boards name one signature enemy to put down (usually the board's own world's), and pay well for it.
 - **Bestiary**: a new tab in the Quest Log (J). Every enemy you meet is listed with how many you've destroyed; scan one (Q) to log how it fights and what it's weak or immune to. Scanning the signature enemy of all nine world types earns the **Monster Hunter** milestone (+25 hull).
 
+### Fixes
+- Planets seen close up from orbit could show a hard, stair-stepped shadow across them. They now light themselves from their star, with a smooth banded day and night like the title screen.
+- Oceans are much deeper: about half of every ocean is now deep enough to dive into the Deep Sea (it used to be a few percent, and none at all on small worlds). Beaches and coastlines are unchanged; the floor just falls away faster past the shallows, to around 45 m.
+
 ## v0.3.0 — 2026-09-24
 
 Star Circuit goes multiplayer and comes to Windows. Join a friend's server to explore, dig, dive and fight together.

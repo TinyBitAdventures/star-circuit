@@ -85,10 +85,15 @@ func height(dir: Vector3) -> float:
 	h += _detail.get_noise_3dv(dir) * amp * 0.08
 	if not craters.is_empty():
 		h += _crater_height(dir)
-	# gentle beaches, then the floor falls away into real depths
+	# gentle beaches, then the floor falls away into real depths. Worked in metres
+	# so small worlds get oceans as deep as big ones (deep enough to dive).
 	if sea > -0.5 and h < sea:
-		var d := sea - h
-		h = sea - (d * 0.6 + d * d * 55.0)
+		# measured as if the world were at least mid-sized: small worlds get deep seas too
+		var x := (sea - h) * maxf(radius, 170.0)
+		var depth := x * 0.6 + x * x * 3.0
+		# a soft floor around 45 m, so the widest oceans aren't an endless swim down
+		depth = 45.0 * tanh(depth / 45.0)
+		h = sea - depth / radius
 	return h
 
 
