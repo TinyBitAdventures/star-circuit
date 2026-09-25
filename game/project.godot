@@ -24,6 +24,7 @@ Galaxy="*res://scripts/autoload/galaxy.gd"
 Sound="*res://scripts/autoload/sound.gd"
 Game="*res://scripts/autoload/game.gd"
 Net="*res://scripts/autoload/net.gd"
+Updater="*res://scripts/autoload/updater.gd"
 
 [display]
 

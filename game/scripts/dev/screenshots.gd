@@ -85,6 +85,10 @@ func _run() -> void:
 		await _net_tour()
 		get_tree().quit()
 		return
+	if which == "update":
+		await _update_tour()
+		get_tree().quit()
+		return
 	if which == "lab":
 		await _lab_tour()
 		get_tree().quit()
@@ -1644,6 +1648,32 @@ func _style_tour() -> void:
 			if OS.get_environment("DBG") != "":
 				get_tree().quit()
 				return
+
+
+## Pretends a release is out: the title-screen button and dialog, then the pause menu.
+func _update_tour() -> void:
+	Sound.show_tips = false
+	Updater.latest = "0.4.0"
+	Updater.asset_size = 92 * 1048576
+	Updater.asset_url = "https://example.invalid/StarCircuit-macOS.zip"
+	Updater.notes = FileAccess.get_file_as_string("res://../CHANGELOG.md").split("\n## v0.3.0")[0].split("\n", false, 1)[1] if FileAccess.file_exists("res://../CHANGELOG.md") else "## v0.4.0\n- **Combat** overhaul."
+	Updater.state = "available"
+	OS.set_environment("STAR_CIRCUIT_UPDATE_TARGET", ProjectSettings.globalize_path("user://update_dev/Star Circuit.app")) # show the install button
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	await _wait(2.5)
+	await shot("update_title")
+	get_tree().current_scene._show_overlay("update")
+	await _wait(0.6)
+	await shot("update_dialog")
+	Game.new_game("scout", "Tester")
+	await _wait(4.0)
+	var hud = _scene().hud
+	hud.toggle_panel("pause")
+	await _wait(0.5)
+	await shot("update_pause")
+	hud.toggle_panel("update")
+	await _wait(0.5)
+	await shot("update_pause_dialog")
 
 
 func _lab_tour() -> void:

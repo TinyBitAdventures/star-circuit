@@ -27,6 +27,14 @@ After that it opens normally. It runs natively on Apple Silicon and Intel Macs (
 
 Mac and Windows players can play together on the same multiplayer server.
 
+### Updating
+
+From v0.4.0 the game checks GitHub for a newer release when it starts. If there is one, the title screen shows
+**Update to x.y.z** and the pause menu shows **Save & Update**: it saves your game, downloads the new version, swaps it in place
+of the old one and restarts. Saves carry over. The old copy is deleted on the next launch. If the game can't replace itself
+(on macOS, if you're running it straight from Downloads without moving it, or from a read-only folder), the dialog says
+why and offers the release page instead. Turn the check off under Settings, "Check for updates on launch".
+
 ## Host a multiplayer server
 
 The server is its own project: [star-circuit-server](https://github.com/TinyBitAdventures/star-circuit-server). Download the binary for your machine from its
@@ -335,6 +343,8 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     godot --headless --path game res://scenes/dev_balance.tscn # quest-line audit: sources, skill gates, training costs
     godot --path game res://scenes/dev_shots.tscn              # renders a screenshot tour into shots/
     SHOTS=combat godot --path game res://scenes/dev_shots.tscn # combat-only screenshot tour
+    godot --headless --path game res://scenes/dev_update.tscn  # self-updater against a fake release on a local server: check, download, swap, cleanup, 404, translocation
+    SHOTS=update godot --path game res://scenes/dev_shots.tscn   # title-screen update button, update dialog, pause menu Save & Update
     godot --headless --path game res://scenes/dev_combat.tscn  # statuses, all nine biome enemies, weapons, Titans (armour, enrage, felled stays down)
     SHOTS=bestiary godot --path game res://scenes/dev_shots.tscn # each biome enemy, portrait then mid-telegraph (FOES=mite,kite to pick)
     SHOTS=weapons godot --path game res://scenes/dev_shots.tscn  # Arc, Cinder and Cryo firing

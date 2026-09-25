@@ -20,6 +20,7 @@ var _cam_to := Transform3D()
 var _cam_blend := 1.0
 var _new_slot := 1
 var _overlay: Control
+var _update_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -244,7 +245,12 @@ func _build_ui() -> void:
 		menu_box.add_child(_menu_button("LOAD GAME", func(): _show_overlay("load")))
 	menu_box.add_child(_menu_button("SETTINGS", func(): _show_overlay("settings")))
 	menu_box.add_child(_menu_button("QUIT", func(): get_tree().quit()))
-	var credit := UiKit.label("Models built in Blender · Engine: Godot %s" % Engine.get_version_info().string, 13, UiKit.MUTED)
+	_update_box = VBoxContainer.new()
+	_update_box.add_theme_constant_override("separation", 6)
+	menu_box.add_child(_update_box)
+	Updater.status_changed.connect(_refresh_update)
+	_refresh_update()
+	var credit := UiKit.label("Version %s · Models built in Blender · Engine: Godot %s" % [Updater.current_version(), Engine.get_version_info().string], 13, UiKit.MUTED)
 	credit.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	credit.position = Vector2(24, -36)
 	ui.add_child(credit)
@@ -289,6 +295,23 @@ func _menu_button(text: String, cb: Callable) -> Button:
 	b.add_theme_font_override("font", UiKit.title_font())
 	b.add_theme_font_size_override("font_size", 22)
 	return b
+
+
+func _refresh_update() -> void:
+	if not is_instance_valid(_update_box):
+		return
+	for c in _update_box.get_children():
+		c.queue_free()
+	if Updater.just_updated != "":
+		_update_box.add_child(UiKit.label("   Updated from %s to %s. Welcome back." % [Updater.just_updated, Updater.current_version()], 15, Color("6ee06a")))
+	if Updater.has_update():
+		var gap := Control.new()
+		gap.custom_minimum_size = Vector2(0, 8)
+		_update_box.add_child(gap)
+		var b := _menu_button("UPDATE TO %s" % Updater.latest, func(): _show_overlay("update"))
+		b.add_theme_color_override("font_color", Color("ffd23f"))
+		_update_box.add_child(b)
+		_update_box.add_child(UiKit.label("   A new version is ready to download.", 15, UiKit.MUTED))
 
 
 func _show_title() -> void:
@@ -393,7 +416,7 @@ func _show_overlay(kind: String) -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(dim)
 	_overlay = dim
-	var size := Vector2(900, 620) if kind == "settings" else Vector2(860, 480)
+	var size := Vector2(900, 620) if kind in ["settings", "update"] else Vector2(860, 480)
 	var pc := PanelContainer.new()
 	pc.custom_minimum_size = size
 	pc.set_anchors_preset(Control.PRESET_CENTER)
@@ -405,7 +428,7 @@ func _show_overlay(kind: String) -> void:
 	pc.add_child(v)
 	var head := HBoxContainer.new()
 	v.add_child(head)
-	head.add_child(UiKit.label("SETTINGS" if kind == "settings" else "LOAD GAME", 26, Color.WHITE, true))
+	head.add_child(UiKit.label({"settings": "SETTINGS", "update": "UPDATE AVAILABLE"}.get(kind, "LOAD GAME"), 26, Color.WHITE, true))
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(sp)
@@ -416,6 +439,9 @@ func _show_overlay(kind: String) -> void:
 	v.add_child(HSeparator.new())
 	if kind == "settings":
 		v.add_child(SettingsUI.new())
+		return
+	if kind == "update":
+		v.add_child(UpdatePanel.new())
 		return
 	for n in range(1, Game.SLOTS + 1):
 		var d := Game.save_summary(n)

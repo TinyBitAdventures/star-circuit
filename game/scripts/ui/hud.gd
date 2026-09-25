@@ -607,6 +607,7 @@ func _build_panel() -> void:
 		"quests": _panel_quests()
 		"help": _panel_help()
 		"pause": _panel_pause()
+		"update": _panel_update()
 		"dialog": _panel_dialog()
 		"map": _panel_map()
 		"lore": _panel_lore()
@@ -1199,6 +1200,18 @@ func _panel_pause() -> void:
 		var b := UiKit.button(pair[0], pair[1])
 		b.custom_minimum_size = Vector2(0, 46)
 		v.add_child(b)
+	if Updater.has_update():
+		var ub := UiKit.button("Save & Update to %s" % Updater.latest, func(): toggle_panel("update"))
+		ub.custom_minimum_size = Vector2(0, 46)
+		ub.add_theme_color_override("font_color", Color("ffd23f"))
+		v.add_child(ub)
+
+
+func _panel_update() -> void:
+	var v := _frame("UPDATE AVAILABLE", Vector2(860, 600))
+	var up := UpdatePanel.new()
+	up.save_first = Game.save_game
+	v.add_child(up)
 
 
 func open_dialog() -> void:

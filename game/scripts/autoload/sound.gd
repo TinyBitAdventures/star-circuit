@@ -23,6 +23,7 @@ var invert_y := false
 var fov := 70.0
 var fullscreen := false
 var show_tips := true
+var check_updates := true
 var last_slot := 1
 var keybinds := {} # action -> physical keycode (overrides the default first key)
 var seen_tips: Array = []
@@ -114,6 +115,7 @@ func save_settings() -> void:
 	cfg.set_value("controls", "fov", fov)
 	cfg.set_value("controls", "keybinds", keybinds)
 	cfg.set_value("game", "show_tips", show_tips)
+	cfg.set_value("game", "check_updates", check_updates)
 	cfg.set_value("game", "last_slot", last_slot)
 	cfg.set_value("game", "seen_tips", seen_tips)
 	cfg.save(SETTINGS_PATH)
@@ -133,6 +135,7 @@ func _load_settings() -> void:
 		fov = float(cfg.get_value("controls", "fov", 70.0))
 		keybinds = cfg.get_value("controls", "keybinds", {})
 		show_tips = bool(cfg.get_value("game", "show_tips", true))
+		check_updates = bool(cfg.get_value("game", "check_updates", true))
 		last_slot = int(cfg.get_value("game", "last_slot", 1))
 		seen_tips = cfg.get_value("game", "seen_tips", [])
 	apply_gfx()

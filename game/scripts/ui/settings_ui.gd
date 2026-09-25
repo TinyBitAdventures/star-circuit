@@ -140,6 +140,15 @@ func _general(v: VBoxContainer) -> void:
 	_slider(_row(v, "Mouse sensitivity"), 0.2, 3.0, 0.05, Sound.mouse_sens, "%.2fx", func(x): Sound.mouse_sens = x)
 	_toggle(_row(v, "Invert vertical look"), Sound.invert_y, func(x): Sound.invert_y = x)
 	_toggle(_row(v, "Show tips"), Sound.show_tips, func(x): Sound.show_tips = x)
+	_toggle(_row(v, "Check for updates on launch"), Sound.check_updates, func(x): Sound.check_updates = x)
+	var ur := _row(v, "Version %s" % Updater.current_version())
+	var ul := UiKit.label(_update_line(), 14, UiKit.MUTED)
+	ur.add_child(UiKit.button("Check now", Updater.check))
+	ur.add_child(ul)
+	Updater.status_changed.connect(func():
+		if is_instance_valid(ul):
+			ul.text = _update_line()
+	)
 	var rt := _row(v, "")
 	rt.add_child(UiKit.button("Show all tips again", func():
 		Sound.seen_tips = []
@@ -189,3 +198,13 @@ func _input(event: InputEvent) -> void:
 		Sound.ui()
 	_waiting = ""
 	_build()
+
+
+static func _update_line() -> String:
+	match Updater.state:
+		"checking": return "Checking..."
+		"current": return "You have the latest version."
+		"error": return Updater.error
+	if Updater.has_update():
+		return "Version %s is available (see the main menu or pause menu)." % Updater.latest
+	return ""

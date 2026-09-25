@@ -31,6 +31,12 @@
 - **Hunt Contracts** on bounty boards name one signature enemy to put down (usually the board's own world's), and pay well for it.
 - **Bestiary**: a new tab in the Quest Log (J). Every enemy you meet is listed with how many you've destroyed; scan one (Q) to log how it fights and what it's weak or immune to. Scanning the signature enemy of all nine world types earns the **Monster Hunter** milestone (+25 hull).
 
+### Updates
+- **The game now updates itself.** When a new version is out, the title screen shows **Update to x.y.z** and the pause menu gains **Save & Update**. It saves your game, downloads the new version from GitHub, swaps it in, and restarts where you left off. Saves carry over.
+- The update dialog shows what's new, the download size and a progress bar. If the game can't replace itself (on macOS, when it's still running from Downloads or another read-only spot), it tells you why and opens the release page instead.
+- It checks once each time the game starts. Turn that off in Settings; "Check now" is there too, next to your version number. The title screen now shows the version you're running.
+- This version is the last one you need to download by hand.
+
 ### Fixes
 - Planets seen close up from orbit could show a hard, stair-stepped shadow across them. They now light themselves from their star, with a smooth banded day and night like the title screen.
 - Oceans are much deeper: about half of every ocean is now deep enough to dive into the Deep Sea (it used to be a few percent, and none at all on small worlds). Beaches and coastlines are unchanged; the floor just falls away faster past the shallows, to around 45 m.
