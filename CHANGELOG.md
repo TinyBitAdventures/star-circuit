@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased (v0.4.0)
+
+### Combat
+- Every world type is getting a signature enemy with a trick to learn. The first three:
+  - **Thornback** (Verdant worlds) paints a lane on the ground, then charges down it. Step aside: a miss leaves it stunned and taking 60% more damage.
+  - **Dune Lurker** (Arid worlds) dives into the sand, tunnels toward you under a dust trail and bursts up beneath you from a glowing ring. It can't be hit while it's underground.
+  - **Frost Warden** (Glacial worlds) hides behind a shield that blocks everything from the front and turns slowly, so circle behind it (back hits do 25% more). Rail slugs and fire go straight through. Its bolts chill you, and up close it pulses a frost nova.
+- Signature enemies lead about half the camps on their own worlds (never on the Cradle) and drop their own parts: Thorn Barbs, Sand Fangs and Rime Cores.
+- Status effects: **burn** (damage over time), **chill** (slows you; a fourth stack freezes solid) and **shock** (takes 25% more damage). They work on enemies and on you, show on your HUD and the target frame, and tint whatever they're on. Robots shake off a freeze faster than drones do.
+- Enemies can be weak or resistant to kinds of damage (fire, frost, shock).
+
 ## v0.3.0 — 2026-09-24
 
 Star Circuit goes multiplayer and comes to Windows. Join a friend's server to explore, dig, dive and fight together.

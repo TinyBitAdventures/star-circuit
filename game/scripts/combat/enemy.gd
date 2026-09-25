@@ -11,6 +11,9 @@ const BEHAVIORS := {
 	"melee": "res://scripts/combat/behaviors/melee.gd",
 	"ranged": "res://scripts/combat/behaviors/ranged.gd",
 	"slam": "res://scripts/combat/behaviors/slam.gd",
+	"charge": "res://scripts/combat/behaviors/charge.gd",
+	"burrow": "res://scripts/combat/behaviors/burrow.gd",
+	"shield": "res://scripts/combat/behaviors/shield.gd",
 }
 
 var world: Node3D
@@ -66,11 +69,11 @@ func setup(w: Node3D, t: String, lvl: int, start_dir: Vector3, camp: int) -> voi
 	var s: float = def.scale
 	_model.scale = Vector3.ONE * s
 	ModelUtil.add_rim(_model, 0.4, 0.2)
-	for n in ["Torso", "ArmL", "ArmR", "LegL", "LegR", "Head", "Ring", "Cannon", "SawL", "SawR"]:
-		var node := _model.find_child(n, true, false) as Node3D
-		if node:
-			_parts[n] = node
-			_rest[n] = node.transform
+	# every named part can be posed by name (Torso, ArmL, LegFL, Seg0...)
+	for node in _model.find_children("*", "Node3D", true, false):
+		if not _parts.has(String(node.name)):
+			_parts[String(node.name)] = node
+			_rest[String(node.name)] = node.transform
 	_meshes = _model.find_children("*", "MeshInstance3D", true, false)
 
 	var cs := CollisionShape3D.new()
@@ -270,6 +273,16 @@ func pose(part: String, offset: Vector3, rot: Vector3) -> void:
 		return
 	var rest: Transform3D = _rest[part]
 	n.transform = n.transform.interpolate_with(Transform3D(rest.basis * Basis.from_euler(rot), rest.origin + offset), 0.3)
+
+
+## Snap to the ground now (behaviours that move it themselves call this).
+func place_now() -> void:
+	_place()
+
+
+## Burrowed or phased out: shots pass through.
+func set_hittable(on: bool) -> void:
+	collision_layer = 4 if on else 0
 
 
 func part(part_name: String) -> Node3D:

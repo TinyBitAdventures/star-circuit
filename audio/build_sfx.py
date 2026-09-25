@@ -697,6 +697,156 @@ def lab_fail():
     return small_room(fade_out(seq([(0, sink), (0, gurgle)]), 0.2), 1.0, 0.3)
 
 
+
+# ---------------------------------------------------------------- biome enemies
+def freeze():
+    S.seed(41)
+    n = N(0.9)
+    crackle = S.bandpass(S.noise(n), 3000, 11000) * (S.rng().random(n) > 0.93) * S.exp_decay(n, 0.25) * 1.6
+    shimmer = seq([(i * 0.04, bell(m, 0.45, 2.0, 1.2) * 0.14) for i, m in enumerate((96, 91, 100, 95))])
+    drop = S.sine(chirp(1400, 500, n), n) * S.exp_decay(n, 0.2) * 0.12
+    return small_room(fade_out(seq([(0, crackle), (0, shimmer), (0, drop)])), 0.6, 0.3)
+
+
+def charge_roar():
+    S.seed(42)
+    n = N(0.8)
+    growl = S.lowpass(S.saw(chirp(70, 110, n) + 6 * np.sin(np.linspace(0, 40, n)), n), 900) * S.adsr(n, 0.05, 0.2, 0.7, 0.3) * 0.5
+    grit = S.bandpass(S.noise(n), 200, 1800) * S.adsr(n, 0.02, 0.2, 0.5, 0.3) * 0.4
+    return fade_out(S.soft_clip(growl + grit, 2.5) * 0.7, 0.15)
+
+
+def burrow():
+    S.seed(43)
+    n = N(0.7)
+    sand = S.sweep_lowpass(S.noise(n), 3000, 500, curve=0.5) * S.adsr(n, 0.02, 0.2, 0.6, 0.3) * 0.6
+    thump = S.sine(chirp(90, 45, n), n) * S.exp_decay(n, 0.12) * 0.4
+    return fade_out(sand + thump, 0.1)
+
+
+def rumble_short():
+    S.seed(44)
+    n = N(0.9)
+    return fade_out(S.lowpass(S.noise(n), 220) * np.linspace(0.3, 1.2, n) * 1.2 + S.sine(38 + 4 * np.sin(np.linspace(0, 30, n)), n) * np.linspace(0.1, 0.5, n), 0.08)
+
+
+def bite():
+    S.seed(45)
+    n = N(0.25)
+    snap = S.bandpass(S.noise(n), 1500, 7000) * S.exp_decay(n, 0.02) * 0.8
+    crunch = S.soft_clip(S.lowpass(S.noise(n), 1200) * 3, 3) * S.exp_decay(n, 0.06) * 0.35
+    return fade_out(seq([(0, snap), (0.06, snap * 0.7), (0.03, crunch)]))
+
+
+def ice_shot():
+    n1 = N(0.2)
+    charge = S.sine(chirp(900, 2200, n1, 0.7), n1) * np.linspace(0.05, 0.3, n1)
+    n2 = N(0.4)
+    zap = S.fm(chirp(1800, 700, n2), n2, 3.1, 3.0, S.exp_decay(n2, 0.06)) * S.exp_decay(n2, 0.1) * 0.4
+    return fade_out(seq([(0, charge), (0.18, zap), (0.2, bell(98, 0.25, 2.0, 1.0) * 0.12)]))
+
+
+def shield_block():
+    n = N(0.35)
+    ring = S.fm(chirp(520, 480, n), n, 1.99, 3.0, S.exp_decay(n, 0.08)) * S.exp_decay(n, 0.12) * 0.4
+    thud = S.sine(chirp(180, 120, n), n) * S.exp_decay(n, 0.04) * 0.3
+    return fade_out(ring + thud)
+
+
+def fuse():
+    S.seed(46)
+    n = N(0.45)
+    hiss = S.bandpass(S.noise(n), 3000, 9000) * np.linspace(0.2, 0.7, n)
+    beep = S.square(chirp(900, 1800, n, 0.5), n, 0.3) * (np.sin(2 * np.pi * np.cumsum(chirp(8, 30, n)) / SR) > 0) * 0.12
+    return fade_out(hiss * 0.5 + S.lowpass(beep, 4000))
+
+
+def fire_burst():
+    S.seed(47)
+    n = N(0.9)
+    whoomp = S.sine(chirp(110, 40, n), n) * S.exp_decay(n, 0.12) * 0.7
+    roar = S.sweep_lowpass(S.noise(n), 5000, 400, curve=0.5) * S.exp_decay(n, 0.25) * 0.7
+    crackle = S.bandpass(S.noise(n), 2000, 8000) * (S.rng().random(n) > 0.95) * S.exp_decay(n, 0.3) * 0.8
+    return small_room(fade_out(whoomp + roar + crackle, 0.15), 0.6, 0.2)
+
+
+def mortar_launch():
+    S.seed(48)
+    n = N(0.7)
+    thump = S.sine(chirp(90, 50, n), n) * S.exp_decay(n, 0.08) * 0.8
+    whistle = S.sine(chirp(1600, 700, n, 0.6), n) * S.adsr(n, 0.05, 0.2, 0.4, 0.3) * 0.12
+    return small_room(fade_out(thump + S.lowpass(S.noise(n), 900) * S.exp_decay(n, 0.05) * 0.5 + whistle, 0.1), 0.5, 0.25)
+
+
+def steam_vent():
+    S.seed(49)
+    n = N(1.6)
+    hiss = S.bandpass(S.noise(n), 1500, 10000) * S.adsr(n, 0.05, 0.3, 0.6, 0.6) * 0.6
+    return fade_out(S.sweep_lowpass(hiss, 9000, 2500, curve=0.7), 0.3)
+
+
+def thunder():
+    S.seed(50)
+    n = N(1.8)
+    crack = S.highpass(S.noise(n), 1500) * S.exp_decay(n, 0.03) * 1.2
+    boom = S.lowpass(S.noise(n), 300) * S.exp_decay(n, 0.6) * 1.4
+    rumble = S.lowpass(S.noise(n), 120) * (0.6 + 0.4 * np.sin(np.linspace(0, 18, n))) * S.exp_decay(n, 0.9)
+    return small_room(fade_out(crack + boom + rumble, 0.4), 1.2, 0.3)
+
+
+def screech():
+    n = N(0.6)
+    f = chirp(1400, 2300, n, 0.4) + 80 * np.sin(np.linspace(0, 60, n))
+    return fade_out(S.fm(f, n, 1.5, 3.0, S.exp_decay(n, 0.3)) * S.adsr(n, 0.03, 0.2, 0.5, 0.25) * 0.35, 0.1)
+
+
+def blink():
+    n = N(0.5)
+    zip_ = S.sine(chirp(300, 2400, n, 0.3), n) * S.exp_decay(n, 0.08) * 0.35
+    shimmer = seq([(i * 0.03, bell(m, 0.3, 2.0, 1.0) * 0.1) for i, m in enumerate((88, 95, 100))])
+    return small_room(fade_out(zip_ + np.pad(shimmer, (0, max(0, n - len(shimmer))))[:n]), 0.5, 0.3)
+
+
+def reflect():
+    n = N(0.4)
+    return fade_out(S.fm(chirp(2200, 1900, n), n, 2.0, 2.5, S.exp_decay(n, 0.06)) * S.exp_decay(n, 0.12) * 0.35 + bell(103, 0.2, 3.0, 1.0)[:n] * 0.15)
+
+
+def crystal_shot():
+    n = N(0.35)
+    return fade_out(seq([(0, S.sine(chirp(1500, 3000, N(0.12), 0.5), N(0.12)) * 0.2), (0.08, S.fm(chirp(2400, 900, n), n, 1.5, 2.0, S.exp_decay(n, 0.05)) * S.exp_decay(n, 0.1) * 0.35)]))
+
+
+def cloak():
+    S.seed(51)
+    n = N(0.7)
+    w = S.sweep_lowpass(S.noise(n), 6000, 300, curve=0.6) * np.sin(np.linspace(0, np.pi, n)) ** 2 * 0.5
+    return fade_out(w + S.sine(chirp(600, 150, n), n) * S.exp_decay(n, 0.2) * 0.15)
+
+
+def pounce():
+    S.seed(52)
+    n = N(0.45)
+    whoosh = S.bandpass(S.noise(n), 700, 6000) * np.sin(np.linspace(0, np.pi, n)) ** 2 * 0.6
+    snarl = S.soft_clip(S.lowpass(S.saw(chirp(160, 90, n), n), 1400) * 2, 2) * S.adsr(n, 0.02, 0.15, 0.4, 0.2) * 0.3
+    return fade_out(whoosh + snarl)
+
+
+def spore_puff():
+    S.seed(53)
+    n = N(0.6)
+    puff = S.lowpass(S.noise(n), 1800) * S.adsr(n, 0.01, 0.15, 0.2, 0.35) * 0.7
+    pop = S.sine(chirp(240, 120, n), n) * S.exp_decay(n, 0.05) * 0.4
+    return fade_out(puff + pop)
+
+
+def hive_pulse():
+    S.seed(54)
+    n = N(1.1)
+    thrum = S.sine(55 + 5 * np.sin(np.linspace(0, 20, n)), n) * S.adsr(n, 0.1, 0.3, 0.6, 0.4) * 0.6
+    wet = S.bandpass(S.noise(n), 200, 1200) * S.adsr(n, 0.2, 0.3, 0.5, 0.4) * 0.35
+    return fade_out(thrum + wet, 0.2)
+
 SFX = {
     "lab_zap": lab_zap, "lab_tag": lab_tag, "lab_fuse": lab_fuse, "lab_divide": lab_divide, "lab_pop": lab_pop,
     "lab_armor": lab_armor, "lab_infect": lab_infect, "lab_phage": lab_phage, "lab_stir": lab_stir,
@@ -721,6 +871,12 @@ SFX = {
     "sentinel_shot": sentinel_shot, "telegraph": telegraph, "slam": slam, "dash": dash,
     "turret_deploy": turret_deploy, "nova": nova, "death": death, "respawn": respawn,
     "takeoff": takeoff, "atmo_entry": atmo_entry, "warp": warp, "wind_loop": wind_loop,
+    "freeze": freeze, "charge_roar": charge_roar, "burrow": burrow, "rumble_short": rumble_short,
+    "bite": bite, "ice_shot": ice_shot, "shield_block": shield_block,
+    "fuse": fuse, "fire_burst": fire_burst, "mortar_launch": mortar_launch, "steam_vent": steam_vent,
+    "thunder": thunder, "screech": screech,
+    "blink": blink, "reflect": reflect, "crystal_shot": crystal_shot, "cloak": cloak, "pounce": pounce,
+    "spore_puff": spore_puff, "hive_pulse": hive_pulse,
     "chirp_1": lambda: chirp_call(21), "chirp_2": lambda: chirp_call(22), "chirp_3": lambda: chirp_call(23),
 }
 

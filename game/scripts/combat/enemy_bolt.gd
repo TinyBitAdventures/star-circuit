@@ -8,12 +8,20 @@ const LIFE := 3.0
 var world: Node3D
 var velocity := Vector3.ZERO
 var damage := 10.0
+var effect := "" # a status the hit carries (Frost Warden bolts chill)
+var effect_time := 0.0
+var effect_power := 1.0
 var _life := LIFE
+var _color := Color("ff3d9a")
 
 
-func setup(w: Node3D, from: Vector3, to: Vector3, dmg: float, color: Color) -> void:
+func setup(w: Node3D, from: Vector3, to: Vector3, dmg: float, color: Color, fx := "", fx_time := 0.0, fx_power := 1.0) -> void:
 	world = w
 	damage = dmg
+	effect = fx
+	effect_time = fx_time
+	effect_power = fx_power
+	_color = color
 	velocity = (to - from).normalized() * SPEED
 	var mi := MeshInstance3D.new()
 	var sm := SphereMesh.new()
@@ -42,11 +50,11 @@ func _physics_process(delta: float) -> void:
 	if player and not player.dead:
 		var body: Vector3 = player.global_position + player.global_basis.y * 1.0
 		if global_position.distance_to(body) < 1.25:
-			world.damage_player(damage, null)
-			world.explosion(global_position, Color("ff3d9a"), 0.6)
+			world.damage_player(damage, null, effect, effect_time, effect_power)
+			world.explosion(global_position, _color, 0.6)
 			queue_free()
 			return
 	var d := global_position.length()
 	if _life <= 0.0 or d < world.gen.surface_radius(global_position / d):
-		world.explosion(global_position, Color("ff3d9a"), 0.5)
+		world.explosion(global_position, _color, 0.5)
 		queue_free()

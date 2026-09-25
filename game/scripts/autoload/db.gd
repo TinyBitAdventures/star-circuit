@@ -111,6 +111,9 @@ const ITEMS := {
 	"gem_tempest": {"name": "Thunder Quartz", "kind": "gem", "color": Color("b6a4ff"), "desc": "Crackles when held. Only the storm world at the edge grows them."},
 	"gem_forge": {"name": "Forgeheart Garnet", "kind": "gem", "color": Color("ff6a2a"), "desc": "A garnet the Machine world made on purpose. Nobody knows why."},
 	"scrap": {"name": "Drone Scrap", "kind": "resource", "color": Color("b0a9a0"), "desc": "Twisted plating salvaged from destroyed rogue drones."},
+	"thorn_barb": {"name": "Thorn Barb", "kind": "resource", "color": Color("c9d66b"), "desc": "A hooked spine torn from a Thornback. Hard as tool steel."},
+	"sand_fang": {"name": "Sand Fang", "kind": "resource", "color": Color("efe6d2"), "desc": "A borer's tooth, worn to a perfect cutting edge by a lifetime of sand."},
+	"rime_core": {"name": "Rime Core", "kind": "resource", "color": Color("7fe3ff"), "desc": "The frozen heart of a Frost Warden. Still cold enough to burn."},
 	"power_core": {"name": "Rogue Power Core", "kind": "resource", "color": Color("ff4d6d"), "desc": "A still-humming drone core. Elites always carry one."},
 	# intermediates
 	"alloy": {"name": "Alloy Plate", "kind": "component", "color": Color("dfe3ea"), "desc": "Pressed ferrite plating."},
@@ -532,6 +535,7 @@ const VALUES := {
 	"gem_verdant": 400, "gem_dune": 400, "gem_frost": 400, "gem_ember": 450, "gem_prism": 500, "gem_bloom": 450,
 	"kelp": 6, "sea_pearl": 180, "obsidian": 12, "fire_opal": 220, "core_ember": 400,
 	"gem_giant": 550, "gem_abyss": 900, "gem_tempest": 900, "gem_forge": 900, "deep_probe": 60,
+	"thorn_barb": 28, "sand_fang": 32, "rime_core": 40,
 	"glowcap": 14, "fossil": 90, "ancient_relic": 260, "relay_coupler": 90, "legend_shard": 600,
 }
 
@@ -728,7 +732,24 @@ const ENEMIES := {
 	"brute": {"name": "Rogue Brute", "model": "res://assets/models/enemy_brute.glb",
 		"hp": [170, 42], "dmg": [18, 4.0], "speed": 3.8, "range": 4.2, "cd": 3.2, "aggro": 18.0, "xp": [110, 30],
 		"hover": 0.0, "scale": 1.1, "style": "slam", "elite": true, "loot": {"scrap": [4, 7], "power_core": [1, 1]}},
+	# biome signatures: one per world type, each with a trick to learn
+	"thornback": {"name": "Thornback", "model": "res://assets/models/enemy_thornback.glb",
+		"hp": [70, 20], "dmg": [14, 3.5], "speed": 5.0, "range": 22.0, "cd": 4.0, "aggro": 24.0, "xp": [45, 14],
+		"scale": 1.0, "style": "charge", "mods": {"fire": 1.3}, "loot": {"thorn_barb": [1, 2], "biofiber": [0, 2]},
+		"biome": "verdant", "tip": "Paints a lane, then charges down it. Step aside: a miss leaves it stunned and wide open. Burns easily."},
+	"lurker": {"name": "Dune Lurker", "model": "res://assets/models/enemy_lurker.glb",
+		"hp": [60, 17], "dmg": [16, 4.0], "speed": 6.0, "range": 2.6, "cd": 1.2, "aggro": 22.0, "xp": [48, 15],
+		"scale": 1.0, "style": "burrow", "mods": {"frost": 1.4}, "loot": {"sand_fang": [1, 2], "ferrite": [0, 2]},
+		"biome": "dune", "tip": "Tunnels under a dust trail and bursts up beneath you. Keep moving when the ring appears, then hit it before it dives again."},
+	"warden": {"name": "Frost Warden", "model": "res://assets/models/enemy_warden.glb",
+		"hp": [90, 24], "dmg": [9, 2.5], "speed": 3.0, "range": 20.0, "cd": 2.2, "aggro": 24.0, "xp": [55, 16],
+		"scale": 1.0, "style": "shield", "heavy": true, "mods": {"fire": 1.5}, "resist": {"chill": 1.0},
+		"loot": {"rime_core": [1, 1], "cryo_ice": [1, 2]},
+		"biome": "frost", "tip": "Its shield blocks everything from the front and it turns slowly: circle behind it. Rail slugs and fire go straight through."},
 }
+
+## The signature enemy of each world type (camps there often bring them along).
+const BIOME_FOES := {"verdant": "thornback", "dune": "lurker", "frost": "warden"}
 
 
 ## WoW-style "con" colour: enemy level relative to the player.

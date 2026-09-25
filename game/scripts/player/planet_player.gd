@@ -411,7 +411,8 @@ func _shoot(up: Vector3) -> void:
 				var crit := randf() < 0.12
 				var dmg := Game.weapon_damage() * float(wd.dmg) * randf_range(0.9, 1.1) * (1.8 if crit else 1.0)
 				Sound.play_3d("crit" if crit else "hit", r.position, -4.0 if crit else -8.0)
-				e.take_hit(dmg, crit)
+				# rail slugs pierce shields; everything else can be blocked from the front
+				e.take_hit(dmg, crit, "pierce" if wd.pierce else "kinetic", global_position)
 				_last_target = e
 			exclude.append(e.get_rid())
 		if wd.pierce:

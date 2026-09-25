@@ -52,4 +52,4 @@ func _physics_process(delta: float) -> void:
 		_head.look_at(target, _up)
 	world.tracer(muzzle, target, Color("ff9bf0"))
 	Sound.play_3d("turret_shot", muzzle, -10.0)
-	best.take_hit(Game.weapon_damage() * 0.45)
+	best.take_hit(Game.weapon_damage() * 0.45, false, "kinetic", global_position)

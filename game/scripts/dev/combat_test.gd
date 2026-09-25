@@ -110,13 +110,135 @@ func _run() -> void:
 	await _wait(4.0)
 	print("[combat] sentinel bolts: hull %d -> %d" % [Game.max_hull(), Game.hull])
 	_clear(w)
-	Game.hull = Game.max_hull() * 3.0
+	Game.hull = Game.max_hull()
 	var br: Enemy = w._spawn_enemy("brute", 1, _near(w, 3.0), 912)
 	br.aggro()
 	var raised := false
 	for i in 40:
 		await _wait(0.1)
 		raised = raised or br.behavior.raised()
-	print("[combat] brute slam: raised=%s hull %d -> %d" % [raised, Game.max_hull() * 3.0, Game.hull])
+	print("[combat] brute slam: raised=%s hull %d -> %d" % [raised, Game.max_hull(), Game.hull])
 	_clear(w)
+	await _biome_foes(w)
 	get_tree().quit()
+
+
+func _biome_foes(w: Node3D) -> void:
+	var pl: Node3D = w.player
+	# Thornback: stand in the lane and get run over
+	Game.hull = Game.max_hull()
+	var tb: Enemy = w._spawn_enemy("thornback", 2, _near(w, 14.0), 920)
+	tb.aggro()
+	var phases := {}
+	for i in 60:
+		await _wait(0.1)
+		phases[tb.behavior.phase] = true
+	print("[combat] thornback charge: phases=%s hull %d -> %d" % [phases.keys(), Game.max_hull(), Game.hull])
+	# ...and sidestep the next one: it ends up stunned and takes extra damage
+	tb.behavior.phase = ""
+	tb._atk_cd = 0.0
+	var stunned := false
+	for i in 60:
+		await _wait(0.05)
+		if tb.behavior.phase == "windup" and tb.behavior._t < 0.15:
+			var up: Vector3 = pl.global_position.normalized()
+			pl.global_position = w.gen.surface_point((up + tb.global_basis.x * 12.0 / w.gen.radius).normalized()) + up * 0.5
+		if tb.behavior.phase == "stunned":
+			stunned = true
+			break
+	var h0 := tb.hp
+	tb.take_hit(50.0)
+	print("[combat] thornback dodged: stunned=%s took %d from 50 (want 80)" % [stunned, int(h0 - tb.hp)])
+	_clear(w)
+	await _wait(0.2)
+
+	# Dune Lurker: dives (can't be hit), tunnels over, erupts under you
+	Game.hull = Game.max_hull()
+	var lk: Enemy = w._spawn_enemy("lurker", 2, _near(w, 12.0), 921)
+	lk.aggro()
+	var hits: Array = []
+	var log_hit := func(a: float): hits.append("%s:%d" % [lk.behavior.phase, int(a)])
+	Game.player_damaged.connect(log_hit)
+	var seen := {}
+	var unhittable := false
+	for i in 120:
+		await _wait(0.1)
+		seen[lk.behavior.phase] = true
+		if lk.behavior.phase == "under" and lk.collision_layer == 0:
+			unhittable = true
+		if seen.has("erupting") and lk.behavior.phase == "up":
+			break
+	Game.player_damaged.disconnect(log_hit)
+	print("[combat] lurker: phases=%s unhittable under=%s hull %d -> %d hits=%s" % [seen.keys(), unhittable, Game.max_hull(), Game.hull, hits])
+	_clear(w)
+	await _wait(0.2)
+
+	# Frost Warden: shield from the front, open from behind; Rail and fire get through; can't be chilled
+	var wd: Enemy = w._spawn_enemy("warden", 3, _near(w, 30.0), 922)
+	await _wait(0.2)
+	var front: Vector3 = wd.global_position + wd.heading * 10.0
+	var back: Vector3 = wd.global_position - wd.heading * 10.0
+	var hp1 := wd.hp
+	wd.take_hit(100.0, false, "kinetic", front)
+	var f_dmg := hp1 - wd.hp
+	hp1 = wd.hp
+	wd.hp = wd.max_hp
+	hp1 = wd.hp
+	wd.take_hit(100.0, false, "kinetic", back)
+	var b_dmg := hp1 - wd.hp
+	hp1 = wd.hp
+	wd.hp = wd.max_hp
+	hp1 = wd.hp
+	wd.take_hit(100.0, false, "pierce", front)
+	var p_dmg := hp1 - wd.hp
+	hp1 = wd.hp
+	wd.hp = wd.max_hp
+	hp1 = wd.hp
+	wd.take_hit(100.0, false, "fire", front)
+	var fire_dmg := hp1 - wd.hp
+	print("[combat] warden shield: front=%d back=%d rail=%d fire=%d chill=%s" % [f_dmg, b_dmg, p_dmg, fire_dmg, "resisted" if wd.apply_status("chill", 3.0, 4.0) == "" else "took"])
+	# its bolts chill you
+	Game.hull = Game.max_hull()
+	pl.status.clear()
+	wd.hp = wd.max_hp
+	wd.aggro()
+	var chilled := false
+	var trace := []
+	for i in 140:
+		await _wait(0.1)
+		if i % 10 == 0:
+			trace.append("%s d=%d cd=%.1f" % [wd.state, int(wd.global_position.distance_to(pl.global_position)), wd._atk_cd])
+		if pl.status.chill > 0 or pl.status.frozen():
+			chilled = true
+			break
+	print("[combat] warden trace ", trace)
+	print("[combat] warden bolts chill the player=%s" % chilled)
+	# up close, every fourth attack is a frost nova
+	pl.status.clear()
+	pl.place_at((wd.dir + (pl.global_position.normalized() - wd.dir).normalized() * 3.0 / w.gen.radius).normalized(), w.gen)
+	wd.behavior._shots = 3
+	wd._atk_cd = 0.0
+	var nova_seen := false
+	for i in 40:
+		await _wait(0.05)
+		nova_seen = nova_seen or wd.behavior._nova_t >= 0.0
+		if nova_seen and wd.behavior._nova_t < 0.0:
+			break
+	print("[combat] warden nova: seen=%s player chill=%d frozen=%s" % [nova_seen, pl.status.chill, pl.status.frozen()])
+	_clear(w)
+
+	# signature camps turn up on their own worlds (never on the home world)
+	var planets := {"verdant": Vector2i(-1, -1), "dune": Vector2i(-1, -1), "frost": Vector2i(-1, -1)}
+	for si in range(1, Galaxy.stars.size()):
+		for p in Galaxy.star(si).planets:
+			if planets.has(p.biome) and planets[p.biome].x < 0 and not p.has("moon_of"):
+				planets[p.biome] = Vector2i(si, p.index)
+	var counts := {}
+	for b in planets:
+		var at: Vector2i = planets[b]
+		Game.go_to_planet(at.x, at.y)
+		await _wait(5.0)
+		var world2 := get_tree().current_scene
+		var foe: String = Db.BIOME_FOES[b]
+		counts[b] = "%d %s of %d" % [world2.enemies.filter(func(e): return e.type == foe).size(), foe, world2.enemies.size()]
+	print("[combat] signature camps: ", counts)

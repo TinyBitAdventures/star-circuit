@@ -575,6 +575,209 @@ def build_brute():
     export("enemy_brute")
 
 
+def build_thornback():
+    """Verdant: a four-legged charger with a ridge of thorns and a battering horn."""
+    reset_scene()
+    shell = mat("Shell", hexc("#3d5a2e"), 0.3, 0.55)
+    thorn = mat("Accent", hexc("#c9d66b"), 0.2, 0.45)
+    dark = mat("Metal", hexc("#23301c"), 0.6, 0.4)
+    eye = mat("Eye", (1, 1, 1), emission=hexc("#b6ff3d"), strength=8)
+    root = empty("Beast")
+    body = part("Torso", "sphere", (1.2, 2.1, 1.0), shell, loc=(0, 0, 1.25), parent=root)
+    head = part("Head", "cube", (0.8, 0.8, 0.65), dark, loc=(0, 1.05, 0.1), offset=(0, 0.3, 0), parent=body, bevel=0.12)
+    part("Eye", "cube", (0.6, 0.08, 0.12), eye, loc=(0, 0.72, 0.12), parent=head, bevel=0.03)
+    part("Horn", "cone", (0.36, 0.36, 1.1), thorn, loc=(0, 0.75, 0.05), offset=(0, 0, 0.45), rot=(-1.35, 0, 0), parent=head, seg=8)
+    for i in range(6):
+        y = 0.7 - i * 0.3
+        part(f"Thorn{i}", "cone", (0.2, 0.2, 0.55 - abs(i - 2.5) * 0.06), thorn, loc=(0, y, 0.42), offset=(0, 0, 0.22), rot=(0.25, 0, 0), parent=body, seg=6)
+    for name, x, y in (("LegFL", -0.5, 0.55), ("LegFR", 0.5, 0.55), ("LegBL", -0.5, -0.6), ("LegBR", 0.5, -0.6)):
+        leg = part(name, "cube", (0.3, 0.34, 0.9), dark, loc=(x, y, -0.25), offset=(0, 0, -0.38), parent=body, bevel=0.06)
+        part(name + "Foot", "cube", (0.38, 0.46, 0.18), shell, loc=(0, 0.05, -0.8), parent=leg, bevel=0.05)
+    export("enemy_thornback")
+
+
+def build_lurker():
+    """Arid: a segmented sand-borer with a ring of teeth."""
+    reset_scene()
+    shell = mat("Shell", hexc("#b98a4e"), 0.4, 0.5)
+    band = mat("Accent", hexc("#6b3f22"), 0.5, 0.45)
+    tooth = mat("Blade", hexc("#efe6d2"), 0.2, 0.35)
+    eye = mat("Eye", (1, 1, 1), emission=hexc("#ffb13d"), strength=8)
+    root = empty("Borer")
+    head = part("Head", "sphere", (1.3, 1.5, 1.3), shell, loc=(0, 0.4, 1.3), parent=root)
+    part("Maw", "torus", (1.0, 1.0, 1.0), band, loc=(0, 0.62, 0), rot=(math.pi / 2, 0, 0), parent=head, minor=0.14)
+    for i in range(8):
+        a = i / 8 * math.tau
+        part(f"Tooth{i}", "cone", (0.14, 0.14, 0.42), tooth, loc=(math.cos(a) * 0.38, 0.7, math.sin(a) * 0.38), offset=(0, 0, 0.12), rot=(-math.pi / 2, 0, 0), parent=head, seg=5)
+    for i, x in enumerate((-0.32, 0.32)):
+        part(f"Eye{i}", "sphere", (0.18, 0.12, 0.18), eye, loc=(x, 0.45, 0.45), parent=head)
+    prev = head
+    for i in range(3):
+        seg = part(f"Seg{i}", "sphere", (1.2 - i * 0.18, 1.0, 1.15 - i * 0.18), shell, loc=(0, -0.85, -0.05), parent=prev)
+        part(f"Band{i}", "torus", (1.1 - i * 0.18, 1.1 - i * 0.18, 1.0), band, loc=(0, 0.1, 0), rot=(math.pi / 2, 0, 0), parent=seg, minor=0.08)
+        prev = seg
+    part("Tail", "cone", (0.5, 0.5, 0.9), band, loc=(0, -0.7, 0), rot=(math.pi / 2, 0, 0), parent=prev, seg=8)
+    export("enemy_lurker")
+
+
+def build_warden():
+    """Glacial: a tall ice-armoured guard behind a curved energy shield."""
+    reset_scene()
+    shell = mat("Shell", hexc("#d7e8f5"), 0.5, 0.3)
+    ice = mat("Accent", hexc("#5fb8ff"), 0.2, 0.2)
+    dark = mat("Metal", hexc("#34465a"), 0.8, 0.3)
+    glow = mat("Eye", (1, 1, 1), emission=hexc("#7fe3ff"), strength=8)
+    shield = mat("Shield", (0.6, 0.9, 1.0), emission=hexc("#6fd8ff"), strength=3)
+    root = empty("Robot")
+    torso = part("Torso", "cyl", (1.2, 1.0, 1.7), shell, loc=(0, 0, 2.0), parent=root, seg=6, smooth=False)
+    head = part("Head", "cube", (0.7, 0.7, 0.6), dark, loc=(0, 0.05, 1.1), parent=torso, bevel=0.1)
+    part("Visor", "cube", (0.55, 0.08, 0.14), glow, loc=(0, 0.36, 0.05), parent=head, bevel=0.03)
+    part("Crest", "cone", (0.3, 0.3, 0.6), ice, loc=(0, -0.05, 0.45), offset=(0, 0, 0.2), parent=head, seg=4)
+    for side, x in (("L", -1), ("R", 1)):
+        leg = part(f"Leg{side}", "cube", (0.45, 0.5, 1.1), dark, loc=(0.35 * x, 0, -0.85), offset=(0, 0, -0.45), parent=torso, bevel=0.08)
+        part(f"Foot{side}", "cube", (0.6, 0.8, 0.25), shell, loc=(0, 0.1, -1.0), parent=leg, bevel=0.06)
+    arm = part("ArmL", "cube", (0.35, 0.35, 1.0), dark, loc=(-0.8, 0, 0.4), offset=(0, 0, -0.4), parent=torso, bevel=0.06)
+    part("Shield", "sphere", (2.2, 0.35, 2.6), shield, loc=(0.75, 0.9, -0.55), parent=arm, seg=24, rings=10)
+    cannon = part("Cannon", "cyl", (0.3, 0.3, 1.1), dark, loc=(0.8, 0.3, 0.45), offset=(0, 0, 0.45), rot=(-math.pi / 2, 0, 0), parent=torso)
+    part("Muzzle", "ico", (0.4, 0.4, 0.4), ice, loc=(0, 1.0, 0), parent=cannon, sub=0)
+    for i in range(4):
+        a = i / 4 * math.tau + 0.4
+        part(f"Spike{i}", "cone", (0.18, 0.18, 0.6), ice, loc=(math.cos(a) * 0.55, math.sin(a) * 0.45, 0.8), offset=(0, 0, 0.2), parent=torso, seg=4)
+    export("enemy_warden")
+
+
+def build_mite():
+    """Volcanic: a small beetle-drone with a glowing, cracked abdomen full of fuel."""
+    reset_scene()
+    shell = mat("Shell", hexc("#2b1d1a"), 0.6, 0.4)
+    crack = mat("Eye", (1, 1, 1), emission=hexc("#ff6a1a"), strength=9)
+    leg_m = mat("Metal", hexc("#15100e"), 0.8, 0.3)
+    root = empty("Mite")
+    body = part("Torso", "sphere", (0.8, 0.9, 0.55), shell, loc=(0, 0.15, 0.55), parent=root)
+    abdomen = part("Abdomen", "sphere", (0.95, 1.05, 0.75), shell, loc=(0, -0.75, 0.1), parent=body)
+    for i in range(4):
+        part(f"Crack{i}", "cube", (0.7, 0.07, 0.05), crack, loc=(0, -0.3 + i * 0.2, 0.3 - abs(i - 1.5) * 0.05), rot=(0, 0, (i - 1.5) * 0.3), parent=abdomen)
+    part("Glow", "sphere", (0.5, 0.5, 0.35), crack, loc=(0, -0.45, -0.1), parent=abdomen)
+    for i, x in enumerate((-0.18, 0.18)):
+        part(f"Eye{i}", "sphere", (0.14, 0.1, 0.14), crack, loc=(x, 0.42, 0.12), parent=body)
+    for i in range(3):
+        for side, x in (("L", -1), ("R", 1)):
+            part(f"Leg{side}{i}", "cube", (0.6, 0.07, 0.07), leg_m, loc=(0.3 * x, 0.2 - i * 0.28, -0.1), offset=(0.28 * x, 0, -0.1), rot=(0, 0.6 * x, 0), parent=body)
+    export("enemy_mite")
+
+
+def build_smelter():
+    """Machine worlds: a squat furnace on treads with a mortar on its back."""
+    reset_scene()
+    shell = mat("Shell", hexc("#5a4a3a"), 0.8, 0.35)
+    plate = mat("Accent", hexc("#c77a2b"), 0.7, 0.35)
+    dark = mat("Metal", hexc("#1d1a18"), 0.8, 0.3)
+    core = mat("Eye", (1, 1, 1), emission=hexc("#ff7a2a"), strength=10)
+    root = empty("Smelter")
+    torso = part("Torso", "cube", (2.0, 1.8, 1.6), shell, loc=(0, 0, 1.4), parent=root, bevel=0.2)
+    part("Grate", "cube", (1.2, 0.1, 0.8), dark, loc=(0, 0.92, -0.1), parent=torso, bevel=0.04)
+    part("Core", "cube", (1.0, 0.08, 0.6), core, loc=(0, 0.9, -0.1), parent=torso, bevel=0.03)
+    for i in range(3):
+        part(f"Bar{i}", "cube", (0.08, 0.14, 0.75), dark, loc=(-0.35 + i * 0.35, 0.99, -0.1), parent=torso)
+    for i, x in enumerate((-0.6, 0.6)):
+        part(f"Chimney{i}", "cyl", (0.34, 0.34, 1.0), dark, loc=(x, -0.5, 0.8), offset=(0, 0, 0.45), parent=torso)
+        part(f"ChimneyCap{i}", "cyl", (0.44, 0.44, 0.12), plate, loc=(x, -0.5, 1.75), parent=torso)
+    mortar = part("Cannon", "cyl", (0.6, 0.6, 1.2), plate, loc=(0, 0.1, 0.8), offset=(0, 0, 0.5), rot=(0.5, 0, 0), parent=torso)
+    part("Muzzle", "cyl", (0.44, 0.44, 0.1), core, loc=(0, 0.55, 1.05), rot=(0.5, 0, 0), parent=mortar)
+    for side, x in (("L", -1), ("R", 1)):
+        tread = part(f"Tread{side}", "cube", (0.5, 2.2, 0.8), dark, loc=(1.1 * x, 0, -0.75), parent=torso, bevel=0.2)
+        for j in range(3):
+            part(f"Wheel{side}{j}", "cyl", (0.5, 0.5, 0.55), shell, loc=(0, -0.7 + j * 0.7, 0), rot=(0, math.pi / 2, 0), parent=tread)
+    export("enemy_smelter")
+
+
+def build_kite():
+    """Tempest: a flat storm-kite with a crackling coil and trailing ribbon."""
+    reset_scene()
+    shell = mat("Shell", hexc("#3b3f6b"), 0.6, 0.35)
+    wing = mat("Accent", hexc("#8f86ff"), 0.3, 0.3)
+    coil = mat("Eye", (1, 1, 1), emission=hexc("#c9b8ff"), strength=10)
+    root = empty("Kite")
+    body = part("Torso", "ico", (1.0, 1.8, 0.45), shell, loc=(0, 0, 1.0), parent=root, sub=1)
+    part("Coil", "torus", (0.7, 0.7, 0.7), coil, loc=(0, 0, 0.22), parent=body, minor=0.1)
+    part("Eye", "sphere", (0.3, 0.2, 0.3), coil, loc=(0, 0.75, 0.05), parent=body)
+    for side, x in (("L", -1), ("R", 1)):
+        w = part(f"Wing{side}", "cone", (2.4, 1.4, 0.08), wing, loc=(0.55 * x, -0.1, 0), offset=(1.0 * x, 0, 0), rot=(0, 0, 0), parent=body, seg=3, smooth=False)
+        part(f"WingTip{side}", "ico", (0.22, 0.22, 0.22), coil, loc=(2.0 * x, -0.2, 0), parent=w, sub=0)
+    prev = body
+    for i in range(4):
+        prev = part(f"Tail{i}", "cube", (0.18 - i * 0.03, 0.6, 0.04), wing if i % 2 else shell, loc=(0, -0.95 if i == 0 else -0.6, 0), offset=(0, -0.25, 0), parent=prev)
+    export("enemy_kite")
+
+
+def build_refractor():
+    """Crystalline: a floating cluster of prisms around a bright core."""
+    reset_scene()
+    crystal = mat("Shell", hexc("#b9a7ff"), 0.1, 0.1)
+    facet = mat("Accent", hexc("#7fe0ff"), 0.1, 0.1)
+    core = mat("Eye", (1, 1, 1), emission=hexc("#ffffff"), strength=9)
+    root = empty("Refractor")
+    body = part("Torso", "ico", (0.9, 0.9, 0.9), core, loc=(0, 0, 1.6), parent=root, sub=1)
+    for i in range(6):
+        a = i / 6 * math.tau
+        tilt = 0.5 if i % 2 else -0.4
+        part(f"Prism{i}", "cone", (0.5, 0.5, 1.7), crystal if i % 2 else facet, loc=(math.cos(a) * 0.55, math.sin(a) * 0.55, 0), offset=(0, 0, 0.7), rot=(math.sin(a) * 1.2 + tilt, -math.cos(a) * 1.2, 0), parent=body, seg=4, smooth=False)
+    part("Ring", "torus", (1.7, 1.7, 1.7), facet, loc=(0, 0, 0), rot=(0.4, 0.2, 0), parent=body, minor=0.04)
+    export("enemy_refractor")
+
+
+def build_stalker():
+    """Abyssal: a long-limbed hunter with blade claws and a split visor."""
+    reset_scene()
+    shell = mat("Shell", hexc("#1b1830"), 0.7, 0.3)
+    edge = mat("Accent", hexc("#5a3dff"), 0.4, 0.3)
+    eye = mat("Eye", (1, 1, 1), emission=hexc("#b06bff"), strength=10)
+    root = empty("Stalker")
+    body = part("Torso", "cube", (0.8, 1.9, 0.6), shell, loc=(0, 0, 1.35), parent=root, bevel=0.2)
+    head = part("Head", "cube", (0.55, 0.8, 0.45), shell, loc=(0, 1.05, 0.2), offset=(0, 0.25, 0), parent=body, bevel=0.12)
+    for i, x in enumerate((-0.14, 0.14)):
+        part(f"Eye{i}", "cube", (0.12, 0.06, 0.08), eye, loc=(x, 0.62, 0.08), parent=head, bevel=0.02)
+    part("Spine", "cube", (0.12, 1.8, 0.18), edge, loc=(0, 0, 0.36), parent=body)
+    for name, x, y in (("LegFL", -0.45, 0.6), ("LegFR", 0.45, 0.6), ("LegBL", -0.45, -0.65), ("LegBR", 0.45, -0.65)):
+        leg = part(name, "cube", (0.18, 0.22, 1.1), shell, loc=(x, y, -0.2), offset=(0, 0, -0.5), parent=body, bevel=0.04)
+        part(name + "Claw", "cone", (0.2, 0.35, 0.45), edge, loc=(0, 0.2, -1.05), rot=(-1.3, 0, 0), parent=leg, seg=4)
+    tail = part("Tail", "cone", (0.22, 0.22, 1.6), edge, loc=(0, -0.95, 0.1), rot=(1.9, 0, 0), offset=(0, 0, 0.7), parent=body, seg=6)
+    export("enemy_stalker")
+
+
+def build_hive():
+    """Fungal: a rooted, breathing spore pod with glowing vents."""
+    reset_scene()
+    skin = mat("Shell", hexc("#6b3f7a"), 0.1, 0.7)
+    cap = mat("Accent", hexc("#c46fd6"), 0.1, 0.6)
+    vent = mat("Eye", (1, 1, 1), emission=hexc("#b6ff5a"), strength=8)
+    root = empty("Hive")
+    body = part("Torso", "sphere", (2.2, 2.2, 2.6), skin, loc=(0, 0, 1.4), parent=root, seg=20, rings=12)
+    for i in range(7):
+        a = i / 7 * math.tau
+        z = 0.2 + (i % 3) * 0.35
+        part(f"Vent{i}", "cyl", (0.34, 0.34, 0.3), vent, loc=(math.cos(a) * 1.0, math.sin(a) * 1.0, z), rot=(math.sin(a) * 1.2, -math.cos(a) * 1.2, 0), parent=body)
+    part("Cap", "sphere", (2.8, 2.8, 1.0), cap, loc=(0, 0, 1.1), parent=body, seg=20, rings=10)
+    for i in range(5):
+        a = i / 5 * math.tau + 0.3
+        part(f"Root{i}", "cone", (0.5, 0.5, 1.8), skin, loc=(math.cos(a) * 0.9, math.sin(a) * 0.9, -1.1), rot=(math.sin(a) * 1.9, -math.cos(a) * 1.9, 0), offset=(0, 0, 0.6), parent=body, seg=6)
+    export("enemy_hive")
+
+
+def build_sporeling():
+    """A drifting puffball the Spore Hive breeds."""
+    reset_scene()
+    skin = mat("Shell", hexc("#c46fd6"), 0.1, 0.6)
+    glow = mat("Eye", (1, 1, 1), emission=hexc("#b6ff5a"), strength=8)
+    root = empty("Sporeling")
+    body = part("Torso", "sphere", (0.8, 0.8, 0.8), skin, loc=(0, 0, 0.9), parent=root)
+    part("Core", "sphere", (0.4, 0.4, 0.4), glow, loc=(0, 0.25, 0.05), parent=body)
+    for i in range(5):
+        a = i / 5 * math.tau
+        part(f"Frond{i}", "cone", (0.12, 0.12, 0.6), skin, loc=(math.cos(a) * 0.3, math.sin(a) * 0.3, -0.35), rot=(math.sin(a) * 0.6 + math.pi, -math.cos(a) * 0.6, 0), offset=(0, 0, 0.25), parent=body, seg=5)
+    export("enemy_sporeling")
+
+
 def build_turret():
     """Engineer's deployable turret."""
     reset_scene()
@@ -1284,7 +1487,12 @@ def build_pylon():
     export("heart_pylon")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and os.environ.get("ONLY"):
+    # ONLY=thornback,lurker rebuilds just those models (build_<name>)
+    for n in os.environ["ONLY"].split(","):
+        globals()["build_" + n.strip()]()
+    print("[star-circuit] done (only %s)" % os.environ["ONLY"])
+elif __name__ == "__main__":
     build_scout()
     build_miner()
     build_engineer()
@@ -1309,6 +1517,16 @@ if __name__ == "__main__":
     build_scrapper()
     build_sentinel()
     build_brute()
+    build_thornback()
+    build_lurker()
+    build_warden()
+    build_mite()
+    build_smelter()
+    build_kite()
+    build_refractor()
+    build_stalker()
+    build_hive()
+    build_sporeling()
     build_turret()
     build_monolith()
     build_ruin()

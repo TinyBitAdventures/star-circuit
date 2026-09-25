@@ -167,3 +167,46 @@ static func ground_ring(parent: Node3D, center: Vector3, up: Vector3, radius: fl
 	ring.scale = Vector3(0.2, 1, 0.2)
 	ring.create_tween().tween_property(ring, "scale", Vector3.ONE, maxf(grow_time, 0.05))
 	return ring
+
+
+## A warning strip that hugs the planet: from start_dir along a great circle
+## toward heading. world must have a PlanetGen in `gen`. It fades in over grow_time.
+static func ground_lane(world: Node3D, start_dir: Vector3, heading: Vector3, length: float, width: float, color: Color, grow_time: float) -> MeshInstance3D:
+	var gen: PlanetGen = world.gen
+	var up0 := start_dir.normalized()
+	var fwd := (heading - up0 * heading.dot(up0)).normalized()
+	var axis := up0.cross(fwd).normalized()
+	var steps := 16
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var prev_l := Vector3.ZERO
+	var prev_r := Vector3.ZERO
+	for i in steps + 1:
+		var ang := (length * float(i) / steps) / gen.radius
+		var d := up0.rotated(axis, ang)
+		var side := axis # the strip's width runs along the rotation axis
+		var c := gen.surface_point(d) + d * 0.18
+		var l := c - side * width * 0.5
+		var r := c + side * width * 0.5
+		if i > 0:
+			st.add_vertex(prev_l)
+			st.add_vertex(prev_r)
+			st.add_vertex(l)
+			st.add_vertex(prev_r)
+			st.add_vertex(r)
+			st.add_vertex(l)
+		prev_l = l
+		prev_r = r
+	var lane := MeshInstance3D.new()
+	lane.mesh = st.commit()
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_color = Color(color.r, color.g, color.b, 0.0)
+	lane.material_override = m
+	lane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	world.add_child(lane)
+	lane.global_transform = Transform3D.IDENTITY
+	lane.create_tween().tween_property(m, "albedo_color:a", color.a, maxf(grow_time * 0.6, 0.05))
+	return lane

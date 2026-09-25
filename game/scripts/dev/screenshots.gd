@@ -175,6 +175,9 @@ func _run() -> void:
 	if which == "combat":
 		await _combat_tour()
 		get_tree().quit()
+	if which == "bestiary":
+		await _bestiary_tour()
+		get_tree().quit()
 		return
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 	await _wait(2.5)
@@ -1754,3 +1757,87 @@ func _net_tour() -> void:
 	await shot("net_sea")
 	Net.leave()
 	OS.kill(pid)
+
+
+
+## Each world type's signature enemy: a close portrait, then mid-telegraph.
+func _bestiary_tour() -> void:
+	Game.new_game("miner", "Tester")
+	await _wait(4.0)
+	Sound.show_tips = false
+	var only := OS.get_environment("FOES")
+	for biome in Db.BIOME_FOES:
+		var foe: String = Db.BIOME_FOES[biome]
+		if only != "" and not foe in only.split(","):
+			continue
+		var at := Vector2i(-1, -1)
+		for si in range(1, Galaxy.stars.size()):
+			for pl in Galaxy.star(si).planets:
+				if pl.biome == biome and at.x < 0 and not pl.has("moon_of"):
+					at = Vector2i(si, pl.index)
+		Game.go_to_planet(at.x, at.y)
+		await _wait(5.5)
+		var w := _scene()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		Game.invulnerable = true
+		for e in w.enemies.duplicate():
+			w.enemies.erase(e)
+			e.queue_free()
+		var p = w.player
+		var up: Vector3 = p.global_position.normalized()
+		var b := PlanetGen.align_basis(up)
+		var ed: Vector3 = (up + b.z * 11.0 / w.gen.radius).normalized()
+		var e: Enemy = w._spawn_enemy(foe, maxi(1, Game.level), ed, 990)
+		await _wait(0.3)
+		var to: Vector3 = e.global_position - p.global_position
+		to = (to - up * to.dot(up)).normalized()
+		p.ref_fwd = to
+		p.cam_yaw = 0.35
+		p.cam_pitch = -0.16
+		p.spring.spring_length = 8.0
+		# turn it to face the camera
+		e.heading = (-to - e.dir * (-to).dot(e.dir)).normalized()
+		e.place_now()
+		await _wait(0.8)
+		await shot("foe_%s" % foe)
+		e.aggro()
+		match foe:
+			"thornback":
+				for i in 80:
+					await _wait(0.05)
+					if e.behavior.phase == "windup" and e.behavior._t < 0.5:
+						break
+				await shot("foe_%s_lane" % foe)
+				for i in 40:
+					await _wait(0.03)
+					if e.behavior.phase == "charging":
+						break
+				await _wait(0.15)
+				await shot("foe_%s_charge" % foe)
+			"lurker":
+				for i in 160:
+					await _wait(0.05)
+					if e.behavior.phase == "under":
+						break
+				await _wait(0.4)
+				await shot("foe_%s_trail" % foe)
+				for i in 160:
+					await _wait(0.05)
+					if e.behavior.phase == "erupting" and e.behavior._t < 0.35:
+						break
+				await shot("foe_%s_ring" % foe)
+				await _wait(0.5)
+				await shot("foe_%s_burst" % foe)
+			"warden":
+				await _wait(2.5)
+				await shot("foe_%s_bolt" % foe)
+				# step in close: the nova only fires at short range
+				var near: Vector3 = (e.dir + (p.global_position.normalized() - e.dir).normalized() * 5.0 / w.gen.radius).normalized()
+				p.place_at(near, w.gen)
+				e.behavior._shots = 3
+				e._atk_cd = 0.0
+				for i in 80:
+					await _wait(0.05)
+					if e.behavior._nova_t >= 0.0 and e.behavior._nova_t < 0.4:
+						break
+				await shot("foe_%s_nova" % foe)

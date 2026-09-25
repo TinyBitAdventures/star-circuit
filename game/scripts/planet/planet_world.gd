@@ -615,9 +615,18 @@ func _spawn_enemies(outpost_dir: Vector3) -> void:
 		var types := ["scrapper", "scrapper", "sentinel"]
 		var n := rng.randi_range(2, 3 if is_home else 4)
 		var with_brute := not is_home and rng.randf() < 0.35
+		# the world's signature enemy leads some camps; its own stream keeps camps where they were
+		var srng := RandomNumberGenerator.new()
+		srng.seed = planet.seed + 62 + made * 7
+		var foe: String = Db.BIOME_FOES.get(planet.biome, "")
+		var sig := 0
+		if foe != "" and not is_home and srng.randf() < 0.5:
+			sig = srng.randi_range(1, 2)
 		for i in n:
 			var t: String = types[rng.randi() % types.size()]
 			var lvl := clampi(danger_level + rng.randi_range(0, 1 if is_home else 2), 1, 40)
+			if i < sig:
+				t = foe
 			_spawn_enemy(t, lvl, _near(d, rng, 7.0), made)
 		if with_brute:
 			_spawn_enemy("brute", danger_level + 2, d, made)
@@ -686,8 +695,8 @@ func reset_aggro() -> void:
 			e._leash()
 
 
-func spawn_enemy_bolt(from: Vector3, to: Vector3, dmg: float, color: Color) -> void:
-	EnemyBolt.new().setup(self, from, to, dmg, color)
+func spawn_enemy_bolt(from: Vector3, to: Vector3, dmg: float, color: Color, effect := "", effect_time := 0.0, effect_power := 1.0) -> void:
+	EnemyBolt.new().setup(self, from, to, dmg, color, effect, effect_time, effect_power)
 
 
 func tracer(from: Vector3, to: Vector3, color: Color) -> void:
