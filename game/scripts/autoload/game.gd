@@ -101,6 +101,7 @@ var space_return_pos := Vector3.ZERO
 
 var _fader: ColorRect
 var _autosave_timer := 0.0
+var _restored_notice := 0.0 # > 0: tell the player the backup was loaded, once the world is up
 var in_game := false
 var ui_open := false
 var arrived_by_warp := false
@@ -118,7 +119,17 @@ func _ready() -> void:
 	_reset_state()
 
 
+## Closing the window saves first (the autosave only runs once a minute).
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and in_game:
+		save_game()
+
+
 func _process(delta: float) -> void:
+	if _restored_notice > 0.0 and in_game:
+		_restored_notice -= delta
+		if _restored_notice <= 0.0:
+			big_notify.emit("SAVE RESTORED", "Your save was damaged, so the last good copy was loaded.", Color("ffd23f"))
 	if in_game and not get_tree().paused:
 		play_time += delta
 		_autosave_timer += delta
@@ -960,7 +971,7 @@ func slot_path(n: int) -> String:
 
 func has_save() -> bool:
 	for n in range(1, SLOTS + 1):
-		if FileAccess.file_exists(slot_path(n)):
+		if not save_summary(n).is_empty():
 			return true
 	return false
 
@@ -973,8 +984,10 @@ func _migrate_legacy_save() -> void:
 
 
 func delete_slot(n: int) -> void:
-	if FileAccess.file_exists(slot_path(n)):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(slot_path(n)))
+	for ext in ["", ".bak", ".tmp", ".damaged"]:
+		if FileAccess.file_exists(slot_path(n) + ext):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(slot_path(n) + ext))
+	_good_on_disk.erase(n)
 
 
 ## The hold as saved. Mid Eruption Run the haul isn't yours until you're out,
@@ -1018,21 +1031,90 @@ func save_game() -> void:
 		"land_dir": [land_dir.x, land_dir.y, land_dir.z],
 		"space_pos": [space_return_pos.x, space_return_pos.y, space_return_pos.z],
 	}
-	var f := FileAccess.open(slot_path(slot), FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify(data, "  "))
+	_write_save(slot, JSON.stringify(data, "  "))
 
 
+var _good_on_disk := {} # slot -> true once we've written (or read) a good save there this session
+
+## Saves never overwrite the only copy: write a temp file, check it, keep the
+## last good save as .bak, then move the new one into place. A crash at any
+## point leaves a good file to load (see save_summary / load_game).
+func _write_save(n: int, text: String) -> bool:
+	var path := ProjectSettings.globalize_path(slot_path(n))
+	var tmp := path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		notify.emit("Couldn't save the game (can't write to the save folder).", Color("ff6b6b"))
+		return false
+	var bytes := text.to_utf8_buffer()
+	f.store_buffer(bytes)
+	f.close()
+	if FileAccess.get_file_as_bytes(tmp).size() != bytes.size():
+		DirAccess.remove_absolute(tmp)
+		notify.emit("Couldn't save the game (is the disk full?). Your last save is safe.", Color("ff6b6b"))
+		return false
+	if FileAccess.file_exists(path):
+		# only a good save becomes the backup; a damaged one is set aside
+		var good: bool = _good_on_disk.get(n, false) or not _read_save(path).is_empty()
+		var aside := path + (".bak" if good else ".damaged")
+		if FileAccess.file_exists(aside):
+			DirAccess.remove_absolute(aside)
+		DirAccess.rename_absolute(path, aside)
+	if DirAccess.rename_absolute(tmp, path) != OK:
+		notify.emit("Couldn't save the game. Your last save is safe.", Color("ff6b6b"))
+		return false
+	_good_on_disk[n] = true
+	return true
+
+
+static func _read_save(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var d = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return d if d is Dictionary and d.has("robot_id") else {}
+
+
+## The newest good copy other than the main file: a temp file a crash left
+## behind, or the backup.
+func _recovery(n: int) -> Dictionary:
+	var best := {}
+	for ext in [".tmp", ".bak"]:
+		var d := _read_save(ProjectSettings.globalize_path(slot_path(n) + ext))
+		if not d.is_empty() and (best.is_empty() or float(d.get("saved_at", 0)) > float(best.data.get("saved_at", 0))):
+			best = {"ext": ext, "data": d}
+	return best
+
+
+## A slot's save. {} when it's empty; {"damaged": true, "backup": {...}} when the
+## file can't be read (backup is {} if there's nothing to fall back on).
 func save_summary(n := -1) -> Dictionary:
 	if n < 0:
 		n = slot
-	if not FileAccess.file_exists(slot_path(n)):
-		return {}
-	var f := FileAccess.open(slot_path(n), FileAccess.READ)
-	if not f:
-		return {}
-	var d = JSON.parse_string(f.get_as_text())
-	return d if d is Dictionary else {}
+	var path := ProjectSettings.globalize_path(slot_path(n))
+	var d := _read_save(path)
+	if not d.is_empty():
+		return d
+	var rec := _recovery(n)
+	if FileAccess.file_exists(path) or not rec.is_empty():
+		return {"damaged": true, "backup": rec.get("data", {})}
+	return {}
+
+
+## Put the newest good copy back as the slot's save. The damaged file is kept as .damaged.
+func restore_backup(n: int) -> bool:
+	var rec := _recovery(n)
+	if rec.is_empty():
+		return false
+	var path := ProjectSettings.globalize_path(slot_path(n))
+	if FileAccess.file_exists(path):
+		if FileAccess.file_exists(path + ".damaged"):
+			DirAccess.remove_absolute(path + ".damaged")
+		DirAccess.rename_absolute(path, path + ".damaged")
+	var src: String = path + String(rec.ext)
+	if rec.ext == ".bak":
+		# keep the backup too: copy rather than move
+		return _write_save(n, FileAccess.get_file_as_string(src))
+	return DirAccess.rename_absolute(src, path) == OK
 
 
 func load_game(n := -1) -> bool:
@@ -1041,7 +1123,13 @@ func load_game(n := -1) -> bool:
 	Sound.last_slot = slot
 	Sound.save_settings()
 	var d := save_summary(slot)
-	if d.is_empty():
+	if d.get("damaged", false):
+		if not restore_backup(slot):
+			notify.emit("Slot %d's save is damaged and there's no backup to restore." % slot, Color("ff6b6b"))
+			return false
+		d = save_summary(slot)
+		_restored_notice = 4.0
+	if d.is_empty() or d.get("damaged", false):
 		return false
 	_reset_state()
 	robot_id = d.get("robot_id", "scout")

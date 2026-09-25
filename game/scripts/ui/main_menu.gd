@@ -236,7 +236,7 @@ func _build_ui() -> void:
 	gap.custom_minimum_size = Vector2(0, 30)
 	menu_box.add_child(gap)
 	var summary := Game.save_summary(Sound.last_slot)
-	if not summary.is_empty():
+	if not summary.is_empty() and not (summary.get("damaged", false) and (summary.backup as Dictionary).is_empty()):
 		var b := _menu_button("CONTINUE", func(): Game.load_game(Sound.last_slot))
 		menu_box.add_child(b)
 		menu_box.add_child(UiKit.label("   Slot %d  ·  %s" % [Sound.last_slot, _slot_line(summary)], 15, UiKit.MUTED))
@@ -401,6 +401,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _slot_line(d: Dictionary) -> String:
+	if d.get("damaged", false):
+		var bk: Dictionary = d.get("backup", {})
+		return "Damaged save  ·  " + ("loading restores the last good copy: " + _slot_line(bk) if not bk.is_empty() else "no backup to restore")
 	var rname: String = Db.ROBOTS.get(d.get("robot_id", "scout"), Db.ROBOTS.scout).title
 	var si := int(d.get("star_index", 0))
 	var where: String = Galaxy.planet(si, int(d.get("planet_index", 0))).name if d.get("location", "planet") == "planet" else Galaxy.star(si).name + " orbit"
@@ -456,8 +459,10 @@ func _show_overlay(kind: String) -> void:
 		h.add_child(info)
 		info.add_child(UiKit.label("SLOT %d%s" % [n, "  ·  last played" if n == Sound.last_slot and not d.is_empty() else ""], 16, UiKit.ACCENT, true))
 		info.add_child(UiKit.label(_slot_line(d) if not d.is_empty() else "Empty", 15, UiKit.TEXT if not d.is_empty() else UiKit.MUTED))
+		var damaged: bool = d.get("damaged", false)
+		if not d.is_empty() and not (damaged and (d.backup as Dictionary).is_empty()):
+			h.add_child(UiKit.button("Restore backup" if damaged else "Load", func(): Game.load_game(n)))
 		if not d.is_empty():
-			h.add_child(UiKit.button("Load", func(): Game.load_game(n)))
 			var del := UiKit.button("Delete", Callable())
 			del.pressed.connect(func():
 				if del.has_meta("armed"):

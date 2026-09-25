@@ -49,6 +49,7 @@
 - This version is the last one you need to download by hand.
 
 ### Fixes
+- **Saves can't be lost to a crash any more.** The game writes a new save beside the old one and only swaps it in once it's complete, keeping the last good save as a backup. If a save is ever damaged, loading it restores the last good copy (and says so) instead of showing an empty slot a new game could overwrite. Closing the window now saves too, instead of losing up to a minute.
 - Planets seen close up from orbit could show a hard, stair-stepped shadow across them. They now light themselves from their star, with a smooth banded day and night like the title screen.
 - Oceans are much deeper: about half of every ocean is now deep enough to dive into the Deep Sea (it used to be a few percent, and none at all on small worlds). Beaches and coastlines are unchanged; the floor just falls away faster past the shallows, to around 45 m.
 

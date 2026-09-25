@@ -85,6 +85,25 @@ func _run() -> void:
 		await _net_tour()
 		get_tree().quit()
 		return
+	if which == "saves":
+		# a damaged save with a backup, as the title screen and Load Game show it
+		Game.new_game("miner", "Saver", 1)
+		await _wait(4.0)
+		Game.save_game()
+		Game.save_game()
+		var f := FileAccess.open(Game.slot_path(1), FileAccess.WRITE)
+		f.store_string("{\"robot_id\": \"sc")
+		f.close()
+		Game.in_game = false
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+		await _wait(2.5)
+		await shot("saves_title")
+		get_tree().current_scene._show_overlay("load")
+		await _wait(0.5)
+		await shot("saves_load")
+		Game.delete_slot(1)
+		get_tree().quit()
+		return
 	if which == "update":
 		await _update_tour()
 		get_tree().quit()
