@@ -22,6 +22,7 @@
   - **Cinder** (Cinder Launcher: Cinder Glands and a Slag Heart): lobs a grenade that bursts into flame and sets everything in the blast burning.
   - **Cryo** (Cryo Projector: Rime Cores): hold fire for a freezing beam; every half second adds a chill stack until the target freezes solid.
 - **Mk II** retunes for all six loadouts (+35% damage), crafted from biome enemy parts. The Outfitter shows each loadout's tier and what makes it special.
+- Mk II and Mk III retunes now count in space too (your cannons hit 35% or 75% harder), and the HUD names your loadout's tier ("LMB Cryo Mk II").
 - **Titans**: world bosses sleep in stone rings (a Titan's Rest) on about two dozen dangerous worlds, one per system at most. Three kinds:
   - **Colossus** (green, arid, crystal and fungal worlds) stomps out warning rings, hurls boulder barrages and splits the ground along glowing lanes.
   - **Pyre Wyrm** (volcanic and machine worlds) tunnels out of reach, erupts under you from a burning ring and spits molten shells. Frost hurts it.

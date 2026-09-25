@@ -1789,7 +1789,7 @@ func weapon_def() -> Dictionary:
 	return Db.WEAPONS.get(weapon, Db.WEAPONS.pulse)
 
 
-## 1, or 2 once the loadout's Mk II retune is crafted.
+## 1, then 2 or 3 once the loadout's Mk II / Mk III retune is crafted.
 func weapon_tier(id: String) -> int:
 	if has_upgrade(id + "_mk3"):
 		return 3
@@ -1798,6 +1798,11 @@ func weapon_tier(id: String) -> int:
 
 func weapon_tier_mult(id: String) -> float:
 	return [1.0, 1.0, 1.35, 1.75][weapon_tier(id)]
+
+
+## "Cryo Mk II": the current loadout with its tier (on foot and in flight alike).
+func weapon_label() -> String:
+	return String(weapon_def().name) + ["", "", " Mk II", " Mk III"][weapon_tier(weapon)]
 
 
 func weapon_unlocked(id: String) -> bool:

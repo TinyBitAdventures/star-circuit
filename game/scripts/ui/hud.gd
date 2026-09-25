@@ -2018,7 +2018,7 @@ func _station_tabs_into(v: VBoxContainer) -> void:
 
 func _update_ability_label() -> void:
 	if ability_label:
-		ability_label.text = "[F] %s  ·  LMB %s (X swap)  ·  G repair" % [Game.robot().ability.name, Game.weapon_def().name]
+		ability_label.text = "[F] %s  ·  LMB %s (X swap)  ·  G repair" % [Game.robot().ability.name, Game.weapon_label()]
 
 
 # --------------------------------------------------------------------------

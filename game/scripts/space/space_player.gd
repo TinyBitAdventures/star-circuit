@@ -359,7 +359,7 @@ func _fire_cannons(_hit: Dictionary, _foe: SpaceEnemy) -> void:
 				break
 			if e.is_alive():
 				var crit := randf() < 0.1
-				e.take_hit(Game.space_weapon_damage() * float(wd.dmg) * randf_range(0.9, 1.1) * (1.8 if crit else 1.0), crit)
+				e.take_hit(Game.space_weapon_damage() * float(wd.dmg) * Game.weapon_tier_mult(Game.weapon) * randf_range(0.9, 1.1) * (1.8 if crit else 1.0), crit)
 				Sound.play_3d("crit" if crit else "hit", r.position, -6.0, 0.1, 40.0)
 			exclude.append(e.get_rid())
 		CombatFx.tracer(world, muzzle, end, col * (1.6 if wd.pierce else 1.0))

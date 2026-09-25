@@ -242,6 +242,27 @@ func _run() -> void:
 	sp.global_position = raider.global_position if is_instance_valid(raider) else sp.global_position
 	await _wait(2.0)
 	print("[smoke] raider down: kills ", k1, "->", Game.kills, " credits ", cr1, "->", Game.credits, " scrap ", scrap1, "->", Game.count("scrap"))
+	# a Mk II retune counts in flight too: the same seeded shots, before and after
+	var dummy: SpaceEnemy = s._spawn_pirate("gunship", 9, sp.global_position, sp.global_position)
+	var dealt := []
+	for mk in [false, true]:
+		if mk:
+			Game.upgrades.append(Game.weapon + "_mk2")
+		dummy.hp = 99999.0
+		var fwd: Vector3 = -sp.camera.global_basis.z
+		dummy.global_position = sp.camera.global_position + fwd * 60.0
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		dummy.global_position = sp.camera.global_position + fwd * 60.0
+		await get_tree().physics_frame
+		seed(4242)
+		Game.energy = Game.max_energy()
+		sp._fire_cannons({}, null)
+		dealt.append(99999.0 - dummy.hp)
+	Game.upgrades.erase(Game.weapon + "_mk2")
+	print("[smoke] space mk2: %.1f -> %.1f (x%.2f, want x1.35)" % [dealt[0], dealt[1], dealt[1] / maxf(dealt[0], 0.01)])
+	dummy.queue_free()
+	s.space_enemies.erase(dummy)
 	var gun: SpaceEnemy = s._spawn_pirate("gunship", 2, sp.global_position - sp.global_basis.z * 120.0, sp.global_position)
 	var ghp: float = gun.hp
 	Game.energy = Game.max_energy()

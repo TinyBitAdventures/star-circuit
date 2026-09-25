@@ -496,7 +496,8 @@ func _weapons() -> void:
 	# Mk II: +35%
 	var before := Game.weapon_tier_mult("cryo")
 	Game.add_item("cryo_mk2", 1)
-	print("[combat] cryo mk2: x%.2f -> x%.2f tier=%d" % [before, Game.weapon_tier_mult("cryo"), Game.weapon_tier("cryo")])
+	Game.weapon = "cryo"
+	print("[combat] cryo mk2: x%.2f -> x%.2f tier=%d label=%s" % [before, Game.weapon_tier_mult("cryo"), Game.weapon_tier("cryo"), Game.weapon_label()])
 	Game.set_weapon("pulse")
 	_clear(w)
 
