@@ -74,14 +74,14 @@ The generated models and audio are committed, so Blender and Python are only nee
 | Space | jump; hold in the air for jetpack (uses energy) |
 | Shift / Ctrl | sprint (faster stride, dust, camera kick) / descend |
 | E (hold) | gather, talk, use |
-| Q | scanner pulse: reveals nodes, logs species |
+| Q | scanner pulse: reveals nodes, logs species, reveals cloaked enemies and logs them in the Bestiary |
 | R | use an Energy Cell |
-| Left mouse | fire blaster at the crosshair (1 energy/shot) |
+| Left mouse | fire your loadout at the crosshair (costs energy) |
 | F | class ability (Phase Dash / Seismic Slam / Deploy Turret / Drain Nova) |
 | G | use a Repair Kit |
-| X | cycle weapon loadout (Pulse, Scatter, Rail) |
+| X | cycle weapon loadout (Pulse, Scatter, Rail, Arc, Cinder, Cryo, once you have them) |
 | T | break orbit and fly to space |
-| P | multiplayer: join a server, players, chat, give and drop items |
+| P | multiplayer: servers on your network are listed; players, chat, Plot course, give and drop items |
 
 | Space | |
 |---|---|
@@ -98,27 +98,34 @@ The generated models and audio are committed, so Blender and Python are only nee
 
 Panels: I/Tab cargo · C fabricator · K professions · J quest log · H manual · Esc pause/save.
 
-Every key above can be rebound in **Settings** (main menu or pause), next to mouse sensitivity, invert-Y, field of view,
-fullscreen, graphics quality and volume.
+The keyboard keys above can be rebound in **Settings** (main menu or pause), next to mouse sensitivity, invert-Y, field of view,
+fullscreen, graphics quality, volume and the update check. The Field Manual (H) always shows your current keys.
 
 ## What's in it
 
-- **Multiplayer**: press **P** to join a friend's server by LAN address, public IP or domain (`wss://` too). Everyone keeps their own save.
-  You see each other's robots walking the same planet and flying in the same system (with name tags), chat, **give** items directly,
-  and **drop crates** on a planet for anyone to pick up (the server gives each crate to whoever grabs it first). Mac and Windows
-  players can share a server. Players are one party: **caves and the Deep Sea are shared** (enter the same cave mouth, or dive anywhere on a world
-  where a friend is already diving, and you dig the same rock, see each other's tunnels and share the wreck's salvage), and
-  **kills are shared**: anyone within 80 m of a drone kill (600 in space) gets the XP, credits and their own loot roll, and
-  where both players have the same drone, hits and deaths sync so you wear it down together. The server is a small Go program: [star-circuit-server](https://github.com/TinyBitAdventures/star-circuit-server).
+- **Multiplayer**: press **P**. Servers on your network are listed by themselves; otherwise join by LAN address, public IP or domain
+  (`wss://` too). Everyone keeps their own save. You see each other's robots walking the same planet and flying in the same system
+  (with name tags) and see each other shoot; chat, **give** items directly, and **drop crates** on a planet for anyone to pick up
+  (the first to grab it gets it). Friends show in blue on your compass, system map and galaxy map, and **Plot course** takes you to them.
+  Mac and Windows players can share a server. Players are one party: **caves and the Deep Sea are shared** (enter the same cave mouth,
+  or dive anywhere on a world where a friend is already diving, and you dig the same rock, see each other's tunnels and share the
+  wreck's salvage), and **fights are shared**: enemies chase whichever of you is closest, everyone's hits count and health stays in
+  step, and anyone within 80 m of a kill (600 in space, 120 for a Titan) gets the XP, credits and their own loot roll. A dropped
+  connection reconnects by itself. The server is a small Go program: [star-circuit-server](https://github.com/TinyBitAdventures/star-circuit-server)
+  (game v0.4.0 pairs with server v0.2.0).
+- **Updates itself**: when a new release is out, the title screen offers it and the pause menu has **Save & Update**.
 
 - **4 robots**: Vesper (scout), Grit (miner), Cog (engineer) and Halo (siphon). Each has its own model, perks and starting skills.
-- **Procedural galaxy**: 48 stars and about 170 planets across 6 biomes (verdant, arid, glacial, volcanic, crystalline, fungal).
+- **Procedural galaxy**: 48 stars and about 170 planets across 9 world types (verdant, arid, glacial, volcanic, crystalline and
+  fungal, plus machine, tempest and abyssal worlds at the galaxy's edge).
   Planets use the same height function on the surface and from orbit.
 - **Walkable spherical planets** with spherical gravity, jetpack, a day/night cycle with solar recharge, water/lava, flora and wandering fauna.
 - **Professions (1-100)**: Mining, Botany, Siphoning, Engineering, Exploration, Combat. Nodes are gated and colour-coded by skill (red/orange/yellow/green/grey, like WoW).
-- **Crafting**: 15 recipes covering components, consumables and permanent robot upgrades.
-- **Combat**: hull + optional shield, hitscan blaster, a class ability per robot, and three rogue-drone enemies:
-  the melee Scrapper, the ranged Sentinel (dodgeable bolts) and the elite Brute (telegraphed slam).
+- **Crafting**: about 50 Fabricator recipes covering components, consumables, robot upgrades, weapon loadouts and their Mk II / Mk III
+  retunes, plus 8 Micro Lab formulas.
+- **Combat**: hull + optional shield, six weapon loadouts, a class ability per robot, rogue drones on every world
+  (the melee Scrapper, the ranged Sentinel with dodgeable bolts, the elite Brute with a telegraphed slam), a signature enemy for
+  every world type and Titans.
   Enemies spawn in camps that pull together and leash home, WoW-style, and respawn after two minutes.
   Levels scale with a world's distance from home, and names are colour-coded by difficulty. Kills drop Drone Scrap and Power Cores,
   which feed combat upgrades (Pulse Blaster, Void Lance, Reinforced Hull, Deflector Shield) and Repair Kits.
@@ -126,11 +133,13 @@ fullscreen, graphics quality and volume.
     burrowing Dune Lurker (Arid), the shielded Frost Warden (Glacial), exploding Cinder Mite packs (Volcanic), the armoured
     mortar Smelter (Machine), the lightning-calling Storm Kite (Tempest), the shot-reflecting Refractor (Crystalline), the
     cloaked Void Stalker (Abyssal, scan to reveal it) and the rooted, breeding Spore Hive (Fungal). They drop their own parts.
+    The Smelter, Storm Kite and Void Stalker also roam two common world types each, so their parts don't wait for the endgame.
+  - **Hunt Contracts** on bounty boards name a signature enemy to put down.
   - **Status effects**: burn, chill (four stacks freeze) and shock (+25% damage taken), on enemies and on you, with
     per-enemy weaknesses and immunities.
   - **Six weapon loadouts** (X to swap): Pulse, Scatter, Rail (pierces shields), Arc (chains and shocks), Cinder (lobbed,
     burning grenades) and Cryo (a held beam that chills to a freeze), each retunable to **Mk II** with enemy parts and
-    **Mk III** with a Titan Core.
+    **Mk III** with a Titan Core. Retunes count in space too.
   - **Titans**: world bosses in stone rings on about two dozen dangerous worlds (Colossus, Pyre Wyrm, Storm Sentinel), with
     telegraphed attacks, an exposed-core window, a half-health enrage, a boss bar and their own battle theme.
   - **Bestiary** (Quest Log, J): every enemy you've met; scan one to log how it fights.
@@ -289,7 +298,7 @@ fullscreen, graphics quality and volume.
   - **Bounty Boards** post three daily contracts (deliver goods, cull drones, survey species, salvage sites). You can hold 3 at once
     and turn them in at any board.
   - **Credits** come from selling, contracts, drone kills, landmark caches and story quests.
-- **Audio**: 15 looping music tracks and 79 sound effects, all synthesised from code (`audio/`).
+- **Audio**: 16 looping music tracks and 102 sound effects, all synthesised from code (`audio/`).
   Music follows context: menu, a cozy town theme, one theme per world type (bright, arid, crystal, volcanic), deep-space,
   a hovering orbit theme, and a Deep Sea score that darkens from sunlit dorian into a low phrygian abyss with whale-song leads,
   plus a combat layer that crossfades in while drones are chasing you. Effects cover footsteps, jetpack, gathering loops,
@@ -317,11 +326,14 @@ plus `brew install vorbis-tools` for `oggenc`.
 ## Layout
 
     blender/build_assets.py     every model (robots, NPC, nodes, flora, fauna, props) -> game/assets/models/*.glb
-    game/scripts/autoload/      db.gd (all tunable data), galaxy.gd (procgen), game.gd (state, quests, save)
+    game/scripts/autoload/      db.gd (all tunable data), galaxy.gd (procgen), sound.gd (audio, settings), game.gd (state, quests, save),
+                                net.gd (multiplayer client, LAN discovery), updater.gd (self-update from GitHub Releases)
+    game/scripts/combat/        enemy.gd (state machine, statuses), behaviors/ (one per fighting style), effects and projectiles
+    game/scripts/net/           other players' robots, divers and crates
     game/scripts/planet/        planet_gen.gd (terrain), planet_world.gd, resource nodes, critters, NPC
     game/scripts/player/        planet_player.gd (spherical controller), robot_visual.gd (procedural animation)
     game/scripts/space/         star system + flight
-    game/scripts/ui/            hud, galaxy map, main menu, ui kit
+    game/scripts/ui/            hud, galaxy and system maps, main menu, settings, update dialog, ui kit
     game/shaders/               terrain, sky, atmosphere, water, star
     game/scripts/dev/           smoke_test.gd (headless E2E) and screenshots.gd (visual tour)
 
@@ -337,7 +349,10 @@ Dev scenes save to a scratch file (`star_circuit_dev.json`) and never touch your
     godot --headless --path game res://scenes/dev_home.tscn    # Homespace: vault uplink + cap, inbox, orders, workers, recall, decor, wings, pod, exit fade, pause/resume
     godot --headless --path game res://scenes/dev_ui.tscn      # compact node labels, robot rename, trade list keeps its scroll
     godot --headless --path game res://scenes/dev_net.tscn     # multiplayer against the real Go server (built from ../star-circuit-server or $STAR_CIRCUIT_SERVER_DIR)
-    SHOTS=net godot --path game res://scenes/dev_shots.tscn    # another robot + crate, the Multiplayer panel, the join screen
+    SHOTS=net godot --path game res://scenes/dev_shots.tscn    # LAN join screen, another robot + crate, Bob firing, the Multiplayer panel, friends on the maps
+    godot --headless --path game res://scenes/dev_save.tscn    # safe saves: .bak, damaged-save restore, crash recovery, save on close
+    SHOTS=saves godot --path game res://scenes/dev_shots.tscn  # a damaged slot on the title screen and in Load Game
+    SHOTS=manual godot --path game res://scenes/dev_shots.tscn # the Field Manual, top and bottom
     godot --headless --path game res://scenes/dev_lab.tscn     # Micro Lab: hold+vault draw, autoplay to critical mass (60/15 fps), idle failure, graded upgrade, save, balance sweep
     SHOTS=lab godot --path game res://scenes/dev_shots.tscn    # lab bench, formula panel, the soup mid-culture, phages, result card
     SHOTS=home godot --path game res://scenes/dev_shots.tscn   # Homespace room, vault, inbox, trophy wall
