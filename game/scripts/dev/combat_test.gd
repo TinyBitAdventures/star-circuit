@@ -351,6 +351,7 @@ func _biome_foes_2() -> void:
 	await _wait(0.3)
 	var hidden_at_start: bool = not st.behavior.visible_to_player()
 	w.scan(pl.global_position, 30.0)
+	print("[combat] bestiary: stalker logged by scan=%s traits='%s' milestone metric=%d" % [Game.bestiary.get("stalker", {}).get("scanned", false), Db.foe_traits("stalker"), Game.metric("bestiary")])
 	h = st.hp
 	st.take_hit(40.0)
 	var exposed_dmg := h - st.hp
@@ -380,5 +381,6 @@ func _biome_foes_2() -> void:
 	hv.take_hit(99999.0, false, "fire")
 	await _wait(0.4)
 	var alive: int = w.enemies.filter(func(e): return e.type == "sporeling" and e.is_alive()).size()
+	print("[combat] bestiary: hive kills=%d scanned=%s" % [int(Game.bestiary.get("hive", {}).get("kills", 0)), Game.bestiary.get("hive", {}).get("scanned", false)])
 	print("[combat] hive: brood=%d spore cloud chilled=%s; killed: kills +%d brood left=%d" % [brood, chilled, Game.kills - k1, alive])
 	_clear(w)

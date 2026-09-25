@@ -178,6 +178,19 @@ func _run() -> void:
 	if which == "bestiary":
 		await _bestiary_tour()
 		get_tree().quit()
+	if which == "bestiary_panel":
+		Game.new_game("miner", "Tester")
+		await _wait(4.0)
+		for t in ["scrapper", "sentinel", "thornback", "lurker", "warden", "kite", "stalker"]:
+			Game._foe(t).kills = randi_range(1, 40)
+		for t in ["scrapper", "thornback", "warden", "stalker"]:
+			Game.record_foe_scan(t)
+		var hud = _scene().hud
+		hud._codex_tab = 4
+		hud.toggle_panel("quests")
+		await _wait(0.6)
+		await shot("bestiary_panel")
+		get_tree().quit()
 		return
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 	await _wait(2.5)

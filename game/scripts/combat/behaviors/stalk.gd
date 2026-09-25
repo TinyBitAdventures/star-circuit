@@ -32,6 +32,7 @@ func _set_cloak(on: bool) -> void:
 func on_scanned() -> void:
 	revealed = 6.0
 	exposed = 6.0
+	_set_cloak(false)
 	e.world.floating_text(e.global_position + e.dir * 2.6, "REVEALED", Color("b06bff"), true)
 	if e.state == "idle":
 		e.aggro()

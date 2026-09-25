@@ -538,8 +538,14 @@ func scan(pos: Vector3, radius: float) -> void:
 	_scan_pulse(pos, radius)
 	# a scan lights up anything hiding nearby (Void Stalkers)
 	for e in enemies:
-		if e.is_alive() and e.behavior.has_method("on_scanned") and e.global_position.distance_to(pos) < radius * 1.5:
+		if not e.is_alive():
+			continue
+		var d := e.global_position.distance_to(pos)
+		if e.behavior.has_method("on_scanned") and d < radius * 1.5:
 			e.behavior.on_scanned()
+		# anything the scan sees goes in the Bestiary
+		if d < radius and e.behavior.visible_to_player():
+			Game.record_foe_scan(e.type)
 	var found := 0
 	for n in _nodes:
 		if is_instance_valid(n) and n.global_position.distance_to(pos) < radius:

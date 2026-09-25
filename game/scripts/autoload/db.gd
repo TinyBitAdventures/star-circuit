@@ -364,6 +364,7 @@ const MILESTONES := [
 	{"id": "naturalist", "name": "Naturalist", "desc": "Log 20 species", "metric": "species", "n": 20, "bonus": {"harvest": 0.05}},
 	{"id": "xenobiologist", "name": "Xenobiologist", "desc": "Log 60 species", "metric": "species", "n": 60, "bonus": {"harvest": 0.1}},
 	{"id": "cartographer", "name": "Cartographer", "desc": "Fully survey 3 worlds", "metric": "surveyed", "n": 3, "bonus": {"energy": 15}},
+	{"id": "monster_hunter", "name": "Monster Hunter", "desc": "Scan the signature enemy of all 9 world types", "metric": "bestiary", "n": 9, "bonus": {"hull": 25}},
 	{"id": "scrapper", "name": "Scrapper", "desc": "Destroy 25 rogue drones", "metric": "kills", "n": 25, "bonus": {"hull": 15}},
 	{"id": "ace", "name": "Void Ace", "desc": "Destroy 15 ships in space", "metric": "space_kills", "n": 15, "bonus": {"hull": 15}},
 	{"id": "trader", "name": "Well Travelled Trader", "desc": "Visit 4 towns", "metric": "towns", "n": 4, "bonus": {"sell": 0.05}},
@@ -732,13 +733,16 @@ const LORE := [
 const ENEMIES := {
 	"scrapper": {"name": "Rogue Scrapper", "model": "res://assets/models/enemy_scrapper.glb",
 		"hp": [40, 14], "dmg": [6, 2.0], "speed": 6.5, "range": 2.4, "cd": 1.1, "aggro": 20.0, "xp": [30, 10],
-		"hover": 0.0, "scale": 0.9, "style": "melee", "loot": {"scrap": [1, 3]}},
+		"hover": 0.0, "scale": 0.9, "style": "melee", "loot": {"scrap": [1, 3]},
+		"tip": "Fast buzzsaw drone that rushes in close. Back-pedal and shoot, or meet it with Scatter."},
 	"sentinel": {"name": "Rogue Sentinel", "model": "res://assets/models/enemy_sentinel.glb",
 		"hp": [30, 10], "dmg": [8, 2.5], "speed": 3.5, "range": 18.0, "cd": 2.0, "aggro": 26.0, "xp": [34, 11],
-		"hover": 0.0, "scale": 0.9, "style": "ranged", "wades": true, "loot": {"scrap": [1, 2], "plasma": [0, 1]}},
+		"hover": 0.0, "scale": 0.9, "style": "ranged", "wades": true, "loot": {"scrap": [1, 2], "plasma": [0, 1]},
+		"tip": "Hangs back and lobs slow plasma orbs. Strafe sideways and they sail past."},
 	"brute": {"name": "Rogue Brute", "model": "res://assets/models/enemy_brute.glb",
 		"hp": [170, 42], "dmg": [18, 4.0], "speed": 3.8, "range": 4.2, "cd": 3.2, "aggro": 18.0, "xp": [110, 30],
-		"hover": 0.0, "scale": 1.1, "style": "slam", "elite": true, "loot": {"scrap": [4, 7], "power_core": [1, 1]}},
+		"hover": 0.0, "scale": 1.1, "style": "slam", "elite": true, "loot": {"scrap": [4, 7], "power_core": [1, 1]},
+		"tip": "Elite loader. Raises both fists and a red ring grows under it: get out of the ring before the slam."},
 	# biome signatures: one per world type, each with a trick to learn
 	"thornback": {"name": "Thornback", "model": "res://assets/models/enemy_thornback.glb",
 		"hp": [70, 20], "dmg": [14, 3.5], "speed": 5.0, "range": 22.0, "cd": 4.0, "aggro": 24.0, "xp": [45, 14],
@@ -788,6 +792,24 @@ const ENEMIES := {
 		"scale": 0.8, "style": "drift", "wades": true, "mods": {"fire": 1.5}, "loot": {},
 		"tip": "A Spore Hive's brood. Slow, but it bursts into sticky spores."},
 }
+
+## Plain-English strengths and weaknesses for the Bestiary, e.g. "Weak to fire  ·  Immune to chill".
+static func foe_traits(type: String) -> String:
+	var d: Dictionary = ENEMIES[type]
+	var names := {"fire": "fire", "frost": "frost", "shock": "shock", "pierce": "Rail", "kinetic": "blasters"}
+	var st := {"burn": "burning", "chill": "chill", "shock": "shocks"}
+	var out: Array[String] = []
+	var mods: Dictionary = d.get("mods", {})
+	for k in mods:
+		if float(mods[k]) > 1.0:
+			out.append("Weak to %s" % names.get(k, k))
+		elif float(mods[k]) < 1.0:
+			out.append("Resists %s" % names.get(k, k))
+	var res: Dictionary = d.get("resist", {})
+	for k in res:
+		out.append(("Immune to %s" if float(res[k]) >= 1.0 else "Resists %s") % st.get(k, k))
+	return "  ·  ".join(out) if not out.is_empty() else "No special weaknesses"
+
 
 ## The signature enemy of each world type (camps there often bring them along).
 const BIOME_FOES := {"verdant": "thornback", "dune": "lurker", "frost": "warden", "ember": "mite", "forge": "smelter",

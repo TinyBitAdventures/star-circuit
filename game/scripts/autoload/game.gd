@@ -71,6 +71,7 @@ var interdictions := 0 # pirate ambushes survived in hyperspace
 var volcano := {} # the volcano we're in (not saved: runs always resume on the surface)
 var volcanoes := {} # poi key -> {"escapes": n}
 var volcano_runs := 0
+var bestiary := {} # enemy type -> {"kills": n, "scanned": bool}
 var lab := {} # Micro Lab: {"grades": {item: grade}, "runs": n, "pristine": n}
 var orbit := {} # the world we're orbiting (not saved: orbit always resumes in space)
 var species_names := {} # species key -> display name (species log)
@@ -234,6 +235,7 @@ func _reset_state() -> void:
 	volcano = {}
 	volcanoes = {}
 	volcano_runs = 0
+	bestiary = {}
 
 
 func new_game(robot: String, pname: String, slot_n := -1) -> void:
@@ -342,6 +344,7 @@ func use_repair_kit() -> void:
 
 func record_kill(type: String, lvl: int, elite: bool) -> void:
 	var e: Dictionary = Db.ENEMIES[type]
+	_foe(type).kills = int(_foe(type).kills) + 1
 	if type == "sporeling":
 		# a hive breeds these without end: a little XP, nothing that could be farmed
 		gain_xp(int(e.xp[0] + e.xp[1] * lvl) / 2)
@@ -627,6 +630,23 @@ func craft(recipe_id: String) -> bool:
 		notify.emit("First fabrication: %s  ·  double Engineering XP" % Db.item_name(r.out), Color("8f9bff"))
 	gain_skill_xp("engineering", xp_amt)
 	_quest_event("craft", r.out, qty)
+	return true
+
+
+func _foe(type: String) -> Dictionary:
+	if not bestiary.has(type):
+		bestiary[type] = {"kills": 0, "scanned": false}
+	return bestiary[type]
+
+
+## A scan caught an enemy: its entry in the Bestiary opens up (weaknesses, how it fights).
+func record_foe_scan(type: String) -> bool:
+	if not Db.ENEMIES.has(type) or bool(_foe(type).scanned):
+		return false
+	_foe(type).scanned = true
+	notify.emit("Bestiary: %s logged  ·  %s to read how it fights" % [Db.ENEMIES[type].name, key("quests")], Color("ffb86b"))
+	gain_skill_xp("exploration", 25)
+	gain_skill_xp("combat", 25)
 	return true
 
 
@@ -937,7 +957,7 @@ func save_game() -> void:
 		"trader_bought": trader_bought, "quest_id": current_quest().get("id", "done"),
 		"appearance": appearance, "owned_cosmetics": owned_cosmetics, "weapon": weapon,
 		"milestones": milestones, "crafted_once": crafted_once,
-		"workers": workers, "home": home, "interdictions": interdictions, "volcanoes": volcanoes, "volcano_runs": volcano_runs, "lab": lab,
+		"workers": workers, "home": home, "interdictions": interdictions, "volcanoes": volcanoes, "volcano_runs": volcano_runs, "bestiary": bestiary, "lab": lab,
 		"vault": vault, "vault_level": vault_level, "inbox": inbox, "mail_seq": _mail_seq, "order_t": _order_t, "home_visits": home_visits, "gems_taken": gems_taken, "seas": seas, "max_sea_depth": max_sea_depth, "species_names": species_names, "world_species": world_species, "space_kills": space_kills,
 		"digs": digs, "relics_found": relics_found, "lit_relays": lit_relays, "heart_defeated": heart_defeated, "boarded": boarded,
 		"inventory": _saved_inventory(), "upgrades": upgrades, "skills": skills,
@@ -1010,6 +1030,7 @@ func load_game(n := -1) -> bool:
 	interdictions = int(d.get("interdictions", 0))
 	volcanoes = d.get("volcanoes", {})
 	volcano_runs = int(d.get("volcano_runs", 0))
+	bestiary = d.get("bestiary", {})
 	lab = d.get("lab", {})
 	home = d.get("home", {})
 	if home_visits == 0 and inbox.is_empty():
@@ -1770,6 +1791,7 @@ func metric(m: String) -> int:
 		"gem_types": return gem_types()
 		"sea_depth": return max_sea_depth
 		"volcano_runs": return volcano_runs
+		"bestiary": return Db.BIOME_FOES.values().filter(func(t): return bool(bestiary.get(t, {}).get("scanned", false))).size()
 		"lab_pristine": return int(lab_state().pristine)
 		"relays": return lit_relays.size() - 1 # Solace's relay starts lit
 		"best_skill":

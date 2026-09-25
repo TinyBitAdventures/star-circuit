@@ -917,11 +917,12 @@ func _panel_quests() -> void:
 	tabs.add_child(_species_tab())
 	tabs.add_child(_milestone_tab())
 	tabs.add_child(_gems_tab())
+	tabs.add_child(_bestiary_tab())
 	for ti in tabs.get_tab_count():
 		var tc := tabs.get_tab_control(ti)
 		if tc.has_meta("title"):
 			tabs.set_tab_title(ti, tc.get_meta("title"))
-	tabs.current_tab = clampi(_codex_tab, 0, 3)
+	tabs.current_tab = clampi(_codex_tab, 0, tabs.get_tab_count() - 1)
 	tabs.tab_changed.connect(func(t): _codex_tab = t)
 
 
@@ -1050,6 +1051,55 @@ func _gems_tab() -> Control:
 		h.add_child(UiKit.label("x%d" % n if n > 0 else "", 16, col))
 	if Game.has_upgrade("crown_of_worlds"):
 		v.add_child(UiKit.label("✦ You wear the Crown of Worlds.", 16, Color("ffe9a8"), true))
+	return v
+
+
+## Every enemy you've met: kills, and once scanned, how it fights and what hurts it.
+func _bestiary_tab() -> Control:
+	var v := VBoxContainer.new()
+	v.name = "Bestiary"
+	var logged := 0
+	for t in Game.bestiary:
+		if bool(Game.bestiary[t].get("scanned", false)):
+			logged += 1
+	v.set_meta("title", "Bestiary  %d/%d" % [logged, Db.ENEMIES.size() - 1])
+	v.add_theme_constant_override("separation", 6)
+	v.add_child(UiKit.label("Scan an enemy with %s to learn how it fights. Every world type has its own." % Game.key("scan"), 14, UiKit.MUTED))
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(sc)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 10)
+	sc.add_child(list)
+	for t in Db.ENEMIES:
+		if t == "heart" or t == "sporeling" and not Game.bestiary.has(t):
+			continue
+		var d: Dictionary = Db.ENEMIES[t]
+		var entry: Dictionary = Game.bestiary.get(t, {})
+		var seen := not entry.is_empty()
+		var scanned := bool(entry.get("scanned", false))
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 2)
+		list.add_child(box)
+		var where := ""
+		if d.has("biome"):
+			where = "  ·  %s worlds" % Db.BIOMES[d.biome].name
+		elif t in ["scrapper", "sentinel", "brute"]:
+			where = "  ·  Rogue drone, everywhere"
+		var title := (d.name as String) if seen or scanned else "???"
+		box.add_child(UiKit.label("%s%s" % [title, where], 17, Color("ffb86b") if scanned else (Color.WHITE if seen else UiKit.MUTED), true))
+		if scanned:
+			var tip := UiKit.label(d.get("tip", ""), 14)
+			tip.autowrap_mode = TextServer.AUTOWRAP_WORD
+			if tip.text != "":
+				box.add_child(tip)
+			box.add_child(UiKit.label(Db.foe_traits(t) + "  ·  Destroyed: %d" % int(entry.get("kills", 0)), 13, Color("6ee06a")))
+		elif seen:
+			box.add_child(UiKit.label("Destroyed: %d  ·  Scan one to learn how it fights." % int(entry.get("kills", 0)), 13, UiKit.MUTED))
+		else:
+			box.add_child(UiKit.label("Not yet encountered.", 13, UiKit.MUTED))
 	return v
 
 

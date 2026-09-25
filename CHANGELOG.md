@@ -16,6 +16,7 @@
 - Signature enemies lead about half the camps on their own worlds (never on the Cradle) and drop their own parts (Thorn Barbs, Sand Fangs, Rime Cores, Cinder Glands, Slag Hearts, Storm Vanes, Prism Lenses, Void Veils and Spore Hearts).
 - Status effects: **burn** (damage over time), **chill** (slows you; a fourth stack freezes solid) and **shock** (takes 25% more damage). They work on enemies and on you, show on your HUD and the target frame, and tint whatever they're on. Robots shake off a freeze faster than drones do.
 - Enemies can be weak or resistant to kinds of damage (fire, frost, shock).
+- **Bestiary**: a new tab in the Quest Log (J). Every enemy you meet is listed with how many you've destroyed; scan one (Q) to log how it fights and what it's weak or immune to. Scanning the signature enemy of all nine world types earns the **Monster Hunter** milestone (+25 hull).
 
 ## v0.3.0 — 2026-09-24
 
