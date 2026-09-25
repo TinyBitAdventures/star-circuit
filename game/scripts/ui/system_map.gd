@@ -79,6 +79,27 @@ func _draw() -> void:
 		if wp != Vector3.INF and o.pos.distance_to(wp) < 1.0:
 			draw_arc(p, rad + 10, 0, TAU, 24, Color("ffd23f"), 2.5)
 		draw_string(font, p + Vector2(rad + 6, 5), o.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, 0.8))
+	# friends: flying here, or beside the planet they're on
+	var on_planet := {}
+	for id in Net.players:
+		var f := Net.friend_spot(id)
+		if f.is_empty() or f.star != Game.star_index:
+			continue
+		var fp := Vector2.INF
+		if world.net_view.avatars.has(id):
+			fp = _map(world.net_view.avatars[id].global_position)
+		elif f.planet >= 0:
+			var n: int = on_planet.get(f.planet, 0)
+			on_planet[f.planet] = n + 1
+			for o in world.system_objects():
+				if o.kind == "planet" and int(o.id) == f.planet:
+					fp = _map(o.pos) + Vector2(-14 - n * 12, -14)
+		if fp == Vector2.INF:
+			continue
+		var fc := Color("9bd1ff")
+		draw_circle(fp, 5.0, fc)
+		draw_arc(fp, 8.0, 0, TAU, 20, Color(fc, 0.6), 1.5)
+		draw_string(font, fp + Vector2(-80, -12), f.name, HORIZONTAL_ALIGNMENT_RIGHT, 72, 13, fc)
 	# player
 	var pl: Node3D = world.player
 	if pl:

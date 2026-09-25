@@ -2580,9 +2580,16 @@ func _mp_refresh_players() -> void:
 	for id in Net.players:
 		var p: Dictionary = Net.players[id]
 		var rname: String = Db.ROBOTS[p.robot].name if Db.ROBOTS.has(p.robot) else "Robot"
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		_mp_players.add_child(row)
 		var r := UiKit.rich("[b][color=#9bd1ff]%s[/color][/b]  ·  %s\n[color=#8ea3bf]%s[/color]" % [p.name, rname, Net.where_text(id)], 15)
 		r.fit_content = true
-		_mp_players.add_child(r)
+		r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(r)
+		if not Net.friend_spot(id).is_empty():
+			var pid: int = id
+			row.add_child(UiKit.button("Plot course", func(): toast(Net.plot_course(pid), Color("9bd1ff"))))
 		_mp_target.add_item("to %s" % p.name, id)
 		if id == keep:
 			_mp_target.select(_mp_target.item_count - 1)

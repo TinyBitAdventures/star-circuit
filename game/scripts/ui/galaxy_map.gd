@@ -27,7 +27,14 @@ func _ready() -> void:
 	_info.add_theme_constant_override("separation", 10)
 	pc.add_child(_info)
 	selected = Game.star_index
+	# a course plotted to a friend in another system opens on their star
+	if String(Game.waypoint.get("kind", "")) == "friend" and int(Game.waypoint.get("star", -1)) >= 0:
+		selected = int(Game.waypoint.star)
+	_friends = Net.friends_by_star()
 	_refresh_info()
+
+
+var _friends := {} # star -> friend names (multiplayer)
 
 
 func _center() -> Vector2:
@@ -76,6 +83,9 @@ func _draw() -> void:
 			draw_string(font, p + Vector2(-40, r + 34), "EDGE WORLD", HORIZONTAL_ALIGNMENT_CENTER, 80, 12, Color("ffd23f"))
 		if s.index == Game.star_index:
 			draw_arc(p, r + 9, 0, TAU, 32, Color.WHITE, 2.0)
+		if _friends.has(s.index):
+			draw_arc(p, r + 21, 0, TAU, 36, Color("9bd1ff"), 2.0)
+			draw_string(font, p + Vector2(-90, -r - 24), ", ".join(_friends[s.index]), HORIZONTAL_ALIGNMENT_CENTER, 180, 13, Color("9bd1ff"))
 		if s.index == selected:
 			draw_arc(p, r + 13, 0, TAU, 32, Color("ffd23f"), 2.5)
 		if s.index == hovered or s.index == selected or s.index == Game.star_index or Game.visited_stars.has(s.index) or s.has("legendary"):
@@ -145,6 +155,8 @@ func _refresh_info() -> void:
 	if known:
 		var st: Dictionary = s.station
 		_info.add_child(UiKit.rich("[color=#ffd98a]⌬ %s[/color]\n[color=#6ee06a]Wants %s, %s[/color]  ·  [color=#8ea3bf]surplus %s, %s[/color]" % [st.name, Db.item_name(st.demand[0]), Db.item_name(st.demand[1]), Db.item_name(st.surplus[0]), Db.item_name(st.surplus[1])], 14))
+	if _friends.has(selected):
+		_info.add_child(UiKit.label("Friends here: %s" % ", ".join(_friends[selected]), 15, Color("9bd1ff")))
 	var sp := Control.new()
 	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_info.add_child(sp)

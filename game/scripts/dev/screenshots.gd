@@ -1825,6 +1825,27 @@ func _net_tour() -> void:
 		bob.send_text(JSON.stringify({"t": "state", "scene": "sea", "room": "sea:" + skey, "star": Game.star_index, "planet": Game.planet_index, "pos": [sw.diver.position.x + 110.0, sw.diver.position.y - 30.0, 0], "fwd": [-1, 0, 0]}))
 		await _wait(0.1)
 	await shot("net_sea")
+	# friends on the maps: Bob on another world of this system, a course plotted to him
+	Game.go_to_space()
+	await _wait(4.0)
+	var spw := _scene()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var other: int = 1 if Galaxy.star(Game.star_index).planets.size() > 1 else 0
+	for i in 12:
+		bob.poll()
+		bob.send_text(JSON.stringify({"t": "state", "scene": "planet", "star": Game.star_index, "planet": other, "pos": [0, 100, 0], "fwd": [1, 0, 0], "anim": "idle"}))
+		await _wait(0.1)
+	Game.waypoint = {"kind": "friend", "id": Net.players.keys()[0], "star": Game.star_index, "name": "Bob"}
+	await _wait(0.5)
+	await shot("net_space_waypoint")
+	spw.hud.toggle_panel("sysmap")
+	await _wait(0.6)
+	await shot("net_system_map")
+	spw.hud.close_panel()
+	spw.hud.toggle_panel("map")
+	await _wait(0.6)
+	await shot("net_galaxy_map")
+	spw.hud.close_panel()
 	Net.leave()
 	OS.kill(pid)
 

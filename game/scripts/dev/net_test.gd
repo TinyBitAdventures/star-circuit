@@ -109,6 +109,9 @@ func _run() -> void:
 	await _wait(0.5)
 	var av: RemotePlayer = pw.net_view.avatars.get(bob_id)
 	print("[net] bob avatar=", av != null, " dist from sent pos=", snappedf(av.global_position.distance_to(bob_pos), 0.01) if av else -1.0, " robot=", av.visual.robot_id if av else "", " where=", Net.where_text(bob_id))
+	var marks: Array = pw.compass_markers().filter(func(m): return m.label == "Bob")
+	var msg := Net.plot_course(bob_id)
+	print("[net] friend marks: compass has bob=", marks.size() == 1, " plot: '", msg, "' waypoint=", Game.waypoint.get("kind", ""), " galaxy=", Net.friends_by_star())
 	# Bob sees our state too
 	var st := await _bob_wait("state")
 	print("[net] bob sees us: scene=", st.get("scene", ""), " planet=", st.get("planet", -1), " near=", Net._vec(st.get("pos")).distance_to(me) < 20.0)
@@ -430,6 +433,9 @@ func _run() -> void:
 	await _wait(0.4)
 	print("[net] space shared kill: ", sk0, " -> ", Game.space_kills, " (repeat ignored)")
 	var expect := Galaxy.orbit_pos(Galaxy.planet(Game.star_index, 0), Game.play_time) + rel
+	Game.waypoint = {"kind": "friend", "id": bob_id, "star": Game.star_index, "name": "Bob"}
+	print("[net] friend waypoint in space: off by ", snappedf(sw.waypoint_pos().distance_to(sav.global_position), 0.1) if sav else -1.0)
+	Game.waypoint = {}
 	print("[net] space: scene=", sw.name, " bob flying=", sav != null, " off by ", snappedf(sav.global_position.distance_to(expect), 0.1) if sav else -1.0, " where=", Net.where_text(bob_id))
 	# Bob leaves, then we do
 	bob.close()

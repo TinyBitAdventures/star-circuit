@@ -475,6 +475,45 @@ func send_event(kind: String, data: Dictionary) -> void:
 		_send({"t": "ev", "room": room, "kind": kind, "data": data})
 
 
+## Where a friend is: {star, planet (-1 when flying), scene, name}, or {} if unknown.
+func friend_spot(id: int) -> Dictionary:
+	if not players.has(id):
+		return {}
+	var st: Dictionary = players[id].state
+	if st.is_empty() or int(st.get("star", -1)) < 0:
+		return {}
+	var pl := int(st.get("planet", -1)) if String(st.get("scene", "")) != "space" else -1
+	return {"star": int(st.star), "planet": pl, "scene": String(st.get("scene", "")), "name": String(players[id].name)}
+
+
+## Friends at each star: star index -> [names].
+func friends_by_star() -> Dictionary:
+	var out := {}
+	for id in players:
+		var f := friend_spot(id)
+		if not f.is_empty():
+			if not out.has(f.star):
+				out[f.star] = []
+			out[f.star].append(f.name)
+	return out
+
+
+## Set a course for a friend: a waypoint that follows them round this system, or
+## the star they're at (the galaxy map opens on it). Returns what to tell the player.
+func plot_course(id: int) -> String:
+	var f := friend_spot(id)
+	if f.is_empty():
+		return "Can't tell where they are right now."
+	Game.waypoint = {"kind": "friend", "id": id, "star": f.star, "name": f.name}
+	if f.star != Game.star_index:
+		return "%s is in the %s system, %.0f ly away. Open the galaxy map to warp there." % [f.name, Galaxy.star(f.star).name, Galaxy.distance(Game.star_index, f.star)]
+	if f.planet >= 0 and f.scene != "space":
+		if f.planet == Game.planet_index and Game.in_game and get_tree().current_scene and get_tree().current_scene.has_method("compass_markers"):
+			return "%s is on this world: follow the blue mark on your compass." % f.name
+		return "Course set for %s on %s. Take off and follow the marker." % [f.name, Galaxy.planet(f.star, f.planet).name]
+	return "Course set for %s. Follow the marker." % f.name
+
+
 ## Players currently sharing our room.
 func room_peers() -> Array:
 	var out := []

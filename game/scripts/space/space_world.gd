@@ -799,6 +799,19 @@ func quest_space_target() -> Dictionary:
 	return {}
 
 
+## A friend in this system: their robot if they're flying here, else the planet they're on.
+func friend_pos(id: int) -> Vector3:
+	if net_view.avatars.has(id):
+		return net_view.avatars[id].global_position
+	var f := Net.friend_spot(id)
+	if f.is_empty() or f.star != Game.star_index or f.planet < 0:
+		return Vector3.INF
+	for p in planets:
+		if int(p.data.index) == f.planet:
+			return p.node.global_position
+	return Vector3.INF
+
+
 func waypoint_pos() -> Vector3:
 	var w: Dictionary = Game.waypoint
 	if w.is_empty() or int(w.get("star", -1)) != Game.star_index:
@@ -812,6 +825,8 @@ func waypoint_pos() -> Vector3:
 					best = a.global_position
 			return best
 		w = qt
+	if w.get("kind", "") == "friend":
+		return friend_pos(int(w.id))
 	for o in system_objects():
 		if o.kind == w.kind and int(o.id) == int(w.id):
 			return o.pos

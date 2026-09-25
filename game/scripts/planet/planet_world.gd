@@ -908,6 +908,9 @@ func compass_markers() -> Array:
 			out.append({"pos": p.global_position, "color": p.def.color, "label": p.def.name, "done": p.is_looted() or p.type == "geode"})
 	if town:
 		out.append({"pos": town.centre, "color": Color("ffd98a"), "label": planet.town.name, "done": false})
+	for id in net_view.avatars:
+		if Net.players.has(id):
+			out.append({"pos": net_view.avatars[id].global_position, "color": Color("9bd1ff"), "label": String(Net.players[id].name), "done": false})
 	var q := quest_target()
 	if not q.is_empty():
 		out.append({"pos": q.pos, "color": Color("ffd23f"), "label": "★ " + q.label, "done": false, "quest": true})
