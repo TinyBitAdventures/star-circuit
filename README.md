@@ -39,7 +39,8 @@ why and offers the release page instead. Turn the check off under Settings, "Che
 
 The server is its own project: [star-circuit-server](https://github.com/TinyBitAdventures/star-circuit-server). Download the binary for your machine from its
 [latest release](https://github.com/TinyBitAdventures/star-circuit-server/releases/latest) (macOS, Windows, Linux) and run it; friends press **P** in game and type your address.
-Server v0.1.0 pairs with the game from v0.3.0. Details, options and HTTPS setup are in the server's README. On Windows, allow it
+Server v0.2.0 pairs with the game from v0.4.0 (v0.1.0 with v0.3.0). Friends on the same network see the server listed in the
+Multiplayer window without typing an address. Details, options and HTTPS setup are in the server's README. On Windows, allow it
 through the firewall when asked.
 
 ## Run from source (any OS Godot supports)

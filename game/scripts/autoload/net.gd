@@ -15,7 +15,7 @@ signal room_event(from_id: int, from_name: String, kind: String, data: Dictionar
 ## LAN discovery found a server or finished a scan.
 signal lan_changed
 
-const PROTOCOL := "3"
+const PROTOCOL := "4"
 const DEFAULT_PORT := 7777
 const SEND_RATE := 0.1 # seconds between position updates
 const CFG_PATH := "user://multiplayer.cfg"
@@ -28,6 +28,7 @@ var last_error := ""
 var my_id := 0
 var my_name := ""
 var server_motd := ""
+var server_protocol := "" # set when a server turned us away for speaking another protocol
 var players := {} # id -> {name, robot, look, state: {scene, star, planet, label, pos, fwd, anim}, t}
 var drops := {} # id -> {id, star, planet, pos: Vector3, items: {item: qty}, by}
 var chat_log: Array = [] # {name, text, color}
@@ -147,6 +148,22 @@ func _poll_lan(delta: float) -> void:
 		changed = true
 	if changed:
 		lan_changed.emit()
+
+
+## "newer" when a server (protocol p) is ahead of this game, "older" when it's behind, "" when they match.
+static func protocol_gap(p: String) -> String:
+	if p == "" or p == PROTOCOL:
+		return ""
+	return "newer" if p.to_int() > PROTOCOL.to_int() else "older"
+
+
+## What to tell a player whose game and server don't match.
+func version_advice(p: String) -> String:
+	if protocol_gap(p) == "newer":
+		if Updater.has_update():
+			return "This server needs a newer Star Circuit. Version %s is out: update and you can join." % Updater.latest
+		return "This server needs a newer Star Circuit than yours (v%s). Update the game to join." % Updater.current_version()
+	return "This server runs an older version than your game. Ask the host to update the Star Circuit server."
 
 
 func set_auto_join(on: bool) -> void:
@@ -270,7 +287,7 @@ func _process(delta: float) -> void:
 		if not _hello_sent:
 			_hello_sent = true
 			_send({"t": "hello", "name": Game.player_name, "robot": Game.robot_id, "look": Game.appearance,
-				"version": PROTOCOL, "password": _password})
+				"version": PROTOCOL, "game": Updater.current_version(), "password": _password})
 		while _ws and _ws.get_available_packet_count() > 0:
 			var txt := _ws.get_packet().get_string_from_utf8()
 			var m = JSON.parse_string(txt)
@@ -439,6 +456,9 @@ func _on_msg(m: Dictionary) -> void:
 		"error":
 			_refused = true
 			last_error = String(m.get("text", "The server refused the connection."))
+			server_protocol = String(m.get("version", "")).left(8)
+			if server_protocol != "" and server_protocol != PROTOCOL:
+				last_error = version_advice(server_protocol)
 			Game.notify.emit(last_error, Color("ff8a6b"))
 
 

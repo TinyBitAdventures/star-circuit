@@ -39,6 +39,7 @@
 - **Servers on your network show up by themselves** in the Multiplayer window under "On your network", with how many are playing and whether there's a password. Click Join, no address needed. "Scan again" looks once more. (Needs the matching server release.)
 - If the connection drops, the game gets you back on by itself, trying again after 2, 4, 8, 15 and then every 30 seconds (up to 12 tries). It doesn't retry when the server turned you away (wrong password, a different version, full) or when you left. The Multiplayer window shows the attempts and has a Stop button.
 - **Join this server whenever I play:** tick it on the join screen and starting or loading a game connects you straight away.
+- **Multiplayer protocol 4:** this version plays with [server v0.2.0](https://github.com/TinyBitAdventures/star-circuit-server) and not with v0.3.0 players, whose worlds no longer line up. When a server and your game don't match, the game now says which one is behind, and if it's your game and an update is out, offers it right there.
 - A Titan felled by a friend only gives you its Titan Core and the reward if you were in the fight (within 120 m). Otherwise you're told who got it, and it's still there to fight next time.
 
 ### Updates

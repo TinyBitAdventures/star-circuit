@@ -2537,7 +2537,16 @@ func _mp_join_view(v: VBoxContainer) -> void:
 		rr.add_child(UiKit.label("Lost the connection to %s. Trying again (attempt %d of %d)..." % [Net.address, maxi(1, Net._retry_n), Net.MAX_RETRIES], 15, Color("ffd23f")))
 		rr.add_child(UiKit.button("Stop", Net.stop_reconnecting))
 	if Net.last_error != "":
-		v.add_child(UiKit.label(Net.last_error, 15, Color("ff8a6b")))
+		var er := HBoxContainer.new()
+		er.add_theme_constant_override("separation", 12)
+		v.add_child(er)
+		var el := UiKit.label(Net.last_error, 15, Color("ff8a6b"))
+		el.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		el.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		er.add_child(el)
+		# a server that needs a newer game: offer ours
+		if Net.protocol_gap(Net.server_protocol) == "newer" and Updater.has_update():
+			er.add_child(UiKit.button("Update to %s" % Updater.latest, func(): toggle_panel("update")))
 	# servers on this network, found by asking
 	v.add_child(HSeparator.new())
 	var lh := HBoxContainer.new()
@@ -2586,11 +2595,16 @@ func _mp_refresh_lan() -> void:
 		var info := "[b][color=#9bd1ff]%s[/color][/b]  ·  %s  ·  %d/%d online%s" % [String(s.name).replace("[", "[lb]"), "this computer" if s.here else s.address,
 			int(s.online), int(s.max), "  ·  password" if s.password else ""]
 		if not same:
-			info += "\n[color=#ff8a6b]Runs a different version (protocol %s). You need the matching game.[/color]" % String(s.protocol).replace("[", "[lb]").left(8)
+			info += "\n[color=#ff8a6b]%s[/color]" % Net.version_advice(String(s.protocol)).replace("[", "[lb]")
 		var r := UiKit.rich(info, 15)
 		r.fit_content = true
 		r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(r)
+		if not same and Net.protocol_gap(String(s.protocol)) == "newer" and Updater.has_update():
+			var ub := UiKit.button("Update", func(): toggle_panel("update"))
+			ub.custom_minimum_size = Vector2(110, 40)
+			row.add_child(ub)
+			continue
 		var addr: String = s.address
 		var b := UiKit.button("Join", func(): Net.join(addr, _mp_lan_pw.text if is_instance_valid(_mp_lan_pw) else ""))
 		b.disabled = not same or Net.status == "connecting"

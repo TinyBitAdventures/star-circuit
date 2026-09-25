@@ -472,6 +472,17 @@ func _run() -> void:
 	Net.leave()
 	await _wait(0.3)
 	print("[net] left: status=", Net.status)
+	# a server on another protocol says which: the game explains, and offers its update when it has one
+	Net._on_msg({"t": "error", "text": "x", "version": str(Net.PROTOCOL.to_int() + 1)})
+	var newer := Net.last_error
+	Updater.latest = "9.9.9"
+	Updater.state = "available"
+	Net._on_msg({"t": "error", "text": "x", "version": str(Net.PROTOCOL.to_int() + 1)})
+	var newer_upd := Net.last_error
+	Net._on_msg({"t": "error", "text": "x", "version": str(Net.PROTOCOL.to_int() - 1)})
+	print("[net] version advice: newer='", newer, "' with update='", newer_upd, "' older='", Net.last_error, "' refused=", Net._refused)
+	Updater.state = "idle"
+	Updater.latest = ""
 	if _pid > 0:
 		OS.kill(_pid)
 	get_tree().quit()
