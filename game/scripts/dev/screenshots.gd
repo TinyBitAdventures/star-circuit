@@ -1776,6 +1776,24 @@ func _net_tour() -> void:
 	await _wait(0.8)
 	await shot("net_panel")
 	pw.hud.close_panel()
+	# Bob fights a drone that turned on him: his rail slugs and arc bolts from his robot
+	var room := "planet:%d:%d" % [Game.star_index, Game.planet_index]
+	var foe: Enemy = pw._spawn_enemy("sentinel", 2, (me + fwd * 22.0 - side * 7.0).normalized(), -1)
+	for i in 24:
+		bob.poll()
+		bob.send_text(JSON.stringify({"t": "state", "scene": "planet", "room": room, "star": Game.star_index, "planet": Game.planet_index,
+			"pos": Net._arr(bob_pos), "fwd": Net._arr((foe.global_position - bob_pos).normalized()), "anim": "idle"}))
+		if i % 3 == 0 or i == 20:
+			var aim: Vector3 = foe.global_position + foe.dir * 1.2
+			bob.send_text(JSON.stringify({"t": "ev", "room": room, "kind": "shots", "data": {"w": "Arc" if i % 2 == 0 else "Rail",
+				"s": [{"k": "arc" if i % 2 == 0 else "rail", "b": Net._arr(aim)}]}}))
+		if i == 20:
+			await get_tree().process_frame
+			await get_tree().process_frame
+			await shot("net_bob_fires")
+		await _wait(0.1)
+	foe.queue_free()
+	pw.enemies.erase(foe)
 	# a shared cave: Bob drilling next to us
 	var cave: Poi = null
 	for p in pw.pois:

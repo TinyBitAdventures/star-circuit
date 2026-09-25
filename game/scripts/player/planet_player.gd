@@ -401,6 +401,7 @@ func _shoot(up: Vector3) -> void:
 		# Cinder: a grenade on an arc, aimed a little above the crosshair
 		var vel := fwd * 26.0 + up * 5.0
 		PlayerGrenade.launch(world, muzzle, vel, Game.weapon_damage() * float(wd.dmg) * tier, 3.5, 3.0)
+		Net.queue_shot({"k": "lob", "v": Net._arr(vel)})
 		return
 	var reach: float = AIM_RANGE * float(wd.range)
 	var col: Color = Game.robot().color.lightened(0.3)
@@ -444,6 +445,7 @@ func _shoot(up: Vector3) -> void:
 			CombatFx.tracer(world, muzzle, end, Color(0.55, 0.9, 1.0) * 2.0)
 		else:
 			world.tracer(muzzle, end, col)
+		Net.queue_shot({"k": "rail" if wd.pierce else ("arc" if mode == "chain" else ("beam" if mode == "beam" else "hit")), "b": Net._arr(end)})
 
 
 const CHAIN_RANGE := 8.0

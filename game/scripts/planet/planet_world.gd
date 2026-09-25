@@ -1321,8 +1321,12 @@ func _send_hp(delta: float) -> void:
 		Net.send_event("hp", {"h": h})
 
 
-func _on_room_event(_from: int, from_name: String, kind: String, data: Dictionary) -> void:
+func _on_room_event(from: int, from_name: String, kind: String, data: Dictionary) -> void:
 	match kind:
+		"shots":
+			var av: RemotePlayer = net_view.avatars.get(from)
+			if av and data.get("s") is Array:
+				av.show_shots(String(data.get("w", "")), data.s, self)
 		"hp":
 			var h: Dictionary = data.get("h", {})
 			for nid in h:

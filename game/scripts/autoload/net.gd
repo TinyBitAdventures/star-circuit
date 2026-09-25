@@ -40,6 +40,8 @@ var _send_t := 0.0
 var _ping_t := 0.0
 var room := "" # the shared space we're in, from the scene's net_state()
 var _hits := {} # enemy net id -> damage not yet sent (batched with the state tick)
+var _shots: Array = [] # our shots since the last state tick, drawn on friends' screens
+const MAX_SHOTS := 6 # per tick: enough to read as firing, not every pellet
 
 
 func _ready() -> void:
@@ -458,6 +460,9 @@ func _send_state() -> void:
 	if not _hits.is_empty() and room != "":
 		send_event("hits", {"h": _hits})
 		_hits = {}
+	if not _shots.is_empty() and room != "":
+		send_event("shots", {"w": String(Game.weapon_def().name), "s": _shots})
+	_shots = []
 
 
 # --------------------------------------------------------------------------
@@ -479,6 +484,13 @@ func room_peers() -> Array:
 		if String(players[id].state.get("room", "")) == room:
 			out.append(id)
 	return out
+
+
+## One of our shots, for friends in the room to see: {k: hit|rail|arc|beam|lob, b: end point
+## (or v: a grenade's velocity), a: space anchor}. Sent with the next state tick.
+func queue_shot(shot: Dictionary) -> void:
+	if is_online() and room != "" and _shots.size() < MAX_SHOTS and not room_peers().is_empty():
+		_shots.append(shot)
 
 
 ## Damage we did to a shared enemy, sent in one batch per state tick.

@@ -891,6 +891,11 @@ func share_space_kill(e: Node3D) -> void:
 
 
 func _on_room_event(from: int, from_name: String, kind: String, data: Dictionary) -> void:
+	if kind == "shots":
+		var av: RemotePlayer = net_view.avatars.get(from)
+		if av and data.get("s") is Array:
+			av.show_shots(String(data.get("w", "")), data.s, self)
+		return
 	if kind != "skill" or player == null:
 		return
 	var t := String(data.get("type", ""))

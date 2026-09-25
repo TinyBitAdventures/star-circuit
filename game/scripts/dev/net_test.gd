@@ -280,6 +280,36 @@ func _run() -> void:
 	await _wait(0.5)
 	print("[net] contested no heal=", e4.hp <= hpr + 0.01, " (", snappedf(hpr, 0.1), " -> ", snappedf(e4.hp, 0.1), ")")
 	pw.player.global_position = home_pos
+	# Bob's shots show on his robot here; his grenade bursts but hurts nothing (his game deals it)
+	var bav: RemotePlayer = pw.net_view.avatars.get(bob_id)
+	var target_e: Enemy = null
+	for e in pw.enemies:
+		if is_instance_valid(e) and e.is_alive():
+			target_e = e
+			break
+	var thp := target_e.hp
+	var fx0 := pw.get_child_count()
+	_bob_send({"t": "ev", "room": room, "kind": "shots", "data": {"w": "Cinder", "s": [
+		{"k": "rail", "b": Net._arr(bav.global_position + bav.global_basis.z * -20.0)},
+		{"k": "lob", "v": Net._arr((target_e.global_position - bav.global_position).normalized() * 30.0)},
+		{"k": "lob", "v": Net._arr(bav.global_position.normalized() * 20.0)}]}})
+	await _wait(0.15)
+	var grenades := pw.get_children().filter(func(c): return c is PlayerGrenade)
+	print("[net] bob's shots: fx added=", pw.get_child_count() - fx0, " grenades in flight=", grenades.size(), " all cosmetic=", grenades.all(func(g): return g.cosmetic), " aiming=", bav.visual.aiming)
+	await _wait(3.2)
+	print("[net] bob's grenade damage here=", snappedf(thp - target_e.hp, 0.1) if is_instance_valid(target_e) else -1.0, " (want 0)")
+	# our shots reach Bob
+	bob_in.clear()
+	pw.player._shoot(pw.player.global_position.normalized())
+	var sev := {}
+	var shot_wait := 0.0
+	while sev.is_empty() and shot_wait < 1.5:
+		await _wait(0.1)
+		shot_wait += 0.1
+		for m in bob_in:
+			if m.t == "ev" and m.kind == "shots":
+				sev = m
+	print("[net] our shots reached bob=", not sev.is_empty(), " ", sev.get("data", {}).get("w", ""), " ", (sev.get("data", {}).get("s", [{}]) as Array)[0].get("k", ""))
 	# Titans: a friend's kill only counts if we were there
 	var tkind: String = Db.TITANS.get(pw.planet.biome, Db.TITANS.values()[0])
 	var pu: Vector3 = pw.player.global_position.normalized()

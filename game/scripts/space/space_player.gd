@@ -363,6 +363,8 @@ func _fire_cannons(_hit: Dictionary, _foe: SpaceEnemy) -> void:
 				Sound.play_3d("crit" if crit else "hit", r.position, -6.0, 0.1, 40.0)
 			exclude.append(e.get_rid())
 		CombatFx.tracer(world, muzzle, end, col * (1.6 if wd.pierce else 1.0))
+		var rel: Array = world._rel(end)
+		Net.queue_shot({"k": "rail" if wd.pierce else "hit", "a": rel[0], "b": Net._arr(rel[1])})
 
 
 func _launch_missiles(aimed: SpaceEnemy) -> void:

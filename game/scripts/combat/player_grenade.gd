@@ -11,6 +11,7 @@ var velocity := Vector3.ZERO
 var damage := 10.0
 var radius := 3.5
 var burn_time := 3.0
+var cosmetic := false # a friend's grenade: the blast shows, their game deals the damage
 var _life := LIFE
 var _mesh: MeshInstance3D
 
@@ -64,7 +65,7 @@ func _burst() -> void:
 	world.explosion(at, Color(1.0, 0.5, 0.15), radius * 0.45)
 	world.shockwave(at, radius, Color(1.0, 0.55, 0.2))
 	Sound.play_3d("fire_burst", at, -2.0, 0.08, 24.0)
-	for e in world.enemies_near(at, radius):
+	for e in ([] if cosmetic else world.enemies_near(at, radius)):
 		var falloff := clampf(1.0 - e.global_position.distance_to(at) / (radius * 1.4), 0.4, 1.0)
 		e.take_hit(damage * falloff, false, "fire", at)
 		if e.is_alive():

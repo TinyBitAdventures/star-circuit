@@ -34,6 +34,7 @@
 ### Multiplayer
 - Enemies now go after whichever robot is closest, yours or a friend's, so a drone your friend is fighting turns on them on your screen too instead of standing idle. A swing at your friend never hurts you.
 - Shared enemies agree on their health: every second, each of you reports the ones you're hitting and everyone takes the lowest. An enemy a friend is fighting no longer heals while it walks home.
+- You can see friends shoot: their pulse shots, scatter, rail slugs, arc bolts, cryo beams and cinder grenades now fire from their robot on your screen (with the sound), and their robot raises its arm to aim. In space, you see their cannon fire. A friend's grenade only bursts for show; their own game deals the damage.
 - A Titan felled by a friend only gives you its Titan Core and the reward if you were in the fight (within 120 m). Otherwise you're told who got it, and it's still there to fight next time.
 
 ### Updates

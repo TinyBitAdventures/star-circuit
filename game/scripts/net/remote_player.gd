@@ -13,6 +13,8 @@ var _target := Vector3.ZERO
 var _fwd := Vector3.FORWARD
 var _has := false
 var _speed := 0.0
+var _aim_t := 0.0
+const SHOT_SOUNDS := {"Arc": "arc_zap", "Cinder": "cinder_thump", "Rail": "sentinel_shot", "Scatter": "blaster", "Cryo": "blaster"}
 
 
 func setup(pid: int, info: Dictionary, m: String) -> void:
@@ -72,3 +74,54 @@ func _process(delta: float) -> void:
 		visual.swimming = anim == "swim"
 	else:
 		visual.boost = anim == "boost"
+	_aim_t = maxf(0.0, _aim_t - delta)
+	visual.aiming = _aim_t > 0.0 and mode == "planet"
+
+
+func shot_color() -> Color:
+	var look: Dictionary = Net.players[id].look if Net.players.has(id) else {}
+	if look.has("glow") and Color.html_is_valid(String(look.glow)):
+		return Color(String(look.glow))
+	return Db.ROBOTS[visual.robot_id].color.lightened(0.3) if Db.ROBOTS.has(visual.robot_id) else Color("9bd1ff")
+
+
+## Draw a friend's shots from where their robot stands on our screen.
+## world: the planet or space scene (space ends arrive relative to a planet).
+func show_shots(weapon: String, shots: Array, world: Node3D) -> void:
+	var up := global_position.normalized() if mode == "planet" else global_basis.y
+	var muzzle := global_position + up * 1.3 + global_basis.x * 0.55 - global_basis.z * 0.5 if mode == "planet" \
+		else global_transform * Vector3(0.9, -0.5, -1.4)
+	var col := shot_color()
+	var reach := 400.0 if mode == "planet" else 3000.0
+	var drew := false
+	for s in shots.slice(0, Net.MAX_SHOTS):
+		if not s is Dictionary:
+			continue
+		var k := String(s.get("k", "hit"))
+		if k == "lob":
+			if mode != "planet":
+				continue
+			var v := Net._vec(s.get("v"))
+			var g := PlayerGrenade.launch(world, muzzle, v.limit_length(40.0), 0.0, 3.5, 0.0)
+			g.cosmetic = true
+			drew = true
+			continue
+		var end := Net._vec(s.get("b"))
+		if mode == "space":
+			end = world._abs(int(s.get("a", -1)), end)
+		if end.distance_to(muzzle) > reach:
+			continue
+		drew = true
+		match k:
+			"rail":
+				CombatFx.tracer(world, muzzle, end, col * 1.6)
+				CombatFx.spark(world, end, col, 1.2)
+			"arc":
+				CombatFx.arc_bolt(world, muzzle, end, Color(0.75, 0.7, 1.0) * 2.2)
+			"beam":
+				CombatFx.tracer(world, muzzle, end, Color(0.55, 0.9, 1.0) * 2.0)
+			_:
+				CombatFx.tracer(world, muzzle, end, col)
+	if drew:
+		_aim_t = 0.6
+		Sound.play_3d(SHOT_SOUNDS.get(weapon, "blaster"), muzzle, -8.0, 0.12, 20.0 if mode == "planet" else 60.0)
