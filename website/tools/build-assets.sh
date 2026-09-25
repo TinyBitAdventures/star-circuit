@@ -10,7 +10,7 @@ REPO="$(dirname "$HERE")"
 T="$HERE/theme/star-circuit/assets"
 mkdir -p "$T/music" "$T/img" "$T/data"
 ( cd "$REPO/game" && godot --headless --path . -s ../website/tools/export_site_data.gd 2>&1 | grep '\[export\]' )
-TRACKS="menu verdant arid crystal ember town space orbit ocean abyss underground hyperspace home lab combat"
+TRACKS="menu verdant arid crystal ember town space orbit ocean abyss underground hyperspace home lab combat titan"
 for tr in $TRACKS; do
 	cp "$REPO/game/assets/audio/music/$tr.ogg" "$T/music/$tr.ogg"
 	ffmpeg -loglevel error -y -i "$T/music/$tr.ogg" -c:a aac -b:a 128k "$T/music/$tr.m4a"
@@ -19,7 +19,7 @@ echo "music: $(ls "$T/music" | wc -l | tr -d ' ') files"
 if [[ "${1:-}" == "--shots" ]]; then
 	CAP="$(mktemp -d)"
 	cd "$REPO/game"
-	for tour in portraits atmo mine orbit sea volcano warp home lab net; do
+	for tour in portraits atmo mine orbit sea volcano warp home lab net bestiary titans weapons; do
 		rm -rf "$REPO/shots"
 		SHOTS=$tour godot --path . --resolution 1600x900 res://scenes/dev_shots.tscn >/dev/null 2>&1 || true
 		mkdir -p "$CAP/$tour" && cp "$REPO/shots/"*.png "$CAP/$tour/" 2>/dev/null || true
@@ -66,6 +66,11 @@ lab lab_result lab-result
 net net_bob_and_crate net-planet
 net net_cave net-cave
 net net_sea net-sea
+titans titan_colossus_lanes fight-colossus
+titans titan_sentinel_expose fight-sentinel
+bestiary foe_warden fight-warden
+bestiary foe_thornback fight-thornback
+weapons weapon_cinder fight-cinder
 LIST
 	[[ $missing == 0 ]] || { echo "some shots were missing; the old images were kept" >&2; exit 1; }
 	echo "shots: rebuilt $(ls "$T/img" | wc -l | tr -d ' ') images"

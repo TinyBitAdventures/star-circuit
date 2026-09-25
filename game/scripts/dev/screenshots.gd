@@ -1805,7 +1805,7 @@ func _bestiary_tour() -> void:
 		var p = w.player
 		var up: Vector3 = p.global_position.normalized()
 		var b := PlanetGen.align_basis(up)
-		var ed: Vector3 = (up + b.z * 11.0 / w.gen.radius).normalized()
+		var ed: Vector3 = (up + b.z * 8.0 / w.gen.radius).normalized()
 		var e: Enemy = w._spawn_enemy(foe, maxi(1, Game.level), ed, 990)
 		await _wait(0.3)
 		var to: Vector3 = e.global_position - p.global_position
@@ -1895,6 +1895,10 @@ func _weapons_tour() -> void:
 	for u in ["arc_coil", "cinder_launcher", "cryo_projector"]:
 		Game.add_item(u, 1)
 	var p = w.player
+	# out on open ground, away from the outpost, once the unlock banners have gone
+	var away: Vector3 = p.global_position.normalized()
+	p.place_at((away + PlanetGen.align_basis(away).x * 70.0 / w.gen.radius).normalized(), w.gen)
+	await _wait(10.0)
 	var up: Vector3 = p.global_position.normalized()
 	var b := PlanetGen.align_basis(up)
 	var foes: Array = []
@@ -1921,7 +1925,7 @@ func _weapons_tour() -> void:
 			p._fire_pose = 0.6
 			await _wait(0.1 if wid == "cryo" else 0.02)
 		if wid == "cinder":
-			await _wait(0.45)
+			await _wait(0.75)
 		await shot("weapon_%s" % wid)
 		await _wait(1.0)
 

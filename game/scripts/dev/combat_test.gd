@@ -123,6 +123,7 @@ func _run() -> void:
 	await _biome_foes_2()
 	await _weapons()
 	await _titans()
+	_hunts()
 	get_tree().quit()
 
 
@@ -547,3 +548,26 @@ func _titans() -> void:
 	Game.go_to_planet(again.x, again.y)
 	await _wait(5.5)
 	print("[combat] titan revisit: titan=%s titans felled=%d milestone metric=%d" % [get_tree().current_scene.titan != null, Game.titans.size(), Game.metric("titans")])
+
+
+
+func _hunts() -> void:
+	# boards offer Hunt Contracts that only count the named enemy
+	var found := {}
+	for si in Galaxy.stars.size():
+		for pl in Galaxy.star(si).planets:
+			if pl.get("town", {}).is_empty():
+				continue
+			for d in 30:
+				Game.play_time = d * 1800.0
+				for b in Game.board_offers(pl):
+					if b.type == "hunt" and found.size() < 3:
+						found[b.foe] = b
+	var b: Dictionary = found.values()[0]
+	Game.bounties = [b.duplicate(true)]
+	var other: String = "scrapper" if b.foe != "scrapper" else "sentinel"
+	Game.record_kill(other, 5, false)
+	var p0 := int(Game.bounties[0].progress)
+	Game.record_kill(b.foe, 5, false)
+	print("[combat] hunt: '%s' %s: other kill -> %d, %s kill -> %d / %d" % [b.text, b.credits, p0, b.foe, int(Game.bounties[0].progress), int(b.n)])
+	Game.bounties = []

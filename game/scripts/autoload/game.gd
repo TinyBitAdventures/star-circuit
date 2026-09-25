@@ -365,6 +365,7 @@ func record_kill(type: String, lvl: int, elite: bool) -> void:
 		add_item("repair_kit", 1)
 	add_credits(int((2 + lvl * 2) * (5 if elite else 1)))
 	_bounty_event("kill", 1)
+	_bounty_event("hunt", 1, type)
 	_quest_event("kill", type)
 	if elite:
 		_quest_event("kill_elite", type)
@@ -1344,8 +1345,19 @@ func board_offers(planet: Dictionary) -> Array:
 			"space_kill":
 				b.n = rng.randi_range(3, 7)
 				b.credits = b.n * (22 + lvl * 4)
+			"hunt":
+				# the board's own world type if it has a signature enemy, otherwise one from elsewhere
+				var foe: String = Db.BIOME_FOES.get(planet.biome, "")
+				if foe == "" or rng.randf() < 0.4:
+					var foes: Array = Db.BIOME_FOES.values()
+					foe = foes[rng.randi() % foes.size()]
+				b.foe = foe
+				b.n = rng.randi_range(2, 4) if foe != "mite" else rng.randi_range(5, 9)
+				b.credits = b.n * (30 + lvl * 5) / (2 if foe == "mite" else 1)
 		b.xp = int(b.credits * 1.2) + 40
-		b.text = String(tpl.text).format({"n": b.n, "item": Db.item_name(b.get("item", ""))})
+		var foe_def: Dictionary = Db.ENEMIES.get(b.get("foe", ""), {})
+		b.text = String(tpl.text).format({"n": b.n, "item": Db.item_name(b.get("item", "")),
+			"foe": foe_def.get("name", ""), "world": Db.BIOMES.get(foe_def.get("biome", ""), {}).get("name", "")})
 		out.append(b)
 	return out
 
@@ -1388,10 +1400,10 @@ func turn_in_bounty(b: Dictionary) -> void:
 	quest_changed.emit()
 
 
-func _bounty_event(kind: String, amount: int) -> void:
+func _bounty_event(kind: String, amount: int, what := "") -> void:
 	var changed := false
 	for b in bounties:
-		if b.type == kind and int(b.progress) < int(b.n):
+		if b.type == kind and (what == "" or b.get("foe", "") == what) and int(b.progress) < int(b.n):
 			b.progress = mini(int(b.n), int(b.progress) + amount)
 			changed = true
 			if int(b.progress) >= int(b.n):

@@ -673,6 +673,7 @@ const BOUNTIES := [
 	{"type": "scan", "title": "Field Survey", "text": "Log {n} new species on any world."},
 	{"type": "loot", "title": "Salvage Rights", "text": "Salvage {n} caches, pods or monoliths."},
 	{"type": "space_kill", "title": "Pirate Hunt", "text": "Destroy {n} pirate ships in space."},
+	{"type": "hunt", "title": "Hunt Contract", "text": "Put down {n} {foe} (they roam {world} worlds)."},
 	{"type": "asteroid", "title": "Belt Contract", "text": "Break {n} asteroids in any asteroid belt."},
 ]
 

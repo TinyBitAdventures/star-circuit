@@ -71,6 +71,14 @@ $modes = [
 		'shots' => [ [ 'lab-soup', 'Fusing strains in the soup' ], [ 'lab-station', 'The lab station' ], [ 'lab-result', 'A graded culture' ] ],
 	],
 	[
+		'id'    => 'fight',
+		'name'  => 'Fight for it',
+		'kicker'=> 'Combat and Titans',
+		'text'  => 'Every world type has its own enemy with a trick to learn: Thornbacks that charge down painted lanes, Frost Wardens behind shields, Void Stalkers you can only see when you scan. Burn, chill and shock them with six weapons, then take on the Titans sleeping in stone rings on the most dangerous worlds.',
+		'bullets' => [ 'Nine signature enemies and a Bestiary to log them', 'Arc, Cinder and Cryo weapons with Mk II and III retunes', 'Three Titans with telegraphed attacks and a battle theme' ],
+		'shots' => [ [ 'fight-colossus', 'A Colossus splits the ground' ], [ 'fight-thornback', 'A Thornback lines up its charge' ], [ 'fight-warden', 'A Frost Warden behind its shield' ], [ 'fight-sentinel', 'A Storm Sentinel, core exposed' ], [ 'fight-cinder', 'A Cinder grenade lands' ] ],
+	],
+	[
 		'id'    => 'net',
 		'name'  => 'Play together',
 		'kicker'=> 'Multiplayer',
@@ -95,6 +103,7 @@ $tracks = [
 	[ 'hyperspace', 'Interdiction', 'Driving synthwave for pirate fights in hyperspace.' ],
 	[ 'home', 'Homespace', 'A lo-fi loop for the room inside your robot.' ],
 	[ 'lab', 'The Micro Lab', 'Bubbling, curious synths under the microscope.' ],
+	[ 'titan', 'Titanfall', 'War drums and a rising choir when a Titan wakes.' ],
 	[ 'combat', 'Combat Layer', 'The track that crossfades in when drones give chase.' ],
 ];
 ?><!doctype html>
