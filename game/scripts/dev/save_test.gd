@@ -32,6 +32,18 @@ func _corrupt(path: String) -> void:
 
 func _run() -> void:
 	Sound.show_tips = false
+	# LOAD_REAL=<file>: load a copy of a real save (e.g. from an older release) and report on it
+	if OS.get_environment("LOAD_REAL") != "":
+		DirAccess.copy_absolute(OS.get_environment("LOAD_REAL"), _path())
+		var ok := Game.load_game(1)
+		await _wait(6.0)
+		print("[save] real save: loaded=", ok, " name=", Game.player_name, " level=", Game.level, " credits=", Game.credits,
+			" scene=", get_tree().current_scene.name, " quest=", Game.current_quest().get("id", "done"), " titans=", Game.titans.size(), " bestiary=", Game.bestiary.size())
+		Game.save_game()
+		print("[save] real save re-saved ok=", not Game._read_save(_path()).is_empty())
+		Game.delete_slot(1)
+		get_tree().quit()
+		return
 	Game.delete_slot(1)
 	Game.new_game("miner", "Saver", 1)
 	await _wait(4.0)

@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased (v0.4.0)
+## v0.4.0 — 2026-09-25
+
+The combat release. Every world type gets a signature enemy with a trick to learn, Titans sleep in stone rings on
+dangerous worlds, three new loadouts grow out of what you hunt, and burn, chill and shock work both ways. Friends now
+fight side by side properly, find each other on the maps and on the local network, and the game keeps itself up to date
+from here on. Saves from v0.3.0 carry over; multiplayer needs [server v0.2.0](https://github.com/TinyBitAdventures/star-circuit-server/releases/tag/v0.2.0).
 
 ### Combat
 - Every world type now has a signature enemy with a trick to learn:
